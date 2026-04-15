@@ -1,0 +1,1 @@
+ALTER TABLE public.intellectual_contributions ADD COLUMN IF NOT EXISTS impact_factor text DEFAULT NULL;
