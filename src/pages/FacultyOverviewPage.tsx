@@ -146,6 +146,14 @@ const FacultyOverviewPage = () => {
             </CardContent>
           </Card>
         )}
+        {profile && (
+          <CvUploadDialog
+            open={cvUploadOpen}
+            onOpenChange={setCvUploadOpen}
+            facultyId={profile.faculty_id}
+            userId={user!.id}
+          />
+        )}
       </div>
     </AppLayout>
   );
