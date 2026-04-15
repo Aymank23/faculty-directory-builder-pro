@@ -72,12 +72,13 @@ const FacultyOverviewPage = () => {
               <Upload className="h-4 w-4 mr-2" /> Upload CV
             </Button>
             <DashboardTour
-            storageKey="tour-faculty-overview"
-            steps={[
-              { target: '[data-tour="kpi-row"]', title: 'Your Metrics', description: 'Key numbers at a glance — total ICs, PRJs, Q1 publications, and pending approvals.' },
-              { target: '[data-tour="recent"]', title: 'Recent Contributions', description: 'Your latest intellectual contributions with their current status.' },
-            ]}
-          />
+              storageKey="tour-faculty-overview"
+              steps={[
+                { target: '[data-tour="kpi-row"]', title: 'Your Metrics', description: 'Key numbers at a glance — total ICs, PRJs, Q1 publications, and pending approvals.' },
+                { target: '[data-tour="recent"]', title: 'Recent Contributions', description: 'Your latest intellectual contributions with their current status.' },
+              ]}
+            />
+          </div>
         </div>
 
         {/* Primary KPIs */}
