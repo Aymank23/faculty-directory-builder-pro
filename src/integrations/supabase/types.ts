@@ -17,25 +17,34 @@ export type Database = {
       academic_qualifications: {
         Row: {
           created_at: string
+          degree_certification: string | null
           description: string | null
           faculty_id: string | null
+          field_area: string | null
           id: string
+          institution: string | null
           qualification_type: string | null
           year: number | null
         }
         Insert: {
           created_at?: string
+          degree_certification?: string | null
           description?: string | null
           faculty_id?: string | null
+          field_area?: string | null
           id?: string
+          institution?: string | null
           qualification_type?: string | null
           year?: number | null
         }
         Update: {
           created_at?: string
+          degree_certification?: string | null
           description?: string | null
           faculty_id?: string | null
+          field_area?: string | null
           id?: string
+          institution?: string | null
           qualification_type?: string | null
           year?: number | null
         }
@@ -91,149 +100,13 @@ export type Database = {
         }
         Relationships: []
       }
-      ar_advisors: {
-        Row: {
-          campus: string | null
-          created_at: string | null
-          department: string
-          email: string | null
-          id: string
-          name: string
-        }
-        Insert: {
-          campus?: string | null
-          created_at?: string | null
-          department: string
-          email?: string | null
-          id?: string
-          name: string
-        }
-        Update: {
-          campus?: string | null
-          created_at?: string | null
-          department?: string
-          email?: string | null
-          id?: string
-          name?: string
-        }
-        Relationships: []
-      }
-      ar_students: {
-        Row: {
-          admit_term: string | null
-          advisor_id: string | null
-          aip_status: string | null
-          campus: string | null
-          case_status: string | null
-          cgpa: number | null
-          college: string | null
-          concentration: string | null
-          created_at: string | null
-          department: string | null
-          email: string | null
-          follow_up_status: string | null
-          id: string
-          institutional_credits_earned: number | null
-          intervention_outcome: string | null
-          last_updated_by: string | null
-          level_group: string | null
-          major: string | null
-          meeting_date: string | null
-          meeting_status: string | null
-          name: string
-          notes: string | null
-          phone: string | null
-          program: string | null
-          risk_category: string | null
-          student_class: string | null
-          student_id: string
-          student_population: string | null
-          term: string | null
-          total_credits_earned: number | null
-          updated_at: string | null
-        }
-        Insert: {
-          admit_term?: string | null
-          advisor_id?: string | null
-          aip_status?: string | null
-          campus?: string | null
-          case_status?: string | null
-          cgpa?: number | null
-          college?: string | null
-          concentration?: string | null
-          created_at?: string | null
-          department?: string | null
-          email?: string | null
-          follow_up_status?: string | null
-          id?: string
-          institutional_credits_earned?: number | null
-          intervention_outcome?: string | null
-          last_updated_by?: string | null
-          level_group?: string | null
-          major?: string | null
-          meeting_date?: string | null
-          meeting_status?: string | null
-          name: string
-          notes?: string | null
-          phone?: string | null
-          program?: string | null
-          risk_category?: string | null
-          student_class?: string | null
-          student_id: string
-          student_population?: string | null
-          term?: string | null
-          total_credits_earned?: number | null
-          updated_at?: string | null
-        }
-        Update: {
-          admit_term?: string | null
-          advisor_id?: string | null
-          aip_status?: string | null
-          campus?: string | null
-          case_status?: string | null
-          cgpa?: number | null
-          college?: string | null
-          concentration?: string | null
-          created_at?: string | null
-          department?: string | null
-          email?: string | null
-          follow_up_status?: string | null
-          id?: string
-          institutional_credits_earned?: number | null
-          intervention_outcome?: string | null
-          last_updated_by?: string | null
-          level_group?: string | null
-          major?: string | null
-          meeting_date?: string | null
-          meeting_status?: string | null
-          name?: string
-          notes?: string | null
-          phone?: string | null
-          program?: string | null
-          risk_category?: string | null
-          student_class?: string | null
-          student_id?: string
-          student_population?: string | null
-          term?: string | null
-          total_credits_earned?: number | null
-          updated_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "ar_students_advisor_id_fkey"
-            columns: ["advisor_id"]
-            isOneToOne: false
-            referencedRelation: "ar_advisors"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       audit_log: {
         Row: {
           action: string
           created_at: string
           details: Json | null
           id: string
+          target_record: string | null
           target_table: string | null
           user_id: string | null
         }
@@ -242,6 +115,7 @@ export type Database = {
           created_at?: string
           details?: Json | null
           id?: string
+          target_record?: string | null
           target_table?: string | null
           user_id?: string | null
         }
@@ -250,6 +124,7 @@ export type Database = {
           created_at?: string
           details?: Json | null
           id?: string
+          target_record?: string | null
           target_table?: string | null
           user_id?: string | null
         }
@@ -257,24 +132,30 @@ export type Database = {
       }
       awards_recognition: {
         Row: {
+          award: string | null
           award_name: string | null
           created_at: string
           faculty_id: string | null
           id: string
+          institution_organization: string | null
           year: number | null
         }
         Insert: {
+          award?: string | null
           award_name?: string | null
           created_at?: string
           faculty_id?: string | null
           id?: string
+          institution_organization?: string | null
           year?: number | null
         }
         Update: {
+          award?: string | null
           award_name?: string | null
           created_at?: string
           faculty_id?: string | null
           id?: string
+          institution_organization?: string | null
           year?: number | null
         }
         Relationships: [
@@ -369,55 +250,87 @@ export type Database = {
           updated_at?: string
           user_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "faculty_profiles_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "app_users"
+            referencedColumns: ["user_id"]
+          },
+        ]
       }
       intellectual_contributions: {
         Row: {
           abdc_rank: string | null
+          apa_citation: string | null
           authors: string | null
           created_at: string
           doi: string | null
+          evidence_file_url: string | null
+          evidence_status: string | null
           faculty_id: string | null
           ic_category: string | null
           ic_id: string
           ic_type: string | null
+          impact_factor: string | null
+          indexing_database: string | null
           journal_outlet: string | null
           quartile: string | null
+          rejection_reason: string | null
           status: string | null
           title: string | null
           updated_at: string
+          verification_date: string | null
+          verified_by: string | null
           year: number | null
         }
         Insert: {
           abdc_rank?: string | null
+          apa_citation?: string | null
           authors?: string | null
           created_at?: string
           doi?: string | null
+          evidence_file_url?: string | null
+          evidence_status?: string | null
           faculty_id?: string | null
           ic_category?: string | null
           ic_id?: string
           ic_type?: string | null
+          impact_factor?: string | null
+          indexing_database?: string | null
           journal_outlet?: string | null
           quartile?: string | null
+          rejection_reason?: string | null
           status?: string | null
           title?: string | null
           updated_at?: string
+          verification_date?: string | null
+          verified_by?: string | null
           year?: number | null
         }
         Update: {
           abdc_rank?: string | null
+          apa_citation?: string | null
           authors?: string | null
           created_at?: string
           doi?: string | null
+          evidence_file_url?: string | null
+          evidence_status?: string | null
           faculty_id?: string | null
           ic_category?: string | null
           ic_id?: string
           ic_type?: string | null
+          impact_factor?: string | null
+          indexing_database?: string | null
           journal_outlet?: string | null
           quartile?: string | null
+          rejection_reason?: string | null
           status?: string | null
           title?: string | null
           updated_at?: string
+          verification_date?: string | null
+          verified_by?: string | null
           year?: number | null
         }
         Relationships: [
@@ -428,30 +341,46 @@ export type Database = {
             referencedRelation: "faculty_profiles"
             referencedColumns: ["faculty_id"]
           },
+          {
+            foreignKeyName: "intellectual_contributions_verified_by_fkey"
+            columns: ["verified_by"]
+            isOneToOne: false
+            referencedRelation: "app_users"
+            referencedColumns: ["user_id"]
+          },
         ]
       }
       professional_engagements: {
         Row: {
+          activity: string | null
           created_at: string
           description: string | null
+          details: string | null
           engagement_type: string | null
           faculty_id: string | null
+          from_to: string | null
           id: string
           year: number | null
         }
         Insert: {
+          activity?: string | null
           created_at?: string
           description?: string | null
+          details?: string | null
           engagement_type?: string | null
           faculty_id?: string | null
+          from_to?: string | null
           id?: string
           year?: number | null
         }
         Update: {
+          activity?: string | null
           created_at?: string
           description?: string | null
+          details?: string | null
           engagement_type?: string | null
           faculty_id?: string | null
+          from_to?: string | null
           id?: string
           year?: number | null
         }
@@ -467,27 +396,36 @@ export type Database = {
       }
       service_contributions: {
         Row: {
+          committee_role: string | null
           contribution_type: string | null
           created_at: string
           description: string | null
           faculty_id: string | null
+          from_to: string | null
           id: string
+          level: string | null
           year: number | null
         }
         Insert: {
+          committee_role?: string | null
           contribution_type?: string | null
           created_at?: string
           description?: string | null
           faculty_id?: string | null
+          from_to?: string | null
           id?: string
+          level?: string | null
           year?: number | null
         }
         Update: {
+          committee_role?: string | null
           contribution_type?: string | null
           created_at?: string
           description?: string | null
           faculty_id?: string | null
+          from_to?: string | null
           id?: string
+          level?: string | null
           year?: number | null
         }
         Relationships: [
