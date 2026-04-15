@@ -1,14 +1,16 @@
+import { useState } from 'react';
 import AppLayout from '@/components/AppLayout';
 import DashboardTour from '@/components/DashboardTour';
 import KpiCard from '@/components/KpiCard';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { useQuery } from '@tanstack/react-query';
-import { FileText, CheckCircle, Clock, XCircle, BookOpen, BarChart3, TrendingUp, Award } from 'lucide-react';
-
+import { FileText, CheckCircle, Clock, XCircle, BookOpen, BarChart3, TrendingUp, Award, Upload } from 'lucide-react';
+import CvUploadDialog from '@/components/CvUploadDialog';
 const statusVariant = (s: string) => {
   if (s === 'verified') return 'default' as const;
   if (s === 'under_review') return 'secondary' as const;
