@@ -20,6 +20,7 @@ const statusVariant = (s: string) => {
 
 const FacultyOverviewPage = () => {
   const { user } = useAuth();
+  const [cvUploadOpen, setCvUploadOpen] = useState(false);
 
   const { data: profile } = useQuery({
     queryKey: ['my-profile', user?.id],
