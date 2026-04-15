@@ -1,14 +1,16 @@
+import { useState } from 'react';
 import AppLayout from '@/components/AppLayout';
 import DashboardTour from '@/components/DashboardTour';
 import KpiCard from '@/components/KpiCard';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { useQuery } from '@tanstack/react-query';
-import { FileText, CheckCircle, Clock, XCircle, BookOpen, BarChart3, TrendingUp, Award } from 'lucide-react';
-
+import { FileText, CheckCircle, Clock, XCircle, BookOpen, BarChart3, TrendingUp, Award, Upload } from 'lucide-react';
+import CvUploadDialog from '@/components/CvUploadDialog';
 const statusVariant = (s: string) => {
   if (s === 'verified') return 'default' as const;
   if (s === 'under_review') return 'secondary' as const;
@@ -18,6 +20,7 @@ const statusVariant = (s: string) => {
 
 const FacultyOverviewPage = () => {
   const { user } = useAuth();
+  const [cvUploadOpen, setCvUploadOpen] = useState(false);
 
   const { data: profile } = useQuery({
     queryKey: ['my-profile', user?.id],
@@ -64,13 +67,18 @@ const FacultyOverviewPage = () => {
             <h1 className="text-2xl font-bold font-serif text-foreground">Welcome, {user?.full_name}</h1>
             <p className="text-sm text-muted-foreground">Your faculty portfolio overview</p>
           </div>
-          <DashboardTour
-            storageKey="tour-faculty-overview"
-            steps={[
-              { target: '[data-tour="kpi-row"]', title: 'Your Metrics', description: 'Key numbers at a glance — total ICs, PRJs, Q1 publications, and pending approvals.' },
-              { target: '[data-tour="recent"]', title: 'Recent Contributions', description: 'Your latest intellectual contributions with their current status.' },
-            ]}
-          />
+          <div className="flex items-center gap-2">
+            <Button onClick={() => setCvUploadOpen(true)} variant="outline" size="sm">
+              <Upload className="h-4 w-4 mr-2" /> Upload CV
+            </Button>
+            <DashboardTour
+              storageKey="tour-faculty-overview"
+              steps={[
+                { target: '[data-tour="kpi-row"]', title: 'Your Metrics', description: 'Key numbers at a glance — total ICs, PRJs, Q1 publications, and pending approvals.' },
+                { target: '[data-tour="recent"]', title: 'Recent Contributions', description: 'Your latest intellectual contributions with their current status.' },
+              ]}
+            />
+          </div>
         </div>
 
         {/* Primary KPIs */}
@@ -137,6 +145,14 @@ const FacultyOverviewPage = () => {
               </p>
             </CardContent>
           </Card>
+        )}
+        {profile && (
+          <CvUploadDialog
+            open={cvUploadOpen}
+            onOpenChange={setCvUploadOpen}
+            facultyId={profile.faculty_id}
+            userId={user!.id}
+          />
         )}
       </div>
     </AppLayout>
