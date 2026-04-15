@@ -67,7 +67,11 @@ const FacultyOverviewPage = () => {
             <h1 className="text-2xl font-bold font-serif text-foreground">Welcome, {user?.full_name}</h1>
             <p className="text-sm text-muted-foreground">Your faculty portfolio overview</p>
           </div>
-          <DashboardTour
+          <div className="flex items-center gap-2">
+            <Button onClick={() => setCvUploadOpen(true)} variant="outline" size="sm">
+              <Upload className="h-4 w-4 mr-2" /> Upload CV
+            </Button>
+            <DashboardTour
             storageKey="tour-faculty-overview"
             steps={[
               { target: '[data-tour="kpi-row"]', title: 'Your Metrics', description: 'Key numbers at a glance — total ICs, PRJs, Q1 publications, and pending approvals.' },
