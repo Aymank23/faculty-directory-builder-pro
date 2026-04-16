@@ -25,6 +25,7 @@ const navItems = [
   // Faculty items
   { title: 'Overview', path: '/overview', icon: LayoutDashboard, roles: ['faculty'] },
   { title: 'My Profile', path: '/profile', icon: User, roles: ['faculty'] },
+  { title: 'Upload CV', path: '/upload-cv', icon: Upload, roles: ['faculty'] },
   { title: 'Teaching Load', path: '/teaching-load', icon: BookOpen, roles: ['faculty'] },
   { title: 'Add Contribution', path: '/add-contribution', icon: PlusCircle, roles: ['faculty'] },
   { title: 'My Repository', path: '/my-repository', icon: Library, roles: ['faculty'] },

@@ -168,6 +168,57 @@ export type Database = {
           },
         ]
       }
+      cv_uploads: {
+        Row: {
+          changes_summary: Json | null
+          created_at: string
+          faculty_id: string
+          file_name: string
+          ics_added: number | null
+          ics_skipped: number | null
+          ics_updated: number | null
+          id: string
+          parsing_quality_score: number | null
+          parsing_timestamp: string | null
+          profile_fields_updated: number | null
+          status: string
+          upload_timestamp: string
+          user_id: string | null
+        }
+        Insert: {
+          changes_summary?: Json | null
+          created_at?: string
+          faculty_id: string
+          file_name: string
+          ics_added?: number | null
+          ics_skipped?: number | null
+          ics_updated?: number | null
+          id?: string
+          parsing_quality_score?: number | null
+          parsing_timestamp?: string | null
+          profile_fields_updated?: number | null
+          status?: string
+          upload_timestamp?: string
+          user_id?: string | null
+        }
+        Update: {
+          changes_summary?: Json | null
+          created_at?: string
+          faculty_id?: string
+          file_name?: string
+          ics_added?: number | null
+          ics_skipped?: number | null
+          ics_updated?: number | null
+          id?: string
+          parsing_quality_score?: number | null
+          parsing_timestamp?: string | null
+          profile_fields_updated?: number | null
+          status?: string
+          upload_timestamp?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       faculty_profiles: {
         Row: {
           academic_rank: string | null
@@ -393,6 +444,36 @@ export type Database = {
             referencedColumns: ["faculty_id"]
           },
         ]
+      }
+      professional_experience: {
+        Row: {
+          created_at: string
+          faculty_id: string | null
+          id: string
+          key_responsibilities: string | null
+          organization: string | null
+          period: string | null
+          position_title: string | null
+        }
+        Insert: {
+          created_at?: string
+          faculty_id?: string | null
+          id?: string
+          key_responsibilities?: string | null
+          organization?: string | null
+          period?: string | null
+          position_title?: string | null
+        }
+        Update: {
+          created_at?: string
+          faculty_id?: string | null
+          id?: string
+          key_responsibilities?: string | null
+          organization?: string | null
+          period?: string | null
+          position_title?: string | null
+        }
+        Relationships: []
       }
       service_contributions: {
         Row: {
