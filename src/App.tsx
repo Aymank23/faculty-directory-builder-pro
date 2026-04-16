@@ -8,6 +8,7 @@ import LoginPage from "./pages/LoginPage";
 import MasterDashboardPage from "./pages/MasterDashboardPage";
 import FacultyOverviewPage from "./pages/FacultyOverviewPage";
 import FacultyProfilePage from "./pages/FacultyProfilePage";
+import UploadCvPage from "./pages/UploadCvPage";
 import TeachingLoadPage from "./pages/TeachingLoadPage";
 import AddContributionPage from "./pages/AddContributionPage";
 import MyRepositoryPage from "./pages/MyRepositoryPage";
@@ -61,6 +62,7 @@ const App = () => (
             {/* Faculty routes */}
             <Route path="/overview" element={<ProtectedRoute allowedRoles={['faculty']}><FacultyOverviewPage /></ProtectedRoute>} />
             <Route path="/profile" element={<ProtectedRoute allowedRoles={['faculty']}><FacultyProfilePage /></ProtectedRoute>} />
+            <Route path="/upload-cv" element={<ProtectedRoute allowedRoles={['faculty']}><UploadCvPage /></ProtectedRoute>} />
             <Route path="/teaching-load" element={<ProtectedRoute allowedRoles={['faculty']}><TeachingLoadPage /></ProtectedRoute>} />
             <Route path="/add-contribution" element={<ProtectedRoute allowedRoles={['faculty']}><AddContributionPage /></ProtectedRoute>} />
             <Route path="/my-repository" element={<ProtectedRoute allowedRoles={['faculty']}><MyRepositoryPage /></ProtectedRoute>} />
