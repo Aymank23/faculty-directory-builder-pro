@@ -121,13 +121,16 @@ const FacultyDirectoryPage = () => {
   const [visibleCols, setVisibleCols] = useState<Set<string>>(DEFAULT_VISIBLE);
   const [showInspection, setShowInspection] = useState(false);
 
-  // Filters
+  // Filters — multi-select sets, derived from actual data
   const [search, setSearch] = useState('');
-  const [deptFilter, setDeptFilter] = useState('all');
-  const [campusFilter, setCampusFilter] = useState('all');
-  const [classFilter, setClassFilter] = useState('all');
-  const [suffFilter, setSuffFilter] = useState('all');
-  const [statusFilter, setStatusFilter] = useState('all');
+  const [deptFilter, setDeptFilter] = useState<Set<string>>(new Set());
+  const [campusFilter, setCampusFilter] = useState<Set<string>>(new Set());
+  const [rankFilter, setRankFilter] = useState<Set<string>>(new Set());
+  const [statusFilter, setStatusFilter] = useState<Set<string>>(new Set());
+  const [classFilter, setClassFilter] = useState<Set<string>>(new Set());
+  const [suffFilter, setSuffFilter] = useState<Set<string>>(new Set());
+  const [ftPtFilter, setFtPtFilter] = useState<Set<string>>(new Set());
+  const [tenureFilter, setTenureFilter] = useState<Set<string>>(new Set());
 
   const { data: faculty = [] } = useQuery({
     queryKey: ['all-faculty'],
@@ -137,28 +140,67 @@ const FacultyDirectoryPage = () => {
     },
   });
 
-  const filtered = faculty.filter(f => {
+  // Derive distinct filter values from actual database content (trimmed, deduped, sorted)
+  const distinct = (key: string): string[] => {
+    const set = new Set<string>();
+    for (const f of faculty as any[]) {
+      const v = f[key];
+      if (v === null || v === undefined) continue;
+      const s = String(v).trim();
+      if (s) set.add(s);
+    }
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  };
+
+  const deptOptions = useMemo(() => distinct('department'), [faculty]);
+  const campusOptions = useMemo(() => distinct('campus'), [faculty]);
+  const rankOptions = useMemo(() => distinct('academic_rank'), [faculty]);
+  // "Status" in the Excel = full status text (Full-time Faculty, Adjunct, etc.) — stored in admin_title-equivalent or we synthesize from FT/PT
+  // The Excel has a 'Status' column that maps to the discipline; but in our schema FT/PT is the primary status. We expose both.
+  const ftPtOptions = useMemo(() => distinct('ft_pt_status'), [faculty]);
+  const classOptions = useMemo(() => distinct('faculty_qualification'), [faculty]);
+  const suffOptions = useMemo(() => distinct('faculty_sufficiency'), [faculty]);
+  const tenureOptions = useMemo(() => distinct('tenure_status'), [faculty]);
+
+  const matchSet = (set: Set<string>, value: any) => {
+    if (set.size === 0) return true;
+    const v = (value ?? '').toString().trim();
+    return set.has(v);
+  };
+
+  const filtered = faculty.filter((f: any) => {
     if (search) {
       const s = search.toLowerCase();
-      const name = `${f.first_name} ${f.middle_names || ''} ${f.last_name}`.toLowerCase();
-      if (!name.includes(s) && !(f.employee_id || '').toLowerCase().includes(s) && !(f.email || '').toLowerCase().includes(s)) return false;
+      const name = `${f.first_name || ''} ${f.middle_names || ''} ${f.last_name || ''}`.toLowerCase();
+      if (
+        !name.includes(s) &&
+        !(f.employee_id || '').toString().toLowerCase().includes(s) &&
+        !(f.email || '').toLowerCase().includes(s)
+      ) return false;
     }
-    if (deptFilter !== 'all' && f.department !== deptFilter) return false;
-    if (campusFilter !== 'all' && f.campus !== campusFilter) return false;
-    if (classFilter !== 'all' && f.faculty_qualification !== classFilter) return false;
-    if (suffFilter !== 'all') {
-      if (suffFilter === 'Participating' && f.faculty_sufficiency !== 'Participating') return false;
-      if (suffFilter === 'Supporting' && f.faculty_sufficiency !== 'Supporting') return false;
-    }
-    if (statusFilter !== 'all' && f.ft_pt_status !== statusFilter) return false;
+    if (!matchSet(deptFilter, f.department)) return false;
+    if (!matchSet(campusFilter, f.campus)) return false;
+    if (!matchSet(rankFilter, f.academic_rank)) return false;
+    if (!matchSet(ftPtFilter, f.ft_pt_status)) return false;
+    if (!matchSet(classFilter, f.faculty_qualification)) return false;
+    if (!matchSet(suffFilter, f.faculty_sufficiency)) return false;
+    if (!matchSet(tenureFilter, f.tenure_status)) return false;
     return true;
   });
 
   const resetFilters = () => {
-    setSearch(''); setDeptFilter('all'); setCampusFilter('all'); setClassFilter('all'); setSuffFilter('all'); setStatusFilter('all');
+    setSearch('');
+    setDeptFilter(new Set());
+    setCampusFilter(new Set());
+    setRankFilter(new Set());
+    setFtPtFilter(new Set());
+    setClassFilter(new Set());
+    setSuffFilter(new Set());
+    setTenureFilter(new Set());
   };
 
-  const hasFilters = search || deptFilter !== 'all' || campusFilter !== 'all' || classFilter !== 'all' || suffFilter !== 'all' || statusFilter !== 'all';
+  const hasFilters = !!search || deptFilter.size > 0 || campusFilter.size > 0 || rankFilter.size > 0 ||
+    ftPtFilter.size > 0 || classFilter.size > 0 || suffFilter.size > 0 || tenureFilter.size > 0;
 
   const activeColumns = useMemo(() => allColumns.filter(c => visibleCols.has(c.key)), [visibleCols]);
 
