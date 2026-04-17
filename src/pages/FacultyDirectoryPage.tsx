@@ -392,50 +392,26 @@ const FacultyDirectoryPage = () => {
           </Card>
         )}
 
-        {/* Filter Bar */}
-        <div className="flex flex-wrap gap-3 items-end">
+        {/* Filter Bar — derived from actual data values */}
+        <div className="flex flex-wrap gap-2 items-center">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input placeholder="Search name, ID, email…" value={search} onChange={e => setSearch(e.target.value)} className="pl-9 w-56" />
+            <Input
+              placeholder="Search Employee ID, Name, Email…"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              className="pl-9 w-64"
+            />
           </div>
-          <Select value={deptFilter} onValueChange={setDeptFilter}>
-            <SelectTrigger className="w-44"><SelectValue placeholder="Department" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Departments</SelectItem>
-              {departments.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
-            </SelectContent>
-          </Select>
-          <Select value={campusFilter} onValueChange={setCampusFilter}>
-            <SelectTrigger className="w-32"><SelectValue placeholder="Campus" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Campuses</SelectItem>
-              {campuses.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-            </SelectContent>
-          </Select>
-          <Select value={classFilter} onValueChange={setClassFilter}>
-            <SelectTrigger className="w-36"><SelectValue placeholder="Classification" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Classifications</SelectItem>
-              {facultyQualifications.map(q => <SelectItem key={q} value={q}>{q}</SelectItem>)}
-            </SelectContent>
-          </Select>
-          <Select value={suffFilter} onValueChange={setSuffFilter}>
-            <SelectTrigger className="w-40"><SelectValue placeholder="Participation" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All</SelectItem>
-              <SelectItem value="Participating">Participating</SelectItem>
-              <SelectItem value="Supporting">Supporting</SelectItem>
-            </SelectContent>
-          </Select>
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-28"><SelectValue placeholder="FT/PT" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All</SelectItem>
-              {ftPtStatuses.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-            </SelectContent>
-          </Select>
+          <MultiSelectFilter label="Department" options={deptOptions} selected={deptFilter} onChange={setDeptFilter} width="w-44" />
+          <MultiSelectFilter label="Campus" options={campusOptions} selected={campusFilter} onChange={setCampusFilter} width="w-36" />
+          <MultiSelectFilter label="Rank" options={rankOptions} selected={rankFilter} onChange={setRankFilter} width="w-44" />
+          <MultiSelectFilter label="FT/PT" options={ftPtOptions} selected={ftPtFilter} onChange={setFtPtFilter} width="w-32" />
+          <MultiSelectFilter label="Classification" options={classOptions} selected={classFilter} onChange={setClassFilter} width="w-40" />
+          <MultiSelectFilter label="Participation" options={suffOptions} selected={suffFilter} onChange={setSuffFilter} width="w-40" />
+          <MultiSelectFilter label="Tenure" options={tenureOptions} selected={tenureFilter} onChange={setTenureFilter} width="w-40" />
           {hasFilters && (
-            <Button variant="ghost" size="sm" onClick={resetFilters}>
+            <Button variant="ghost" size="sm" onClick={resetFilters} className="h-10">
               <RotateCcw className="h-4 w-4 mr-1" /> Reset
             </Button>
           )}
