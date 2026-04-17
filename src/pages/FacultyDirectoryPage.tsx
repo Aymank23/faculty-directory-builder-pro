@@ -14,8 +14,54 @@ import DeleteConfirmDialog from '@/components/DeleteConfirmDialog';
 import { supabase } from '@/lib/supabase';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
-import { Users, Pencil, Trash2, Search, RotateCcw, Columns3, AlertTriangle } from 'lucide-react';
+import { Users, Pencil, Trash2, Search, RotateCcw, Columns3, AlertTriangle, Filter as FilterIcon } from 'lucide-react';
 import { departments, campuses, academicRanks, ftPtStatuses, highestDegrees, facultyQualifications, facultySufficiencies, tenureStatuses } from '@/lib/constants';
+
+/* ── Multi-select filter helper ───────────────────────── */
+const MultiSelectFilter = ({ label, options, selected, onChange, width = 'w-44' }: {
+  label: string; options: string[]; selected: Set<string>; onChange: (next: Set<string>) => void; width?: string;
+}) => {
+  const count = selected.size;
+  const display = count === 0 ? label : count === 1 ? Array.from(selected)[0] : `${label} (${count})`;
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button variant="outline" size="sm" className={`${width} justify-between font-normal h-10`}>
+          <span className="truncate text-sm">{display}</span>
+          <FilterIcon className="h-3.5 w-3.5 opacity-50 shrink-0 ml-2" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-56 p-2" align="start">
+        <div className="flex justify-between items-center px-1 pb-2 border-b border-border mb-2">
+          <span className="text-xs font-medium">{label}</span>
+          {count > 0 && (
+            <Button variant="ghost" size="sm" className="h-6 text-xs px-2" onClick={() => onChange(new Set())}>Clear</Button>
+          )}
+        </div>
+        <ScrollArea className="max-h-64">
+          <div className="space-y-1">
+            {options.length === 0 ? (
+              <p className="text-xs text-muted-foreground px-2 py-3 text-center">No values</p>
+            ) : options.map(opt => (
+              <label key={opt} className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-muted/50 cursor-pointer text-xs">
+                <Checkbox
+                  checked={selected.has(opt)}
+                  onCheckedChange={() => {
+                    const next = new Set(selected);
+                    if (next.has(opt)) next.delete(opt); else next.add(opt);
+                    onChange(next);
+                  }}
+                  className="h-3.5 w-3.5"
+                />
+                <span className="text-foreground truncate">{opt}</span>
+              </label>
+            ))}
+          </div>
+        </ScrollArea>
+      </PopoverContent>
+    </Popover>
+  );
+};
 import { toast } from 'sonner';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
@@ -75,13 +121,16 @@ const FacultyDirectoryPage = () => {
   const [visibleCols, setVisibleCols] = useState<Set<string>>(DEFAULT_VISIBLE);
   const [showInspection, setShowInspection] = useState(false);
 
-  // Filters
+  // Filters — multi-select sets, derived from actual data
   const [search, setSearch] = useState('');
-  const [deptFilter, setDeptFilter] = useState('all');
-  const [campusFilter, setCampusFilter] = useState('all');
-  const [classFilter, setClassFilter] = useState('all');
-  const [suffFilter, setSuffFilter] = useState('all');
-  const [statusFilter, setStatusFilter] = useState('all');
+  const [deptFilter, setDeptFilter] = useState<Set<string>>(new Set());
+  const [campusFilter, setCampusFilter] = useState<Set<string>>(new Set());
+  const [rankFilter, setRankFilter] = useState<Set<string>>(new Set());
+  const [statusFilter, setStatusFilter] = useState<Set<string>>(new Set());
+  const [classFilter, setClassFilter] = useState<Set<string>>(new Set());
+  const [suffFilter, setSuffFilter] = useState<Set<string>>(new Set());
+  const [ftPtFilter, setFtPtFilter] = useState<Set<string>>(new Set());
+  const [tenureFilter, setTenureFilter] = useState<Set<string>>(new Set());
 
   const { data: faculty = [] } = useQuery({
     queryKey: ['all-faculty'],
@@ -91,28 +140,67 @@ const FacultyDirectoryPage = () => {
     },
   });
 
-  const filtered = faculty.filter(f => {
+  // Derive distinct filter values from actual database content (trimmed, deduped, sorted)
+  const distinct = (key: string): string[] => {
+    const set = new Set<string>();
+    for (const f of faculty as any[]) {
+      const v = f[key];
+      if (v === null || v === undefined) continue;
+      const s = String(v).trim();
+      if (s) set.add(s);
+    }
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  };
+
+  const deptOptions = useMemo(() => distinct('department'), [faculty]);
+  const campusOptions = useMemo(() => distinct('campus'), [faculty]);
+  const rankOptions = useMemo(() => distinct('academic_rank'), [faculty]);
+  // "Status" in the Excel = full status text (Full-time Faculty, Adjunct, etc.) — stored in admin_title-equivalent or we synthesize from FT/PT
+  // The Excel has a 'Status' column that maps to the discipline; but in our schema FT/PT is the primary status. We expose both.
+  const ftPtOptions = useMemo(() => distinct('ft_pt_status'), [faculty]);
+  const classOptions = useMemo(() => distinct('faculty_qualification'), [faculty]);
+  const suffOptions = useMemo(() => distinct('faculty_sufficiency'), [faculty]);
+  const tenureOptions = useMemo(() => distinct('tenure_status'), [faculty]);
+
+  const matchSet = (set: Set<string>, value: any) => {
+    if (set.size === 0) return true;
+    const v = (value ?? '').toString().trim();
+    return set.has(v);
+  };
+
+  const filtered = faculty.filter((f: any) => {
     if (search) {
       const s = search.toLowerCase();
-      const name = `${f.first_name} ${f.middle_names || ''} ${f.last_name}`.toLowerCase();
-      if (!name.includes(s) && !(f.employee_id || '').toLowerCase().includes(s) && !(f.email || '').toLowerCase().includes(s)) return false;
+      const name = `${f.first_name || ''} ${f.middle_names || ''} ${f.last_name || ''}`.toLowerCase();
+      if (
+        !name.includes(s) &&
+        !(f.employee_id || '').toString().toLowerCase().includes(s) &&
+        !(f.email || '').toLowerCase().includes(s)
+      ) return false;
     }
-    if (deptFilter !== 'all' && f.department !== deptFilter) return false;
-    if (campusFilter !== 'all' && f.campus !== campusFilter) return false;
-    if (classFilter !== 'all' && f.faculty_qualification !== classFilter) return false;
-    if (suffFilter !== 'all') {
-      if (suffFilter === 'Participating' && f.faculty_sufficiency !== 'Participating') return false;
-      if (suffFilter === 'Supporting' && f.faculty_sufficiency !== 'Supporting') return false;
-    }
-    if (statusFilter !== 'all' && f.ft_pt_status !== statusFilter) return false;
+    if (!matchSet(deptFilter, f.department)) return false;
+    if (!matchSet(campusFilter, f.campus)) return false;
+    if (!matchSet(rankFilter, f.academic_rank)) return false;
+    if (!matchSet(ftPtFilter, f.ft_pt_status)) return false;
+    if (!matchSet(classFilter, f.faculty_qualification)) return false;
+    if (!matchSet(suffFilter, f.faculty_sufficiency)) return false;
+    if (!matchSet(tenureFilter, f.tenure_status)) return false;
     return true;
   });
 
   const resetFilters = () => {
-    setSearch(''); setDeptFilter('all'); setCampusFilter('all'); setClassFilter('all'); setSuffFilter('all'); setStatusFilter('all');
+    setSearch('');
+    setDeptFilter(new Set());
+    setCampusFilter(new Set());
+    setRankFilter(new Set());
+    setFtPtFilter(new Set());
+    setClassFilter(new Set());
+    setSuffFilter(new Set());
+    setTenureFilter(new Set());
   };
 
-  const hasFilters = search || deptFilter !== 'all' || campusFilter !== 'all' || classFilter !== 'all' || suffFilter !== 'all' || statusFilter !== 'all';
+  const hasFilters = !!search || deptFilter.size > 0 || campusFilter.size > 0 || rankFilter.size > 0 ||
+    ftPtFilter.size > 0 || classFilter.size > 0 || suffFilter.size > 0 || tenureFilter.size > 0;
 
   const activeColumns = useMemo(() => allColumns.filter(c => visibleCols.has(c.key)), [visibleCols]);
 
@@ -304,50 +392,26 @@ const FacultyDirectoryPage = () => {
           </Card>
         )}
 
-        {/* Filter Bar */}
-        <div className="flex flex-wrap gap-3 items-end">
+        {/* Filter Bar — derived from actual data values */}
+        <div className="flex flex-wrap gap-2 items-center">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input placeholder="Search name, ID, email…" value={search} onChange={e => setSearch(e.target.value)} className="pl-9 w-56" />
+            <Input
+              placeholder="Search Employee ID, Name, Email…"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              className="pl-9 w-64"
+            />
           </div>
-          <Select value={deptFilter} onValueChange={setDeptFilter}>
-            <SelectTrigger className="w-44"><SelectValue placeholder="Department" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Departments</SelectItem>
-              {departments.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
-            </SelectContent>
-          </Select>
-          <Select value={campusFilter} onValueChange={setCampusFilter}>
-            <SelectTrigger className="w-32"><SelectValue placeholder="Campus" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Campuses</SelectItem>
-              {campuses.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-            </SelectContent>
-          </Select>
-          <Select value={classFilter} onValueChange={setClassFilter}>
-            <SelectTrigger className="w-36"><SelectValue placeholder="Classification" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Classifications</SelectItem>
-              {facultyQualifications.map(q => <SelectItem key={q} value={q}>{q}</SelectItem>)}
-            </SelectContent>
-          </Select>
-          <Select value={suffFilter} onValueChange={setSuffFilter}>
-            <SelectTrigger className="w-40"><SelectValue placeholder="Participation" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All</SelectItem>
-              <SelectItem value="Participating">Participating</SelectItem>
-              <SelectItem value="Supporting">Supporting</SelectItem>
-            </SelectContent>
-          </Select>
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-28"><SelectValue placeholder="FT/PT" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All</SelectItem>
-              {ftPtStatuses.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-            </SelectContent>
-          </Select>
+          <MultiSelectFilter label="Department" options={deptOptions} selected={deptFilter} onChange={setDeptFilter} width="w-44" />
+          <MultiSelectFilter label="Campus" options={campusOptions} selected={campusFilter} onChange={setCampusFilter} width="w-36" />
+          <MultiSelectFilter label="Rank" options={rankOptions} selected={rankFilter} onChange={setRankFilter} width="w-44" />
+          <MultiSelectFilter label="FT/PT" options={ftPtOptions} selected={ftPtFilter} onChange={setFtPtFilter} width="w-32" />
+          <MultiSelectFilter label="Classification" options={classOptions} selected={classFilter} onChange={setClassFilter} width="w-40" />
+          <MultiSelectFilter label="Participation" options={suffOptions} selected={suffFilter} onChange={setSuffFilter} width="w-40" />
+          <MultiSelectFilter label="Tenure" options={tenureOptions} selected={tenureFilter} onChange={setTenureFilter} width="w-40" />
           {hasFilters && (
-            <Button variant="ghost" size="sm" onClick={resetFilters}>
+            <Button variant="ghost" size="sm" onClick={resetFilters} className="h-10">
               <RotateCcw className="h-4 w-4 mr-1" /> Reset
             </Button>
           )}
