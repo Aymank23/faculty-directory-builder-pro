@@ -14,8 +14,54 @@ import DeleteConfirmDialog from '@/components/DeleteConfirmDialog';
 import { supabase } from '@/lib/supabase';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
-import { Users, Pencil, Trash2, Search, RotateCcw, Columns3, AlertTriangle } from 'lucide-react';
+import { Users, Pencil, Trash2, Search, RotateCcw, Columns3, AlertTriangle, Filter as FilterIcon } from 'lucide-react';
 import { departments, campuses, academicRanks, ftPtStatuses, highestDegrees, facultyQualifications, facultySufficiencies, tenureStatuses } from '@/lib/constants';
+
+/* ── Multi-select filter helper ───────────────────────── */
+const MultiSelectFilter = ({ label, options, selected, onChange, width = 'w-44' }: {
+  label: string; options: string[]; selected: Set<string>; onChange: (next: Set<string>) => void; width?: string;
+}) => {
+  const count = selected.size;
+  const display = count === 0 ? label : count === 1 ? Array.from(selected)[0] : `${label} (${count})`;
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button variant="outline" size="sm" className={`${width} justify-between font-normal h-10`}>
+          <span className="truncate text-sm">{display}</span>
+          <FilterIcon className="h-3.5 w-3.5 opacity-50 shrink-0 ml-2" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-56 p-2" align="start">
+        <div className="flex justify-between items-center px-1 pb-2 border-b border-border mb-2">
+          <span className="text-xs font-medium">{label}</span>
+          {count > 0 && (
+            <Button variant="ghost" size="sm" className="h-6 text-xs px-2" onClick={() => onChange(new Set())}>Clear</Button>
+          )}
+        </div>
+        <ScrollArea className="max-h-64">
+          <div className="space-y-1">
+            {options.length === 0 ? (
+              <p className="text-xs text-muted-foreground px-2 py-3 text-center">No values</p>
+            ) : options.map(opt => (
+              <label key={opt} className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-muted/50 cursor-pointer text-xs">
+                <Checkbox
+                  checked={selected.has(opt)}
+                  onCheckedChange={() => {
+                    const next = new Set(selected);
+                    if (next.has(opt)) next.delete(opt); else next.add(opt);
+                    onChange(next);
+                  }}
+                  className="h-3.5 w-3.5"
+                />
+                <span className="text-foreground truncate">{opt}</span>
+              </label>
+            ))}
+          </div>
+        </ScrollArea>
+      </PopoverContent>
+    </Popover>
+  );
+};
 import { toast } from 'sonner';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
