@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -103,6 +104,13 @@ interface ExtractedData {
   professional_experience?: ProfessionalExp[];
 }
 
+interface ParseCvResponse {
+  ok: boolean;
+  data?: ExtractedData;
+  warnings?: string[];
+  error?: string;
+}
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function normalizeDoi(doi?: string | null): string | null {
@@ -146,6 +154,9 @@ const UploadCvPage = () => {
   const [profileEdits, setProfileEdits] = useState<PersonalInfo>({});
   const [step, setStep] = useState<'upload' | 'review' | 'done'>('upload');
   const [saveResult, setSaveResult] = useState<any>(null);
+  const [enableAiParsing, setEnableAiParsing] = useState(false);
+  const [parseWarnings, setParseWarnings] = useState<string[]>([]);
+  const [progressStage, setProgressStage] = useState<'idle' | 'upload' | 'parse' | 'extract' | 'preview' | 'save'>('idle');
 
   const { data: profile } = useQuery({
     queryKey: ['my-profile', user?.id],
@@ -239,6 +250,7 @@ const UploadCvPage = () => {
     if (!file) return;
     setExtracting(true);
     try {
+      setProgressStage('upload');
       const cvText = await extractText(file);
       setRawText(cvText);
       if (cvText.trim().length < 20) {
@@ -246,19 +258,27 @@ const UploadCvPage = () => {
         setExtracting(false);
         return;
       }
-      const { data, error } = await supabase.functions.invoke('parse-cv', { body: { cvText } });
+      setProgressStage('parse');
+      const { data, error } = await supabase.functions.invoke('parse-cv', { body: { cvText, enableAiParsing } });
       if (error) throw error;
-      if (data?.error) throw new Error(data.error);
-      if (data.intellectual_contributions) {
-        data.intellectual_contributions = deduplicateIcs(data.intellectual_contributions);
+      const parsed = data as ParseCvResponse;
+      if (parsed?.error) throw new Error(parsed.error);
+      if (!parsed?.ok || !parsed.data) throw new Error('The CV parser returned an invalid response.');
+      setProgressStage('extract');
+      const nextData = parsed.data;
+      if (nextData.intellectual_contributions) {
+        nextData.intellectual_contributions = deduplicateIcs(nextData.intellectual_contributions);
       }
-      if (data.personal_info) {
-        setProfileEdits(data.personal_info);
+      if (nextData.personal_info) {
+        setProfileEdits(nextData.personal_info);
       }
-      setExtracted(data as ExtractedData);
+      setParseWarnings(parsed.warnings || []);
+      setExtracted(nextData);
+      setProgressStage('preview');
       setStep('review');
     } catch (err: any) {
       toast.error(err.message || 'Failed to parse CV');
+      setProgressStage('idle');
     }
     setExtracting(false);
   };
@@ -286,6 +306,7 @@ const UploadCvPage = () => {
   const handleSave = async () => {
     if (!extracted || !profile) return;
     setSaving(true);
+    setProgressStage('save');
     const facultyId = profile.faculty_id;
     const result = { profileUpdated: 0, icsInserted: 0, icsUpdated: 0, icsSkipped: 0, qualAdded: 0, engAdded: 0, svcAdded: 0, awardAdded: 0, profExpAdded: 0 };
     try {
@@ -420,6 +441,7 @@ const UploadCvPage = () => {
       toast.error(err.message || 'Failed to save CV data');
     }
     setSaving(false);
+    setProgressStage('idle');
   };
 
   const icStats = extracted ? {
@@ -464,8 +486,24 @@ const UploadCvPage = () => {
             </CardHeader>
             <CardContent className="space-y-4">
               <p className="text-sm text-muted-foreground">
-                Supported formats: .docx (recommended), .doc, .txt, .xlsx. Your CV will be parsed using AI to extract all structured data.
+                Supported formats: .docx (recommended), .doc, .txt, .xlsx. AACSB CVs are parsed with rule-based extraction by default, with optional AI fallback.
               </p>
+              <div className="flex items-center justify-between rounded-md border p-3">
+                <div>
+                  <p className="text-sm font-medium text-foreground">Enable AI parsing</p>
+                  <p className="text-xs text-muted-foreground">Optional fallback only. Parsing works without credits when this is off.</p>
+                </div>
+                <Switch checked={enableAiParsing} onCheckedChange={setEnableAiParsing} />
+              </div>
+              {progressStage !== 'idle' && (
+                <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+                  {['upload', 'parse', 'extract', 'preview'].map((stage) => (
+                    <Badge key={stage} variant={progressStage === stage ? 'default' : progressStage === 'save' || ['upload', 'parse', 'extract', 'preview'].indexOf(progressStage) > ['upload', 'parse', 'extract', 'preview'].indexOf(stage) ? 'secondary' : 'outline'}>
+                      {stage}
+                    </Badge>
+                  ))}
+                </div>
+              )}
               <div className="flex items-center gap-3">
                 <input type="file" ref={fileRef} accept=".docx,.doc,.txt,.xlsx,.xls" onChange={e => {
                   const f = e.target.files?.[0];
@@ -511,6 +549,16 @@ const UploadCvPage = () => {
                       More than half of the extracted items have low confidence. Please review carefully before saving.
                     </p>
                   </div>
+                </CardContent>
+              </Card>
+            )}
+            {parseWarnings.length > 0 && (
+              <Card className="border-amber-500/40 bg-amber-500/5">
+                <CardContent className="py-4 space-y-2">
+                  <p className="text-sm font-medium text-foreground">Parsing warnings</p>
+                  <ul className="list-disc pl-5 text-xs text-muted-foreground space-y-1">
+                    {parseWarnings.map((warning) => <li key={warning}>{warning}</li>)}
+                  </ul>
                 </CardContent>
               </Card>
             )}
