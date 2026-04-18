@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import AppLayout from '@/components/AppLayout';
 import DashboardTour from '@/components/DashboardTour';
 import KpiCard from '@/components/KpiCard';
@@ -10,7 +10,6 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { useQuery } from '@tanstack/react-query';
 import { FileText, CheckCircle, Clock, XCircle, BookOpen, BarChart3, TrendingUp, Award, Upload } from 'lucide-react';
-import CvUploadDialog from '@/components/CvUploadDialog';
 const statusVariant = (s: string) => {
   if (s === 'verified') return 'default' as const;
   if (s === 'under_review') return 'secondary' as const;
@@ -20,7 +19,6 @@ const statusVariant = (s: string) => {
 
 const FacultyOverviewPage = () => {
   const { user } = useAuth();
-  const [cvUploadOpen, setCvUploadOpen] = useState(false);
 
   const { data: profile } = useQuery({
     queryKey: ['my-profile', user?.id],
@@ -68,8 +66,10 @@ const FacultyOverviewPage = () => {
             <p className="text-sm text-muted-foreground">Your faculty portfolio overview</p>
           </div>
           <div className="flex items-center gap-2">
-            <Button onClick={() => setCvUploadOpen(true)} variant="outline" size="sm">
+            <Button asChild variant="outline" size="sm">
+              <Link to="/upload-cv">
               <Upload className="h-4 w-4 mr-2" /> Upload CV
+              </Link>
             </Button>
             <DashboardTour
               storageKey="tour-faculty-overview"
@@ -145,14 +145,6 @@ const FacultyOverviewPage = () => {
               </p>
             </CardContent>
           </Card>
-        )}
-        {profile && (
-          <CvUploadDialog
-            open={cvUploadOpen}
-            onOpenChange={setCvUploadOpen}
-            facultyId={profile.faculty_id}
-            userId={user!.id}
-          />
         )}
       </div>
     </AppLayout>

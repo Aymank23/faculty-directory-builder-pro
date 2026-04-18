@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import AppLayout from '@/components/AppLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -12,12 +13,10 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Badge } from '@/components/ui/badge';
 import { User, GraduationCap, Briefcase, Heart, Award, Plus, Trash2, Upload } from 'lucide-react';
 import { toast } from 'sonner';
-import CvUploadDialog from '@/components/CvUploadDialog';
 
 const FacultyProfilePage = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  const [cvUploadOpen, setCvUploadOpen] = useState(false);
 
   const { data: profile, isLoading } = useQuery({
     queryKey: ['my-profile', user?.id],
@@ -92,20 +91,13 @@ const FacultyProfilePage = () => {
             <p className="text-sm text-muted-foreground">Your academic and personal information (CV Sections 1–6)</p>
           </div>
           {profile && (
-            <Button variant="outline" onClick={() => setCvUploadOpen(true)}>
-              <Upload className="h-4 w-4 mr-2" /> Import from CV
+            <Button asChild variant="outline">
+              <Link to="/upload-cv">
+                <Upload className="h-4 w-4 mr-2" /> Go to Upload CV
+              </Link>
             </Button>
           )}
         </div>
-
-        {profile && (
-          <CvUploadDialog
-            open={cvUploadOpen}
-            onOpenChange={setCvUploadOpen}
-            facultyId={facultyId!}
-            userId={user!.id}
-          />
-        )}
 
         {/* Section 1: Personal & Academic */}
         <Card>
