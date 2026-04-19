@@ -6,6 +6,7 @@ import { useQuery } from '@tanstack/react-query';
 import { BarChart3 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 import { CHART_COLORS } from '@/lib/constants';
+import { normalizeNA } from '@/lib/normalize';
 
 const MyAnalyticsPage = () => {
   const { user } = useAuth();
@@ -38,9 +39,9 @@ const MyAnalyticsPage = () => {
   ics.forEach(ic => { const t = ic.ic_type || 'Other'; typeCounts[t] = (typeCounts[t] || 0) + 1; });
   const typeData = Object.entries(typeCounts).map(([name, value]) => ({ name, value }));
 
-  // Quartile distribution
+  // Quartile distribution (collapse NA / N/A variants)
   const qCounts: Record<string, number> = {};
-  ics.forEach(ic => { const q = ic.quartile || 'N/A'; qCounts[q] = (qCounts[q] || 0) + 1; });
+  ics.forEach(ic => { const q = normalizeNA(ic.quartile); qCounts[q] = (qCounts[q] || 0) + 1; });
   const qData = Object.entries(qCounts).map(([name, value]) => ({ name, value }));
 
   // Category distribution (Basic / Applied / Teaching & Learning) — per doc Section 3

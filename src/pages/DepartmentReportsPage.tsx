@@ -8,6 +8,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Users, FileText, CheckCircle, TrendingUp, BookOpen, BarChart3 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 import { CHART_COLORS } from '@/lib/constants';
+import { normalizeNA } from '@/lib/normalize';
 
 const DepartmentReportsPage = () => {
   const { user } = useAuth();
@@ -64,9 +65,9 @@ const DepartmentReportsPage = () => {
   });
   const catData = Object.entries(catCounts).map(([name, value]) => ({ name, value }));
 
-  // Q distribution
+  // Q distribution (normalize NA / N/A variants to a single bucket)
   const qCounts: Record<string, number> = {};
-  ics.forEach(ic => { const q = ic.quartile || 'N/A'; qCounts[q] = (qCounts[q] || 0) + 1; });
+  ics.forEach(ic => { const q = normalizeNA(ic.quartile); qCounts[q] = (qCounts[q] || 0) + 1; });
   const qData = Object.entries(qCounts).map(([name, value]) => ({ name, value }));
 
   const hasData = ics.length > 0;
