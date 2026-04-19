@@ -13,6 +13,7 @@ import { useQuery } from '@tanstack/react-query';
 import { BarChart3, BookOpen, FileText, Clock, CheckCircle, XCircle, TrendingUp, Users, UserCheck, RotateCcw } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend, LineChart, Line } from 'recharts';
 import { CHART_COLORS, departments, campuses, icCategories, icTypes, quartiles, icStatuses, facultyQualifications } from '@/lib/constants';
+import { normalizeNA, isNA } from '@/lib/normalize';
 
 const CLASSIFICATION_COLORS: Record<string, string> = {
   SA: 'hsl(var(--chart-1))',
@@ -77,10 +78,11 @@ const MasterDashboardPage = () => {
   const prjs = ics.filter(ic => ic.ic_type === 'PRJ');
   const q1 = ics.filter(ic => ic.quartile === 'Q1');
 
-  // AACSB Classification distribution
+  // AACSB Classification distribution (normalize NA / N/A → "N/A")
   const classificationCounts: Record<string, number> = {};
   filteredFaculty.forEach(f => {
-    const q = (f as any).faculty_qualification || 'Unclassified';
+    const raw = (f as any).faculty_qualification;
+    const q = raw == null || String(raw).trim() === '' ? 'Unclassified' : normalizeNA(raw);
     classificationCounts[q] = (classificationCounts[q] || 0) + 1;
   });
   const classificationData = Object.entries(classificationCounts)
@@ -125,9 +127,9 @@ const MasterDashboardPage = () => {
   });
   const perFacultyData = Object.values(perFaculty).sort((a, b) => b.count - a.count);
 
-  // Q distribution
+  // Q distribution (normalize NA / N/A variants to a single bucket)
   const qCounts: Record<string, number> = {};
-  ics.forEach(ic => { const q = ic.quartile || 'N/A'; qCounts[q] = (qCounts[q] || 0) + 1; });
+  ics.forEach(ic => { const q = normalizeNA(ic.quartile); qCounts[q] = (qCounts[q] || 0) + 1; });
   const qData = Object.entries(qCounts).map(([name, value]) => ({ name, value }));
 
   const hasData = ics.length > 0 || filteredFaculty.length > 0;
