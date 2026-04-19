@@ -16,6 +16,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
 import { Users, Pencil, Trash2, Search, RotateCcw, Columns3, AlertTriangle, Filter as FilterIcon } from 'lucide-react';
 import { departments, campuses, academicRanks, ftPtStatuses, highestDegrees, facultyQualifications, facultySufficiencies, tenureStatuses } from '@/lib/constants';
+import { normalizeNA } from '@/lib/normalize';
 
 /* ── Multi-select filter helper ───────────────────────── */
 const MultiSelectFilter = ({ label, options, selected, onChange, width = 'w-44' }: {
@@ -140,14 +141,17 @@ const FacultyDirectoryPage = () => {
     },
   });
 
-  // Derive distinct filter values from actual database content (trimmed, deduped, sorted)
+  // Derive distinct filter values from actual database content (trimmed, deduped, sorted).
+  // NA / N/A / n/a / na all collapse into a single "N/A" option so users can filter
+  // them together across the entire dashboard.
   const distinct = (key: string): string[] => {
     const set = new Set<string>();
     for (const f of faculty as any[]) {
       const v = f[key];
       if (v === null || v === undefined) continue;
-      const s = String(v).trim();
-      if (s) set.add(s);
+      const raw = String(v).trim();
+      if (!raw) continue;
+      set.add(normalizeNA(raw));
     }
     return Array.from(set).sort((a, b) => a.localeCompare(b));
   };
@@ -155,8 +159,6 @@ const FacultyDirectoryPage = () => {
   const deptOptions = useMemo(() => distinct('department'), [faculty]);
   const campusOptions = useMemo(() => distinct('campus'), [faculty]);
   const rankOptions = useMemo(() => distinct('academic_rank'), [faculty]);
-  // "Status" in the Excel = full status text (Full-time Faculty, Adjunct, etc.) — stored in admin_title-equivalent or we synthesize from FT/PT
-  // The Excel has a 'Status' column that maps to the discipline; but in our schema FT/PT is the primary status. We expose both.
   const ftPtOptions = useMemo(() => distinct('ft_pt_status'), [faculty]);
   const classOptions = useMemo(() => distinct('faculty_qualification'), [faculty]);
   const suffOptions = useMemo(() => distinct('faculty_sufficiency'), [faculty]);
@@ -164,7 +166,9 @@ const FacultyDirectoryPage = () => {
 
   const matchSet = (set: Set<string>, value: any) => {
     if (set.size === 0) return true;
-    const v = (value ?? '').toString().trim();
+    const v = value === null || value === undefined || String(value).trim() === ''
+      ? ''
+      : normalizeNA(value);
     return set.has(v);
   };
 
