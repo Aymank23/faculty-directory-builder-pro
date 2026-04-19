@@ -386,6 +386,7 @@ const UploadCvPage = () => {
         }
       }
       const selectedIcs = extracted.intellectual_contributions.filter(ic => ic._selected);
+      console.log('[Save CV] processing', selectedIcs.length, 'selected ICs');
       for (const ic of selectedIcs) {
         const icData = {
           faculty_id: facultyId,
@@ -409,13 +410,15 @@ const UploadCvPage = () => {
             }
           }
           if (Object.keys(updateFields).length > 0) {
-            await supabase.from('intellectual_contributions').update(updateFields).eq('ic_id', ic._matchedIcId);
+            const { error: e } = await supabase.from('intellectual_contributions').update(updateFields).eq('ic_id', ic._matchedIcId);
+            if (e) { console.error('[Save CV] IC update error', e); throw new Error(`IC update failed: ${e.message}`); }
             result.icsUpdated++;
           } else {
             result.icsSkipped++;
           }
         } else if (ic._status === 'new') {
-          await supabase.from('intellectual_contributions').insert(icData);
+          const { error: e } = await supabase.from('intellectual_contributions').insert(icData);
+          if (e) { console.error('[Save CV] IC insert error', e, icData); throw new Error(`IC insert failed: ${e.message}`); }
           result.icsInserted++;
         }
       }
@@ -426,7 +429,7 @@ const UploadCvPage = () => {
         );
       });
       if (newQuals.length > 0) {
-        await supabase.from('academic_qualifications').insert(
+        const { error: e } = await supabase.from('academic_qualifications').insert(
           newQuals.map(q => ({
             faculty_id: facultyId,
             degree_certification: q.degree_certification,
@@ -435,46 +438,51 @@ const UploadCvPage = () => {
             field_area: q.field_area || null,
           }))
         );
+        if (e) { console.error('[Save CV] qual insert error', e); throw new Error(`Qualification insert failed: ${e.message}`); }
         result.qualAdded = newQuals.length;
       }
       if (extracted.engagements?.length) {
-        await supabase.from('professional_engagements').insert(
-          extracted.engagements.map(e => ({
-            faculty_id: facultyId, from_to: e.from_to || null,
-            activity: e.activity, details: e.details || null,
+        const { error: e } = await supabase.from('professional_engagements').insert(
+          extracted.engagements.map(en => ({
+            faculty_id: facultyId, from_to: en.from_to || null,
+            activity: en.activity, details: en.details || null,
           }))
         );
+        if (e) { console.error('[Save CV] engagement error', e); throw new Error(`Engagements insert failed: ${e.message}`); }
         result.engAdded = extracted.engagements.length;
       }
       if (extracted.services?.length) {
-        await supabase.from('service_contributions').insert(
+        const { error: e } = await supabase.from('service_contributions').insert(
           extracted.services.map(s => ({
             faculty_id: facultyId, from_to: s.from_to || null,
             level: s.level || null, committee_role: s.committee_role,
           }))
         );
+        if (e) { console.error('[Save CV] service error', e); throw new Error(`Services insert failed: ${e.message}`); }
         result.svcAdded = extracted.services.length;
       }
       if (extracted.awards?.length) {
-        await supabase.from('awards_recognition').insert(
+        const { error: e } = await supabase.from('awards_recognition').insert(
           extracted.awards.map(a => ({
             faculty_id: facultyId, year: a.year || null,
             award: a.award, institution_organization: a.institution_organization || null,
           }))
         );
+        if (e) { console.error('[Save CV] award error', e); throw new Error(`Awards insert failed: ${e.message}`); }
         result.awardAdded = extracted.awards.length;
       }
       if (extracted.professional_experience?.length) {
-        await supabase.from('professional_experience').insert(
+        const { error: e } = await supabase.from('professional_experience').insert(
           extracted.professional_experience.map(p => ({
             faculty_id: facultyId, period: p.period || null,
             organization: p.organization, position_title: p.position_title || null,
             key_responsibilities: p.key_responsibilities || null,
           }))
         );
+        if (e) { console.error('[Save CV] prof exp error', e); throw new Error(`Professional experience insert failed: ${e.message}`); }
         result.profExpAdded = extracted.professional_experience.length;
       }
-      await supabase.from('cv_uploads').insert({
+      const { error: cvErr } = await supabase.from('cv_uploads').insert({
         faculty_id: facultyId,
         user_id: user!.id,
         file_name: file?.name || 'unknown',
@@ -486,12 +494,15 @@ const UploadCvPage = () => {
         profile_fields_updated: result.profileUpdated,
         changes_summary: result,
       });
+      if (cvErr) console.warn('[Save CV] cv_uploads log failed (non-fatal)', cvErr);
+      console.log('[Save CV] complete', result);
       setSaveResult(result);
       setStep('done');
       queryClient.invalidateQueries();
       toast.success('CV data saved and propagated!');
     } catch (err: any) {
-      toast.error(err.message || 'Failed to save CV data');
+      console.error('[Save CV] FAILED', err);
+      toast.error(err?.message || 'Failed to save CV data');
     }
     setSaving(false);
     setProgressStage('idle');
