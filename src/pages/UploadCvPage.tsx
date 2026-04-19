@@ -304,12 +304,60 @@ const UploadCvPage = () => {
   };
 
   const handleSave = async () => {
-    if (!extracted || !profile) return;
+    console.log('[Save CV] click triggered', { hasExtracted: !!extracted, hasProfile: !!profile, hasUser: !!user });
+    if (!user) {
+      toast.error('You must be logged in to save CV data.');
+      return;
+    }
+    if (!extracted) {
+      toast.error('No parsed CV data to save. Please parse a CV first.');
+      return;
+    }
+
     setSaving(true);
     setProgressStage('save');
-    const facultyId = profile.faculty_id;
     const result = { profileUpdated: 0, icsInserted: 0, icsUpdated: 0, icsSkipped: 0, qualAdded: 0, engAdded: 0, svcAdded: 0, awardAdded: 0, profExpAdded: 0 };
+
     try {
+      // ─── Ensure faculty_profile exists (auto-create if missing) ─────────────
+      let workingProfile: any = profile;
+      if (!workingProfile) {
+        console.log('[Save CV] no faculty_profile linked — creating one');
+        const pi = profileEdits || {};
+        const fullName = (user as any).full_name || '';
+        const [fnGuess, ...rest] = fullName.split(' ');
+        const lnGuess = rest.join(' ');
+        const newProfilePayload: any = {
+          user_id: user.id,
+          first_name: pi.first_name || fnGuess || null,
+          last_name: pi.last_name || lnGuess || null,
+          department: pi.department || (user as any).department || null,
+          campus: pi.campus || (user as any).campus || null,
+          academic_rank: pi.academic_rank || null,
+          employee_id: pi.employee_id || null,
+          ft_pt_status: pi.ft_pt_status || 'FT',
+          highest_degree: pi.highest_degree || null,
+          highest_degree_date: pi.highest_degree_date || null,
+          date_joining_aksob: pi.date_joining_aksob || null,
+          email: (user as any).username || null,
+        };
+        const { data: created, error: createErr } = await supabase
+          .from('faculty_profiles')
+          .insert(newProfilePayload)
+          .select()
+          .single();
+        if (createErr || !created) {
+          console.error('[Save CV] failed to create profile', createErr);
+          throw new Error(`Could not create faculty profile: ${createErr?.message || 'unknown error'}`);
+        }
+        workingProfile = created;
+        result.profileUpdated = 1;
+        console.log('[Save CV] created profile', created.faculty_id);
+      }
+      const facultyId = workingProfile.faculty_id;
+      console.log('[Save CV] using facultyId', facultyId);
+
+      // ─── Profile field updates ──────────────────────────────────────────────
       if (extracted.personal_info) {
         const updates: any = {};
         const pi = profileEdits;
@@ -321,15 +369,20 @@ const UploadCvPage = () => {
         };
         for (const [extractedKey, dbKey] of Object.entries(profileFieldMap)) {
           const newVal = (pi as any)[extractedKey];
-          const oldVal = (profile as any)[dbKey];
-          if (newVal && newVal.trim() !== '' && newVal !== oldVal) {
+          const oldVal = (workingProfile as any)[dbKey];
+          if (newVal && String(newVal).trim() !== '' && newVal !== oldVal) {
             updates[dbKey] = newVal;
           }
         }
         if (Object.keys(updates).length > 0) {
           updates.updated_at = new Date().toISOString();
-          await supabase.from('faculty_profiles').update(updates).eq('faculty_id', facultyId);
-          result.profileUpdated = Object.keys(updates).length - 1;
+          const { error: upErr } = await supabase.from('faculty_profiles').update(updates).eq('faculty_id', facultyId);
+          if (upErr) {
+            console.error('[Save CV] profile update error', upErr);
+            throw new Error(`Profile update failed: ${upErr.message}`);
+          }
+          result.profileUpdated += Object.keys(updates).length - 1;
+          console.log('[Save CV] profile updated fields:', Object.keys(updates));
         }
       }
       const selectedIcs = extracted.intellectual_contributions.filter(ic => ic._selected);
