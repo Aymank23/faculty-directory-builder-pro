@@ -1,6 +1,6 @@
 // AACSB system constants
 
-export const departments = ['Marketing', 'Banking & Finance', 'Accounting', 'Management', 'Economics', 'HITM', 'Finance and Accounting'];
+export const departments = ['Marketing', 'Banking & Finance', 'Accounting', 'Management', 'Economics', 'HITM', 'Finance and Accounting', 'ITOM'];
 
 export const campuses = ['Beirut', 'Byblos', 'Online'];
 
