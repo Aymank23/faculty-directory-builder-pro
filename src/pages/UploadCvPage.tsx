@@ -394,7 +394,12 @@ const UploadCvPage = () => {
           highest_degree_date: 'highest_degree_date', date_joining_aksob: 'date_joining_aksob',
         };
         for (const [extractedKey, dbKey] of Object.entries(profileFieldMap)) {
-          const newVal = (pi as any)[extractedKey];
+          let newVal = (pi as any)[extractedKey];
+          // Canonicalize department aliases (MKT → Marketing, MGT → Management, …)
+          if (dbKey === 'department' && newVal) {
+            const canon = normalizeDepartment(newVal);
+            newVal = canon === 'N/A' ? null : canon;
+          }
           const oldVal = (workingProfile as any)[dbKey];
           if (newVal && String(newVal).trim() !== '' && newVal !== oldVal) {
             updates[dbKey] = newVal;
