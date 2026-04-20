@@ -115,17 +115,28 @@ const MasterDashboardPage = () => {
   });
   const deptData = Object.entries(deptCounts).map(([name, value]) => ({ name, value }));
 
-  // Publications per faculty
+  // Publications per faculty — deduplicate by faculty_id (one row per actual faculty record)
   const perFaculty: Record<string, { name: string; department: string; count: number }> = {};
   ics.forEach(ic => {
     const fac = facultyMap[ic.faculty_id];
     if (!fac) return;
     if (!perFaculty[fac.faculty_id]) {
-      perFaculty[fac.faculty_id] = { name: `${fac.first_name} ${fac.last_name}`, department: fac.department || '', count: 0 };
+      perFaculty[fac.faculty_id] = {
+        name: `${fac.first_name || ''} ${fac.last_name || ''}`.trim() || '—',
+        department: fac.department || '',
+        count: 0,
+      };
     }
     perFaculty[fac.faculty_id].count++;
   });
-  const perFacultyData = Object.values(perFaculty).sort((a, b) => b.count - a.count);
+  // Extra safety net: collapse same name+department duplicates if any persist
+  const collapsed: Record<string, { name: string; department: string; count: number }> = {};
+  Object.values(perFaculty).forEach(row => {
+    const key = `${row.name.toLowerCase().trim()}|${(row.department || '').toLowerCase().trim()}`;
+    if (!collapsed[key]) collapsed[key] = { ...row };
+    else collapsed[key].count += row.count;
+  });
+  const perFacultyData = Object.values(collapsed).sort((a, b) => b.count - a.count);
 
   // Q distribution (normalize NA / N/A variants to a single bucket)
   const qCounts: Record<string, number> = {};

@@ -161,7 +161,14 @@ const UploadCvPage = () => {
   const { data: profile } = useQuery({
     queryKey: ['my-profile', user?.id],
     queryFn: async () => {
-      const { data } = await supabase.from('faculty_profiles').select('*').eq('user_id', user!.id).single();
+      // Use maybeSingle + ordering so duplicate rows never break the lookup.
+      const { data } = await supabase
+        .from('faculty_profiles')
+        .select('*')
+        .eq('user_id', user!.id)
+        .order('created_at', { ascending: true })
+        .limit(1)
+        .maybeSingle();
       return data;
     },
     enabled: !!user,
@@ -319,8 +326,21 @@ const UploadCvPage = () => {
     const result = { profileUpdated: 0, icsInserted: 0, icsUpdated: 0, icsSkipped: 0, qualAdded: 0, engAdded: 0, svcAdded: 0, awardAdded: 0, profExpAdded: 0 };
 
     try {
-      // ─── Ensure faculty_profile exists (auto-create if missing) ─────────────
-      let workingProfile: any = profile;
+      // ─── Resolve faculty_profile (look up by user_id, never trust stale cache) ─
+      let workingProfile: any = null;
+      const { data: existing, error: lookupErr } = await supabase
+        .from('faculty_profiles')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: true })
+        .limit(1)
+        .maybeSingle();
+      if (lookupErr) {
+        console.error('[Save CV] profile lookup error', lookupErr);
+        throw new Error(`Profile lookup failed: ${lookupErr.message}`);
+      }
+      workingProfile = existing;
+
       if (!workingProfile) {
         console.log('[Save CV] no faculty_profile linked — creating one');
         const pi = profileEdits || {};
