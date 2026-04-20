@@ -261,7 +261,13 @@ const FacultyDirectoryPage = () => {
     setSaving(true);
     const payload: Record<string, any> = {};
     for (const [key, val] of Object.entries(editForm)) {
-      payload[key] = (val as string) || null;
+      let v: any = (val as string) || null;
+      // Canonicalize department aliases on save so future filters see one bucket.
+      if (key === 'department' && v) {
+        const canon = normalizeDepartment(v);
+        v = canon === 'N/A' ? null : canon;
+      }
+      payload[key] = v;
     }
     const { error } = await supabase.from('faculty_profiles').update(payload).eq('faculty_id', editFaculty.faculty_id);
     if (error) { toast.error('Update failed'); setSaving(false); return; }
