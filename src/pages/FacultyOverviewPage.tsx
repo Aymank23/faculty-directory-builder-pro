@@ -1,4 +1,4 @@
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import AppLayout from '@/components/AppLayout';
 import DashboardTour from '@/components/DashboardTour';
 import KpiCard from '@/components/KpiCard';
@@ -6,10 +6,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { useQuery } from '@tanstack/react-query';
-import { FileText, BookOpen, BarChart3, TrendingUp, Award, Upload, Trophy } from 'lucide-react';
+import { FileText, BookOpen, BarChart3, TrendingUp, Award, Upload, Trophy, Info } from 'lucide-react';
 
 const statusVariant = (s: string) => {
   if (s === 'verified') return 'default' as const;
