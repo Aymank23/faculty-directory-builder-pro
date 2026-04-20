@@ -16,7 +16,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
 import { Users, Pencil, Trash2, Search, RotateCcw, Columns3, AlertTriangle, Filter as FilterIcon } from 'lucide-react';
 import { departments, campuses, academicRanks, ftPtStatuses, highestDegrees, facultyQualifications, facultySufficiencies, tenureStatuses } from '@/lib/constants';
-import { normalizeNA } from '@/lib/normalize';
+import { normalizeNA, normalizeField, normalizeDepartment } from '@/lib/normalize';
 
 /* ── Multi-select filter helper ───────────────────────── */
 const MultiSelectFilter = ({ label, options, selected, onChange, width = 'w-44' }: {
@@ -81,7 +81,7 @@ const allColumns: ColumnDef[] = [
   { key: 'title', label: 'Title', defaultVisible: false, render: f => f.title || '—' },
   { key: 'name', label: 'Full Name', pinned: true, defaultVisible: true, render: f => <span className="font-medium whitespace-nowrap">{[f.first_name, f.middle_names, f.last_name].filter(Boolean).join(' ') || '—'}</span> },
   { key: 'email', label: 'Email', defaultVisible: true, render: f => <span className="text-xs">{f.email || '—'}</span> },
-  { key: 'department', label: 'Department', pinned: true, defaultVisible: true, render: f => f.department || '—' },
+  { key: 'department', label: 'Department', pinned: true, defaultVisible: true, render: f => normalizeDepartment(f.department) === 'N/A' && !f.department ? '—' : normalizeDepartment(f.department) },
   { key: 'campus', label: 'Campus', pinned: true, defaultVisible: true, render: f => f.campus || '—' },
   { key: 'academic_rank', label: 'Rank', pinned: true, defaultVisible: true, render: f => <span className="text-xs">{f.academic_rank || '—'}</span> },
   { key: 'admin_title', label: 'Admin Title', defaultVisible: false, render: f => <span className="text-xs">{f.admin_title || '—'}</span> },
@@ -142,8 +142,10 @@ const FacultyDirectoryPage = () => {
   });
 
   // Derive distinct filter values from actual database content (trimmed, deduped, sorted).
-  // NA / N/A / n/a / na all collapse into a single "N/A" option so users can filter
-  // them together across the entire dashboard.
+  // Values flow through normalizeField() so that:
+  //   - NA / N/A / n/a / na collapse into a single "N/A" option
+  //   - department aliases (MKT, MGT, FINA, ITOM, …) collapse into their
+  //     canonical labels — see src/lib/normalize.ts.
   const distinct = (key: string): string[] => {
     const set = new Set<string>();
     for (const f of faculty as any[]) {
@@ -151,7 +153,7 @@ const FacultyDirectoryPage = () => {
       if (v === null || v === undefined) continue;
       const raw = String(v).trim();
       if (!raw) continue;
-      set.add(normalizeNA(raw));
+      set.add(normalizeField(key, raw));
     }
     return Array.from(set).sort((a, b) => a.localeCompare(b));
   };
@@ -164,11 +166,11 @@ const FacultyDirectoryPage = () => {
   const suffOptions = useMemo(() => distinct('faculty_sufficiency'), [faculty]);
   const tenureOptions = useMemo(() => distinct('tenure_status'), [faculty]);
 
-  const matchSet = (set: Set<string>, value: any) => {
+  const matchSet = (set: Set<string>, value: any, field = '') => {
     if (set.size === 0) return true;
     const v = value === null || value === undefined || String(value).trim() === ''
       ? ''
-      : normalizeNA(value);
+      : normalizeField(field, value);
     return set.has(v);
   };
 
@@ -182,13 +184,13 @@ const FacultyDirectoryPage = () => {
         !(f.email || '').toLowerCase().includes(s)
       ) return false;
     }
-    if (!matchSet(deptFilter, f.department)) return false;
-    if (!matchSet(campusFilter, f.campus)) return false;
-    if (!matchSet(rankFilter, f.academic_rank)) return false;
-    if (!matchSet(ftPtFilter, f.ft_pt_status)) return false;
-    if (!matchSet(classFilter, f.faculty_qualification)) return false;
-    if (!matchSet(suffFilter, f.faculty_sufficiency)) return false;
-    if (!matchSet(tenureFilter, f.tenure_status)) return false;
+    if (!matchSet(deptFilter, f.department, 'department')) return false;
+    if (!matchSet(campusFilter, f.campus, 'campus')) return false;
+    if (!matchSet(rankFilter, f.academic_rank, 'academic_rank')) return false;
+    if (!matchSet(ftPtFilter, f.ft_pt_status, 'ft_pt_status')) return false;
+    if (!matchSet(classFilter, f.faculty_qualification, 'faculty_qualification')) return false;
+    if (!matchSet(suffFilter, f.faculty_sufficiency, 'faculty_sufficiency')) return false;
+    if (!matchSet(tenureFilter, f.tenure_status, 'tenure_status')) return false;
     return true;
   });
 
