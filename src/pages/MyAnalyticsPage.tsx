@@ -14,7 +14,9 @@ const MyAnalyticsPage = () => {
   const { data: profile } = useQuery({
     queryKey: ['my-profile', user?.id],
     queryFn: async () => {
-      const { data } = await supabase.from('faculty_profiles').select('*').eq('user_id', user!.id).single();
+      const { data } = await supabase
+        .from('faculty_profiles').select('*').eq('user_id', user!.id)
+        .order('created_at', { ascending: true }).limit(1).maybeSingle();
       return data;
     },
     enabled: !!user,
@@ -29,27 +31,29 @@ const MyAnalyticsPage = () => {
     enabled: !!profile,
   });
 
-  // Year distribution
   const yearCounts: Record<number, number> = {};
   ics.forEach(ic => { if (ic.year) yearCounts[ic.year] = (yearCounts[ic.year] || 0) + 1; });
   const yearData = Object.entries(yearCounts).sort().map(([year, count]) => ({ year, count }));
 
-  // Type distribution
   const typeCounts: Record<string, number> = {};
   ics.forEach(ic => { const t = ic.ic_type || 'Other'; typeCounts[t] = (typeCounts[t] || 0) + 1; });
   const typeData = Object.entries(typeCounts).map(([name, value]) => ({ name, value }));
 
-  // Quartile distribution (collapse NA / N/A variants)
   const qCounts: Record<string, number> = {};
   ics.forEach(ic => { const q = normalizeNA(ic.quartile); qCounts[q] = (qCounts[q] || 0) + 1; });
   const qData = Object.entries(qCounts).map(([name, value]) => ({ name, value }));
 
-  // Category distribution (Basic / Applied / Teaching & Learning) — per doc Section 3
+  // Research split — bucket by canonical category, NOT free-text split-on-"/"
+  const bucketCategory = (raw?: string | null): string => {
+    if (!raw) return 'Uncategorized';
+    const l = raw.toLowerCase();
+    if (l.includes('basic') || l.includes('discovery')) return 'Basic / Discovery';
+    if (l.includes('teaching') || l.includes('learning') || l.includes('pedagog')) return 'Teaching & Learning';
+    if (l.includes('applied') || l.includes('integration') || l.includes('application')) return 'Applied / Integration';
+    return 'Other';
+  };
   const catCounts: Record<string, number> = {};
-  ics.forEach(ic => {
-    const cat = ic.ic_category ? ic.ic_category.split('/')[0].trim() : 'Uncategorized';
-    catCounts[cat] = (catCounts[cat] || 0) + 1;
-  });
+  ics.forEach(ic => { const c = bucketCategory(ic.ic_category); catCounts[c] = (catCounts[c] || 0) + 1; });
   const catData = Object.entries(catCounts).map(([name, value]) => ({ name, value }));
 
   if (ics.length === 0) {
