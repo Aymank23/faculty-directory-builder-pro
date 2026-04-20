@@ -161,7 +161,14 @@ const UploadCvPage = () => {
   const { data: profile } = useQuery({
     queryKey: ['my-profile', user?.id],
     queryFn: async () => {
-      const { data } = await supabase.from('faculty_profiles').select('*').eq('user_id', user!.id).single();
+      // Use maybeSingle + ordering so duplicate rows never break the lookup.
+      const { data } = await supabase
+        .from('faculty_profiles')
+        .select('*')
+        .eq('user_id', user!.id)
+        .order('created_at', { ascending: true })
+        .limit(1)
+        .maybeSingle();
       return data;
     },
     enabled: !!user,
