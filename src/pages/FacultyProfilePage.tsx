@@ -15,6 +15,7 @@ import { Badge } from '@/components/ui/badge';
 import { User, GraduationCap, Briefcase, Heart, Award, Plus, Trash2, Upload, Pencil } from 'lucide-react';
 import { toast } from 'sonner';
 import { departments, campuses, academicRanks, ftPtStatuses, highestDegrees, tenureStatuses } from '@/lib/constants';
+import { normalizeDepartment } from '@/lib/normalize';
 
 const FacultyProfilePage = () => {
   const { user } = useAuth();
@@ -91,7 +92,15 @@ const FacultyProfilePage = () => {
     if (!profile) return;
     setSavingProfile(true);
     const updates: any = {};
-    Object.entries(form).forEach(([k, v]) => { updates[k] = (v as string)?.trim() || null; });
+    Object.entries(form).forEach(([k, v]) => {
+      let trimmed: any = (v as string)?.trim() || null;
+      // Canonicalize department aliases on save (MKT → Marketing, MGT → Management, …)
+      if (k === 'department' && trimmed) {
+        const canon = normalizeDepartment(trimmed);
+        trimmed = canon === 'N/A' ? null : canon;
+      }
+      updates[k] = trimmed;
+    });
     updates.updated_at = new Date().toISOString();
     const { error } = await supabase.from('faculty_profiles').update(updates).eq('faculty_id', profile.faculty_id);
     if (error) { toast.error(`Save failed: ${error.message}`); setSavingProfile(false); return; }

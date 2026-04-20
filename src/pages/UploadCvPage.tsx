@@ -19,6 +19,7 @@ import {
   CheckCircle, ArrowRight, Info
 } from 'lucide-react';
 import { icTypes, icCategories, quartiles } from '@/lib/constants';
+import { normalizeDepartment } from '@/lib/normalize';
 import * as XLSX from 'xlsx';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -351,7 +352,12 @@ const UploadCvPage = () => {
           user_id: user.id,
           first_name: pi.first_name || fnGuess || null,
           last_name: pi.last_name || lnGuess || null,
-          department: pi.department || (user as any).department || null,
+          department: ((): string | null => {
+            const raw = pi.department || (user as any).department;
+            if (!raw) return null;
+            const canon = normalizeDepartment(raw);
+            return canon === 'N/A' ? null : canon;
+          })(),
           campus: pi.campus || (user as any).campus || null,
           academic_rank: pi.academic_rank || null,
           employee_id: pi.employee_id || null,
@@ -388,7 +394,12 @@ const UploadCvPage = () => {
           highest_degree_date: 'highest_degree_date', date_joining_aksob: 'date_joining_aksob',
         };
         for (const [extractedKey, dbKey] of Object.entries(profileFieldMap)) {
-          const newVal = (pi as any)[extractedKey];
+          let newVal = (pi as any)[extractedKey];
+          // Canonicalize department aliases (MKT → Marketing, MGT → Management, …)
+          if (dbKey === 'department' && newVal) {
+            const canon = normalizeDepartment(newVal);
+            newVal = canon === 'N/A' ? null : canon;
+          }
           const oldVal = (workingProfile as any)[dbKey];
           if (newVal && String(newVal).trim() !== '' && newVal !== oldVal) {
             updates[dbKey] = newVal;

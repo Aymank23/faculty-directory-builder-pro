@@ -1,6 +1,15 @@
 // AACSB system constants
 
-export const departments = ['Marketing', 'Banking & Finance', 'Accounting', 'Management', 'Economics', 'HITM', 'Finance and Accounting', 'ITOM'];
+// Canonical department labels — keep in sync with CANONICAL_DEPARTMENTS in src/lib/normalize.ts.
+// All aliases (MKT, MGT, FINA, ITOM, etc.) are mapped to these via normalizeDepartment().
+export const departments = [
+  'Marketing',
+  'Management',
+  'Finance and Accounting',
+  'Information Technology and Operations Management',
+  'Hospitality and Tourism Management',
+  'Economics',
+];
 
 export const campuses = ['Beirut', 'Byblos', 'Online'];
 

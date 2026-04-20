@@ -8,6 +8,7 @@ import { supabase } from '@/lib/supabase';
 import { useQuery } from '@tanstack/react-query';
 import { FileSpreadsheet } from 'lucide-react';
 import { departments } from '@/lib/constants';
+import { normalizeDepartment } from '@/lib/normalize';
 import * as XLSX from 'xlsx';
 
 const AACSBExportsPage = () => {
@@ -34,12 +35,13 @@ const AACSBExportsPage = () => {
   const exportRows = ics.filter(ic => {
     if (deptFilter === 'all') return true;
     const fac = facultyMap[ic.faculty_id];
-    return fac?.department === deptFilter;
+    // Compare canonical labels so a "Marketing" filter also matches "MKT" rows.
+    return normalizeDepartment(fac?.department) === deptFilter;
   }).map(ic => {
     const fac = facultyMap[ic.faculty_id];
     return {
       'Faculty Name': fac ? `${fac.first_name} ${fac.last_name}` : 'Unknown',
-      'Department': fac?.department || '',
+      'Department': fac?.department ? normalizeDepartment(fac.department) : '',
       'Campus': fac?.campus || '',
       'Academic Rank': fac?.academic_rank || '',
       'IC Category': ic.ic_category || '',

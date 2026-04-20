@@ -13,7 +13,7 @@ import { useQuery } from '@tanstack/react-query';
 import { BarChart3, BookOpen, FileText, Clock, CheckCircle, XCircle, TrendingUp, Users, UserCheck, RotateCcw } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend, LineChart, Line } from 'recharts';
 import { CHART_COLORS, departments, campuses, icCategories, icTypes, quartiles, icStatuses, facultyQualifications } from '@/lib/constants';
-import { normalizeNA, isNA } from '@/lib/normalize';
+import { normalizeNA, isNA, normalizeDepartment } from '@/lib/normalize';
 
 const CLASSIFICATION_COLORS: Record<string, string> = {
   SA: 'hsl(var(--chart-1))',
@@ -56,7 +56,7 @@ const MasterDashboardPage = () => {
   const toYear = parseInt(yearTo) || new Date().getFullYear();
   const ics = allIcs.filter(ic => {
     const fac = facultyMap[ic.faculty_id];
-    if (deptFilter !== 'all' && fac?.department !== deptFilter) return false;
+    if (deptFilter !== 'all' && normalizeDepartment(fac?.department) !== deptFilter) return false;
     if (campusFilter !== 'all' && fac?.campus !== campusFilter) return false;
     if (ic.year && (ic.year < fromYear || ic.year > toYear)) return false;
     if (categoryFilter !== 'all' && ic.ic_category !== categoryFilter) return false;
@@ -67,7 +67,7 @@ const MasterDashboardPage = () => {
   });
 
   const filteredFaculty = faculty.filter(f => {
-    if (deptFilter !== 'all' && f.department !== deptFilter) return false;
+    if (deptFilter !== 'all' && normalizeDepartment(f.department) !== deptFilter) return false;
     if (campusFilter !== 'all' && f.campus !== campusFilter) return false;
     return true;
   });
@@ -106,11 +106,11 @@ const MasterDashboardPage = () => {
   ics.forEach(ic => { if (ic.year) yearCounts[ic.year] = (yearCounts[ic.year] || 0) + 1; });
   const yearData = Object.entries(yearCounts).sort().map(([year, count]) => ({ year, count }));
 
-  // Department breakdown
+  // Department breakdown — collapse aliases (MKT→Marketing, MGT→Management, …)
   const deptCounts: Record<string, number> = {};
   ics.forEach(ic => {
     const fac = facultyMap[ic.faculty_id];
-    const dept = fac?.department || 'Unknown';
+    const dept = fac?.department ? normalizeDepartment(fac.department) : 'Unknown';
     deptCounts[dept] = (deptCounts[dept] || 0) + 1;
   });
   const deptData = Object.entries(deptCounts).map(([name, value]) => ({ name, value }));
@@ -123,7 +123,7 @@ const MasterDashboardPage = () => {
     if (!perFaculty[fac.faculty_id]) {
       perFaculty[fac.faculty_id] = {
         name: `${fac.first_name || ''} ${fac.last_name || ''}`.trim() || '—',
-        department: fac.department || '',
+        department: fac.department ? normalizeDepartment(fac.department) : '',
         count: 0,
       };
     }

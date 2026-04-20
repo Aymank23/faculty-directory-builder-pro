@@ -6,17 +6,21 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { useQuery } from '@tanstack/react-query';
 import { Building2, Users, FileText, CheckCircle, Clock } from 'lucide-react';
+import { normalizeDepartment } from '@/lib/normalize';
 
 const DepartmentOverviewPage = () => {
   const { user } = useAuth();
+  const userDept = user?.department ? normalizeDepartment(user.department) : '';
 
+  // Fetch all faculty and filter client-side via canonical department label so
+  // legacy aliases (MKT, MGT, FINA, ITOM, …) resolve to the user's department.
   const { data: deptFaculty = [] } = useQuery({
-    queryKey: ['dept-faculty', user?.department],
+    queryKey: ['dept-faculty', userDept],
     queryFn: async () => {
-      const { data } = await supabase.from('faculty_profiles').select('*').eq('department', user!.department!);
-      return data || [];
+      const { data } = await supabase.from('faculty_profiles').select('*');
+      return (data || []).filter(f => normalizeDepartment(f.department) === userDept);
     },
-    enabled: !!user?.department,
+    enabled: !!userDept,
   });
 
   const facultyIds = deptFaculty.map(f => f.faculty_id);

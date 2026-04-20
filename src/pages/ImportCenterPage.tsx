@@ -12,6 +12,7 @@ import { Upload, FileSpreadsheet, CheckCircle, AlertTriangle, RotateCcw, Eye, Pl
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import * as XLSX from 'xlsx';
+import { normalizeDepartment } from '@/lib/normalize';
 
 /* ── Types ────────────────────────────────────────────── */
 
@@ -268,7 +269,12 @@ const mapExcelRowToFaculty = (r: Record<string, any>): Record<string, any> => {
   const row: Record<string, any> = {
     first_name: firstName || null,
     last_name: lastName || null,
-    department: normalizeText(val('Department', 'department')) || null,
+    department: ((): string | null => {
+      const raw = normalizeText(val('Department', 'department'));
+      if (!raw) return null;
+      const canon = normalizeDepartment(raw);
+      return canon === 'N/A' ? null : canon;
+    })(),
     campus: normalizeText(val('Campus', 'campus')) || null,
     academic_rank: normalizeText(val('Rank', 'academic_rank', 'Academic Rank')) || null,
     ft_pt_status: mapFacultyStatus(normalizeText(val('Status', 'ft_pt_status', 'Faculty Status'))),
