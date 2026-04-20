@@ -14,6 +14,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { UserCog, Plus } from 'lucide-react';
 import { departments, campuses } from '@/lib/constants';
+import { normalizeDepartment } from '@/lib/normalize';
 
 const UserManagementPage = () => {
   const { user } = useAuth();
@@ -35,12 +36,14 @@ const UserManagementPage = () => {
       return;
     }
 
+    const canonDept = form.department ? normalizeDepartment(form.department) : '';
     const { error } = await supabase.from('app_users').insert({
       username: form.username,
       password_hash: form.password,
       full_name: form.full_name,
       role: form.role,
-      department: form.department || null,
+      // Store canonical department label so dashboard scoping matches faculty_profiles.
+      department: canonDept && canonDept !== 'N/A' ? canonDept : null,
       campus: form.campus || null,
     });
 
