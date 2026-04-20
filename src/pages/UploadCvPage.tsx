@@ -351,7 +351,12 @@ const UploadCvPage = () => {
           user_id: user.id,
           first_name: pi.first_name || fnGuess || null,
           last_name: pi.last_name || lnGuess || null,
-          department: pi.department || (user as any).department || null,
+          department: ((): string | null => {
+            const raw = pi.department || (user as any).department;
+            if (!raw) return null;
+            const canon = normalizeDepartment(raw);
+            return canon === 'N/A' ? null : canon;
+          })(),
           campus: pi.campus || (user as any).campus || null,
           academic_rank: pi.academic_rank || null,
           employee_id: pi.employee_id || null,
