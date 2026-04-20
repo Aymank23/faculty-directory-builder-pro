@@ -125,7 +125,9 @@ const MyRepositoryPage = () => {
   const { data: profile } = useQuery({
     queryKey: ['my-profile', user?.id],
     queryFn: async () => {
-      const { data } = await supabase.from('faculty_profiles').select('*').eq('user_id', user!.id).single();
+      const { data } = await supabase
+        .from('faculty_profiles').select('*').eq('user_id', user!.id)
+        .order('created_at', { ascending: true }).limit(1).maybeSingle();
       return data;
     },
     enabled: !!user,
@@ -140,25 +142,30 @@ const MyRepositoryPage = () => {
     enabled: !!profile,
   });
 
+  const yearOptions = useMemo(() => {
+    const set = new Set<number>();
+    ics.forEach(ic => { if (ic.year) set.add(ic.year); });
+    return Array.from(set).sort((a, b) => b - a);
+  }, [ics]);
+
   const filtered = ics.filter(ic => {
-    const matchSearch = !search || ic.title.toLowerCase().includes(search.toLowerCase()) || (ic.authors || '').toLowerCase().includes(search.toLowerCase());
+    const matchSearch = !search || (ic.title || '').toLowerCase().includes(search.toLowerCase()) || (ic.authors || '').toLowerCase().includes(search.toLowerCase());
     const matchStatus = statusFilter === 'all' || ic.status === statusFilter;
-    return matchSearch && matchStatus;
+    const matchType = typeFilter === 'all' || ic.ic_type === typeFilter;
+    const matchQuartile = quartileFilter === 'all' || ic.quartile === quartileFilter;
+    const matchCategory = categoryFilter === 'all' || (ic.ic_category || '').includes(categoryFilter);
+    const matchYear = yearFilter === 'all' || String(ic.year) === yearFilter;
+    return matchSearch && matchStatus && matchType && matchQuartile && matchCategory && matchYear;
   });
 
-  const canEdit = (ic: any) => ic.status === 'draft' || ic.status === 'rejected';
+  const canEdit = (ic: any) => ic.status === 'draft' || ic.status === 'rejected' || ic.status === 'under_review';
 
   const handleExport = () => {
     const rows = filtered.map(ic => ({
-      Title: ic.title,
-      Type: ic.ic_type || '',
-      Category: ic.ic_category || '',
-      Quartile: ic.quartile || '',
-      Year: ic.year || '',
-      'Journal/Outlet': ic.journal_outlet || '',
-      Authors: ic.authors || '',
-      DOI: ic.doi || '',
-      Status: ic.status,
+      Title: ic.title, Type: ic.ic_type || '', Category: ic.ic_category || '',
+      Quartile: ic.quartile || '', Year: ic.year || '',
+      'Journal/Outlet': ic.journal_outlet || '', Authors: ic.authors || '',
+      DOI: ic.doi || '', Status: ic.status,
     }));
     const ws = XLSX.utils.json_to_sheet(rows);
     const wb = XLSX.utils.book_new();
@@ -179,18 +186,49 @@ const MyRepositoryPage = () => {
           </Button>
         </div>
 
-        <div className="flex gap-3">
-          <div className="relative flex-1 max-w-sm">
+        <div className="flex flex-wrap gap-3 items-end">
+          <div className="relative flex-1 min-w-[220px] max-w-sm">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input placeholder="Search by title or authors..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
+            <Input placeholder="Search title or authors…" value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
           </div>
           <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="w-36"><SelectValue placeholder="Status" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Statuses</SelectItem>
               {icStatuses.map(s => <SelectItem key={s} value={s} className="capitalize">{s.replace('_', ' ')}</SelectItem>)}
             </SelectContent>
           </Select>
+          <Select value={typeFilter} onValueChange={setTypeFilter}>
+            <SelectTrigger className="w-36"><SelectValue placeholder="Type" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Types</SelectItem>
+              {icTypes.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <Select value={quartileFilter} onValueChange={setQuartileFilter}>
+            <SelectTrigger className="w-32"><SelectValue placeholder="Quartile" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Quartiles</SelectItem>
+              {quartiles.map(q => <SelectItem key={q} value={q}>{q}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+            <SelectTrigger className="w-44"><SelectValue placeholder="Category" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Categories</SelectItem>
+              {icCategories.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <Select value={yearFilter} onValueChange={setYearFilter}>
+            <SelectTrigger className="w-28"><SelectValue placeholder="Year" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Years</SelectItem>
+              {yearOptions.map(y => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <Button variant="ghost" size="sm" onClick={resetFilters}>
+            <RotateCcw className="h-4 w-4 mr-1" /> Reset
+          </Button>
         </div>
 
         <Card>
