@@ -8,18 +8,21 @@ import { useQuery } from '@tanstack/react-query';
 import { Users, FileText, CheckCircle, TrendingUp, BookOpen, BarChart3 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 import { CHART_COLORS } from '@/lib/constants';
-import { normalizeNA } from '@/lib/normalize';
+import { normalizeNA, normalizeDepartment } from '@/lib/normalize';
 
 const DepartmentReportsPage = () => {
   const { user } = useAuth();
+  const userDept = user?.department ? normalizeDepartment(user.department) : '';
 
+  // Fetch all faculty and filter client-side via canonical department label so
+  // legacy aliases (MKT, MGT, FINA, ITOM, …) resolve to the user's department.
   const { data: faculty = [] } = useQuery({
-    queryKey: ['dept-report-faculty', user?.department],
+    queryKey: ['dept-report-faculty', userDept],
     queryFn: async () => {
-      const { data } = await supabase.from('faculty_profiles').select('*').eq('department', user!.department!);
-      return data || [];
+      const { data } = await supabase.from('faculty_profiles').select('*');
+      return (data || []).filter(f => normalizeDepartment(f.department) === userDept);
     },
-    enabled: !!user?.department,
+    enabled: !!userDept,
   });
 
   const facultyIds = faculty.map(f => f.faculty_id);

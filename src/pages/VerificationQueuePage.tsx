@@ -12,6 +12,7 @@ import { supabase } from '@/lib/supabase';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { CheckSquare, CheckCircle, XCircle, Trash2 } from 'lucide-react';
+import { normalizeDepartment } from '@/lib/normalize';
 
 const VerificationQueuePage = () => {
   const { user } = useAuth();
@@ -23,14 +24,17 @@ const VerificationQueuePage = () => {
   const [deleting, setDeleting] = useState(false);
 
   const isAdmin = user?.role === 'admin';
+  const userDept = user?.department ? normalizeDepartment(user.department) : '';
 
+  // Department scope: fetch all faculty, then filter client-side via the
+  // canonical department label so legacy aliases (MKT, MGT, …) all match.
   const { data: faculty = [] } = useQuery({
-    queryKey: ['verify-faculty', user?.role, user?.department],
+    queryKey: ['verify-faculty', user?.role, userDept],
     queryFn: async () => {
-      let q = supabase.from('faculty_profiles').select('*');
-      if (!isAdmin && user?.department) q = q.eq('department', user.department);
-      const { data } = await q;
-      return data || [];
+      const { data } = await supabase.from('faculty_profiles').select('*');
+      const rows = data || [];
+      if (isAdmin || !userDept) return rows;
+      return rows.filter(f => normalizeDepartment(f.department) === userDept);
     },
   });
 
