@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import AppLayout from '@/components/AppLayout';
 import { Card, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -12,7 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Library, Search, Eye, Pencil, FileText, ExternalLink, Trash2, FileSpreadsheet } from 'lucide-react';
+import { Library, Search, Eye, Pencil, FileText, ExternalLink, Trash2, FileSpreadsheet, RotateCcw } from 'lucide-react';
 import { icStatuses, icCategories, icTypes, quartiles, abdcRanks, indexingDatabases } from '@/lib/constants';
 import { toast } from 'sonner';
 import { getEvidenceUrl } from '@/lib/evidence';
@@ -27,13 +28,38 @@ const statusVariant = (s: string) => {
 
 const MyRepositoryPage = () => {
   const { user } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState(searchParams.get('status') || 'all');
+  const [typeFilter, setTypeFilter] = useState(searchParams.get('type') || 'all');
+  const [quartileFilter, setQuartileFilter] = useState(searchParams.get('quartile') || 'all');
+  const [categoryFilter, setCategoryFilter] = useState(searchParams.get('category') || 'all');
+  const [yearFilter, setYearFilter] = useState(searchParams.get('year') || 'all');
   const [viewIc, setViewIc] = useState<any>(null);
   const [editIc, setEditIc] = useState<any>(null);
   const [editForm, setEditForm] = useState<any>({});
   const [saving, setSaving] = useState(false);
   const queryClient = useQueryClient();
+
+  // Sync filter changes back to URL (so KPI links keep working & deep-links share)
+  useEffect(() => {
+    const next: Record<string, string> = {};
+    if (statusFilter !== 'all') next.status = statusFilter;
+    if (typeFilter !== 'all') next.type = typeFilter;
+    if (quartileFilter !== 'all') next.quartile = quartileFilter;
+    if (categoryFilter !== 'all') next.category = categoryFilter;
+    if (yearFilter !== 'all') next.year = yearFilter;
+    setSearchParams(next, { replace: true });
+  }, [statusFilter, typeFilter, quartileFilter, categoryFilter, yearFilter, setSearchParams]);
+
+  const resetFilters = () => {
+    setSearch('');
+    setStatusFilter('all');
+    setTypeFilter('all');
+    setQuartileFilter('all');
+    setCategoryFilter('all');
+    setYearFilter('all');
+  };
 
   const handleDelete = async (ic: any) => {
     if (!confirm(`Delete "${ic.title}"? This cannot be undone.`)) return;
