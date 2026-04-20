@@ -21,7 +21,6 @@ const statusVariant = (s: string) => {
 
 const FacultyOverviewPage = () => {
   const { user } = useAuth();
-  const navigate = useNavigate();
 
   const { data: profile } = useQuery({
     queryKey: ['my-profile', user?.id],
@@ -66,8 +65,11 @@ const FacultyOverviewPage = () => {
   const q3 = ics.filter(ic => ic.quartile === 'Q3').length;
   const q4 = ics.filter(ic => ic.quartile === 'Q4').length;
 
-  // Recent contributions: newest first by created_at, fall back to year
+  // Recent contributions: only items from the last 3 years (by publication year),
+  // sorted by upload time then year (newest first). Show up to 5.
+  const currentYear = new Date().getFullYear();
   const recentIcs = [...ics]
+    .filter(ic => (ic.year || 0) >= currentYear - 3)
     .sort((a, b) => {
       const ta = new Date(a.created_at || 0).getTime();
       const tb = new Date(b.created_at || 0).getTime();
@@ -76,10 +78,62 @@ const FacultyOverviewPage = () => {
     })
     .slice(0, 5);
 
-  const goRepo = (params: Record<string, string>) => {
-    const qs = new URLSearchParams(params).toString();
-    navigate(`/repository?${qs}`);
-  };
+  const sample = (list: typeof ics, n = 5) =>
+    list.slice(0, n).map(ic => `${ic.title || 'Untitled'}${ic.year ? ` (${ic.year})` : ''}`);
+
+  const prjSample = sample(ics.filter(ic => ic.ic_type === 'PRJ'));
+  const q1Sample = sample(ics.filter(ic => ic.quartile === 'Q1'));
+  const q2Sample = sample(ics.filter(ic => ic.quartile === 'Q2'));
+  const q3Sample = sample(ics.filter(ic => ic.quartile === 'Q3'));
+  const q4Sample = sample(ics.filter(ic => ic.quartile === 'Q4'));
+  const allSample = sample(ics);
+  const teachingSample = teaching
+    .slice(0, 5)
+    .map((t: any) => `${t.course_code || ''} ${t.course_title || ''}${t.term ? ` — ${t.term}` : ''}`.trim());
+
+  // Wrap a KPI card with a hover tooltip on a small info icon (top-right).
+  const KpiWithHover = ({
+    title,
+    value,
+    icon,
+    variant,
+    tooltipTitle,
+    tooltipLines,
+  }: {
+    title: string;
+    value: number;
+    icon: typeof FileText;
+    variant?: 'default' | 'success' | 'warning' | 'destructive';
+    tooltipTitle: string;
+    tooltipLines: string[];
+  }) => (
+    <div className="relative">
+      <KpiCard title={title} value={value} icon={icon} variant={variant} />
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <button
+            type="button"
+            aria-label={`${title} details`}
+            className="absolute top-2 right-2 inline-flex h-6 w-6 items-center justify-center rounded-full text-muted-foreground hover:text-foreground hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <Info className="h-3.5 w-3.5" />
+          </button>
+        </TooltipTrigger>
+        <TooltipContent side="top" className="max-w-xs">
+          <p className="font-medium mb-1">{tooltipTitle}</p>
+          {tooltipLines.length === 0 ? (
+            <p className="text-xs text-muted-foreground">No items yet.</p>
+          ) : (
+            <ul className="text-xs space-y-0.5">
+              {tooltipLines.map((line, i) => (
+                <li key={i} className="truncate">• {line}</li>
+              ))}
+            </ul>
+          )}
+        </TooltipContent>
+      </Tooltip>
+    </div>
+  );
 
   return (
     <AppLayout>
@@ -98,54 +152,46 @@ const FacultyOverviewPage = () => {
             <DashboardTour
               storageKey="tour-faculty-overview"
               steps={[
-                { target: '[data-tour="kpi-row"]', title: 'Your Metrics', description: 'Click any card to drill into the matching contributions in your repository.' },
-                { target: '[data-tour="quartiles"]', title: 'Quartile Breakdown', description: 'Q1–Q4 publication counts. Click a card to filter the repository by quartile.' },
-                { target: '[data-tour="recent"]', title: 'Recent Contributions', description: 'Your latest intellectual contributions, sorted by upload date.' },
+                { target: '[data-tour="kpi-row"]', title: 'Your Metrics', description: 'Hover the info icon on any card to preview the matching contributions.' },
+                { target: '[data-tour="quartiles"]', title: 'Quartile Breakdown', description: 'Q1–Q4 publication counts. Hover the icon to preview titles.' },
+                { target: '[data-tour="recent"]', title: 'Recent Contributions', description: 'Your contributions from the last 3 years.' },
               ]}
             />
           </div>
         </div>
 
-        {/* Primary KPIs — all clickable */}
+        {/* Primary KPIs — hover info icon to preview details */}
         <div data-tour="kpi-row" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <button type="button" onClick={() => navigate('/repository')} className="text-left transition-transform hover:scale-[1.01] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-lg">
-            <KpiCard title="Total ICs" value={ics.length} icon={FileText} />
-          </button>
-          <button type="button" onClick={() => goRepo({ type: 'PRJ' })} className="text-left transition-transform hover:scale-[1.01] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-lg">
-            <KpiCard title="Total PRJs" value={prjs} icon={BookOpen} />
-          </button>
-          <button type="button" onClick={() => goRepo({ quartile: 'Q1' })} className="text-left transition-transform hover:scale-[1.01] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-lg">
-            <KpiCard title="Q1 Publications" value={q1} icon={TrendingUp} variant="success" />
-          </button>
-          <button type="button" onClick={() => navigate('/teaching-load')} className="text-left transition-transform hover:scale-[1.01] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-lg">
-            <KpiCard title="Courses This Year" value={teaching.length} icon={Award} />
-          </button>
+          <KpiWithHover title="Total ICs" value={ics.length} icon={FileText}
+            tooltipTitle="Recent contributions" tooltipLines={allSample} />
+          <KpiWithHover title="Total PRJs" value={prjs} icon={BookOpen}
+            tooltipTitle="Peer-Reviewed Journals" tooltipLines={prjSample} />
+          <KpiWithHover title="Q1 Publications" value={q1} icon={TrendingUp} variant="success"
+            tooltipTitle="Q1 publications" tooltipLines={q1Sample} />
+          <KpiWithHover title="Courses This Year" value={teaching.length} icon={Award}
+            tooltipTitle="Teaching load" tooltipLines={teachingSample} />
         </div>
 
         {/* Quartile Breakdown — Q1/Q2/Q3/Q4 */}
         <div data-tour="quartiles" className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <button type="button" onClick={() => goRepo({ quartile: 'Q1' })} className="text-left transition-transform hover:scale-[1.01] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-lg">
-            <KpiCard title="Q1" value={q1} icon={Trophy} variant="success" />
-          </button>
-          <button type="button" onClick={() => goRepo({ quartile: 'Q2' })} className="text-left transition-transform hover:scale-[1.01] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-lg">
-            <KpiCard title="Q2" value={q2} icon={Trophy} />
-          </button>
-          <button type="button" onClick={() => goRepo({ quartile: 'Q3' })} className="text-left transition-transform hover:scale-[1.01] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-lg">
-            <KpiCard title="Q3" value={q3} icon={Trophy} variant="warning" />
-          </button>
-          <button type="button" onClick={() => goRepo({ quartile: 'Q4' })} className="text-left transition-transform hover:scale-[1.01] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-lg">
-            <KpiCard title="Q4" value={q4} icon={Trophy} variant="warning" />
-          </button>
+          <KpiWithHover title="Q1" value={q1} icon={Trophy} variant="success"
+            tooltipTitle="Q1 publications" tooltipLines={q1Sample} />
+          <KpiWithHover title="Q2" value={q2} icon={Trophy}
+            tooltipTitle="Q2 publications" tooltipLines={q2Sample} />
+          <KpiWithHover title="Q3" value={q3} icon={Trophy} variant="warning"
+            tooltipTitle="Q3 publications" tooltipLines={q3Sample} />
+          <KpiWithHover title="Q4" value={q4} icon={Trophy} variant="warning"
+            tooltipTitle="Q4 publications" tooltipLines={q4Sample} />
         </div>
 
-        {/* Recent Contributions */}
+        {/* Recent Contributions (last 3 years) */}
         {recentIcs.length > 0 && (
           <Card data-tour="recent">
             <CardHeader>
               <div className="flex items-center justify-between">
-                <CardTitle className="font-serif text-base">Recent Contributions</CardTitle>
+                <CardTitle className="font-serif text-base">Recent Contributions (last 3 years)</CardTitle>
                 <Button asChild variant="ghost" size="sm">
-                  <Link to="/repository">View all <BarChart3 className="h-3.5 w-3.5 ml-1" /></Link>
+                  <Link to="/my-repository">View all <BarChart3 className="h-3.5 w-3.5 ml-1" /></Link>
                 </Button>
               </div>
             </CardHeader>
@@ -162,7 +208,7 @@ const FacultyOverviewPage = () => {
                 </TableHeader>
                 <TableBody>
                   {recentIcs.map(ic => (
-                    <TableRow key={ic.ic_id} onClick={() => navigate('/repository')} className="cursor-pointer hover:bg-muted/50">
+                    <TableRow key={ic.ic_id}>
                       <TableCell className="font-medium max-w-xs truncate">{ic.title}</TableCell>
                       <TableCell>{ic.ic_type || '—'}</TableCell>
                       <TableCell>{ic.year || '—'}</TableCell>
