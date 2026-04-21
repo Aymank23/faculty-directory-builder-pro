@@ -21,6 +21,7 @@ import ImportCenterPage from "./pages/ImportCenterPage";
 import AACSBExportsPage from "./pages/AACSBExportsPage";
 import UserManagementPage from "./pages/UserManagementPage";
 import AuditLogPage from "./pages/AuditLogPage";
+import AdminFacultyProfilePage from "./pages/AdminFacultyProfilePage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -82,6 +83,7 @@ const App = () => (
             <Route path="/aacsb-exports" element={<ProtectedRoute allowedRoles={['admin']}><AACSBExportsPage /></ProtectedRoute>} />
             <Route path="/user-management" element={<ProtectedRoute allowedRoles={['admin']}><UserManagementPage /></ProtectedRoute>} />
             <Route path="/audit-log" element={<ProtectedRoute allowedRoles={['admin']}><AuditLogPage /></ProtectedRoute>} />
+            <Route path="/faculty/:id" element={<ProtectedRoute allowedRoles={['admin', 'hod']}><AdminFacultyProfilePage /></ProtectedRoute>} />
 
             <Route path="*" element={<NotFound />} />
           </Routes>
