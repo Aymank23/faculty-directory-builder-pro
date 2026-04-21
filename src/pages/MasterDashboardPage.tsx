@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import DashboardTour from '@/components/DashboardTour';
 import AppLayout from '@/components/AppLayout';
 import KpiCard from '@/components/KpiCard';
@@ -34,13 +35,19 @@ const MasterDashboardPage = () => {
   const [quartileFilter, setQuartileFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
 
-  const { data: allIcs = [] } = useQuery({
+  // Only PRJ / Book / Chapter count as real Intellectual Contributions for AACSB.
+  // Conference proceedings, editorial work, online-course delivery, etc. live in
+  // professional_engagements / service_contributions and must NOT inflate IC counts.
+  const VALID_IC_TYPES = new Set(['PRJ', 'Book', 'Chapter']);
+
+  const { data: allIcsRaw = [] } = useQuery({
     queryKey: ['admin-ics'],
     queryFn: async () => {
       const { data } = await supabase.from('intellectual_contributions').select('*');
       return data || [];
     },
   });
+  const allIcs = allIcsRaw.filter(ic => VALID_IC_TYPES.has(ic.ic_type || ''));
 
   const { data: faculty = [] } = useQuery({
     queryKey: ['admin-faculty'],
@@ -115,8 +122,8 @@ const MasterDashboardPage = () => {
   });
   const deptData = Object.entries(deptCounts).map(([name, value]) => ({ name, value }));
 
-  // Publications per faculty — deduplicate by faculty_id (one row per actual faculty record)
-  const perFaculty: Record<string, { name: string; department: string; count: number }> = {};
+  // Publications per faculty — keep faculty_id so we can drill-down to a profile view.
+  const perFaculty: Record<string, { name: string; department: string; count: number; faculty_id: string }> = {};
   ics.forEach(ic => {
     const fac = facultyMap[ic.faculty_id];
     if (!fac) return;
@@ -125,12 +132,13 @@ const MasterDashboardPage = () => {
         name: `${fac.first_name || ''} ${fac.last_name || ''}`.trim() || '—',
         department: fac.department ? normalizeDepartment(fac.department) : '',
         count: 0,
+        faculty_id: fac.faculty_id,
       };
     }
     perFaculty[fac.faculty_id].count++;
   });
-  // Extra safety net: collapse same name+department duplicates if any persist
-  const collapsed: Record<string, { name: string; department: string; count: number }> = {};
+  // Collapse any same name+department duplicates left over (defensive).
+  const collapsed: Record<string, { name: string; department: string; count: number; faculty_id: string }> = {};
   Object.values(perFaculty).forEach(row => {
     const key = `${row.name.toLowerCase().trim()}|${(row.department || '').toLowerCase().trim()}`;
     if (!collapsed[key]) collapsed[key] = { ...row };
@@ -390,9 +398,12 @@ const MasterDashboardPage = () => {
               </Card>
             </div>
 
-            {/* Publications per Faculty Member */}
+            {/* Publications per Faculty Member — admin drill-down via Faculty Directory */}
             <Card>
-              <CardHeader><CardTitle className="font-serif text-base">Publications per Faculty Member</CardTitle></CardHeader>
+              <CardHeader>
+                <CardTitle className="font-serif text-base">Publications per Faculty Member</CardTitle>
+                <p className="text-xs text-muted-foreground mt-1">Counts only valid intellectual contributions (PRJ, Book, Chapter). Click "View" to open the faculty profile.</p>
+              </CardHeader>
               <CardContent className="p-0">
                 <div className="overflow-auto max-h-96">
                   <Table>
@@ -401,6 +412,7 @@ const MasterDashboardPage = () => {
                         <TableHead>Faculty</TableHead>
                         <TableHead>Department</TableHead>
                         <TableHead className="text-right">IC Count</TableHead>
+                        <TableHead className="w-24"></TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -409,6 +421,11 @@ const MasterDashboardPage = () => {
                           <TableCell className="font-medium">{row.name}</TableCell>
                           <TableCell>{row.department}</TableCell>
                           <TableCell className="text-right">{row.count}</TableCell>
+                          <TableCell className="text-right">
+                            <Button asChild variant="ghost" size="sm" className="h-7 text-xs">
+                              <Link to={`/faculty/${row.faculty_id}`}>View</Link>
+                            </Button>
+                          </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>

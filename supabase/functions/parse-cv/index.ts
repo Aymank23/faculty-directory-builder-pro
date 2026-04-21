@@ -322,15 +322,49 @@ function extractYearGroupedIcEntries(lines: string[], defaultType: string, sourc
   return entries;
 }
 
+// Valid IC types (PRJ, Book, Chapter only). Academic engagement activities, conference proceedings,
+// editorial roles etc. must NOT be in intellectual_contributions — they belong in
+// professional_engagements / service_contributions.
+const VALID_IC_TYPES = new Set(["PRJ", "Book", "Chapter"]);
+
 function extractIntellectualContributions(lines: string[]) {
   const sections = splitIcSections(lines);
   return [
     ...(sections.prjs ? extractPrjEntries(sections.prjs) : []),
     ...(sections.books ? extractBookLikeEntries(sections.books, "Book", "Books") : []),
     ...(sections.chapters ? extractBookLikeEntries(sections.chapters, "Chapter", "Chapters") : []),
-    ...(sections.other_ics ? extractYearGroupedIcEntries(sections.other_ics, "Other IC", "Other ICs") : []),
-    ...(sections.academic_engagement ? extractYearGroupedIcEntries(sections.academic_engagement, "Academic Engagement", "Academic Engagement Activities") : []),
-  ].filter((entry) => entry.title && !isPlaceholder(entry.title));
+  ].filter((entry) => entry.title && !isPlaceholder(entry.title) && VALID_IC_TYPES.has(String(entry.ic_type)));
+}
+
+// Extract academic engagements (year-grouped IC sections that are really engagement entries)
+function extractEngagementsFromIcSection(lines: string[]) {
+  const sections = splitIcSections(lines);
+  const engagementRows: any[] = [];
+  if (sections.other_ics) {
+    extractYearGroupedIcEntries(sections.other_ics, "Other IC", "Other ICs").forEach((e) => {
+      engagementRows.push({
+        from_to: e.year ? String(e.year) : null,
+        activity: e.title || e.ic_type || "Other intellectual contribution",
+        details: e.apa_citation || e.raw_text || null,
+        engagement_type: e.ic_type || "Other IC",
+        year: e.year || null,
+        source_section: "Other ICs (reclassified from CV)",
+      });
+    });
+  }
+  if (sections.academic_engagement) {
+    extractYearGroupedIcEntries(sections.academic_engagement, "Academic Engagement", "Academic Engagement Activities").forEach((e) => {
+      engagementRows.push({
+        from_to: e.year ? String(e.year) : null,
+        activity: e.title || e.ic_type || "Academic engagement",
+        details: e.apa_citation || e.raw_text || null,
+        engagement_type: e.ic_type || "Academic Engagement",
+        year: e.year || null,
+        source_section: "Academic Engagement Activities",
+      });
+    });
+  }
+  return engagementRows;
 }
 
 function extractTripleRows(lines: string[], headers: RegExp[], fieldNames: [string, string, string], sourceSection: string) {
@@ -405,12 +439,14 @@ serve(async (req) => {
     const qualifications = extractQualifications(sections.qualifications);
     const intellectualContributions = extractIntellectualContributions(sections.intellectual_contributions);
     const professionalExperience = extractProfessionalExperience(sections.professional_experience);
-    const engagements = extractTripleRows(
+    const reclassifiedEngagements = extractEngagementsFromIcSection(sections.intellectual_contributions);
+    const baseEngagements = extractTripleRows(
       sections.professional_engagement,
       [/^from-to$/i, /^activity$/i, /^details$/i],
       ["from_to", "activity", "details"],
       "Professional Engagement Activities",
     );
+    const engagements = [...baseEngagements, ...reclassifiedEngagements];
     const services = extractTripleRows(
       sections.service,
       [/^from-to$/i, /^level$/i, /^committee\s*\/\s*role$/i],
