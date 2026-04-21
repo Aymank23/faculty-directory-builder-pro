@@ -12,15 +12,18 @@ import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { UserCog, Plus } from 'lucide-react';
+import { UserCog, Plus, Trash2 } from 'lucide-react';
 import { departments, campuses } from '@/lib/constants';
 import { normalizeDepartment } from '@/lib/normalize';
+import DeleteConfirmDialog from '@/components/DeleteConfirmDialog';
 
 const UserManagementPage = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [form, setForm] = useState({ username: '', password: '', full_name: '', role: 'faculty', department: '', campus: '' });
+  const [deleteTarget, setDeleteTarget] = useState<any>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const { data: users = [] } = useQuery({
     queryKey: ['all-users'],
@@ -62,6 +65,23 @@ const UserManagementPage = () => {
     queryClient.invalidateQueries({ queryKey: ['all-users'] });
   };
 
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    // Unlink any faculty_profiles tied to this app_user (don't cascade-delete their data)
+    await supabase.from('faculty_profiles').update({ user_id: null }).eq('user_id', deleteTarget.user_id);
+    const { error } = await supabase.from('app_users').delete().eq('user_id', deleteTarget.user_id);
+    if (error) { toast.error(error.message || 'Delete failed'); setDeleting(false); return; }
+    await supabase.from('audit_log').insert({
+      user_id: user!.id, action: 'user_deleted', target_table: 'app_users', target_record: deleteTarget.user_id,
+      details: { username: deleteTarget.username, role: deleteTarget.role },
+    });
+    toast.success(`User ${deleteTarget.username} deleted`);
+    setDeleteTarget(null);
+    setDeleting(false);
+    queryClient.invalidateQueries({ queryKey: ['all-users'] });
+  };
+
   return (
     <AppLayout>
       <div className="space-y-6">
@@ -92,6 +112,7 @@ const UserManagementPage = () => {
                     <TableHead>Department</TableHead>
                     <TableHead>Campus</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead className="w-12 text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -103,6 +124,19 @@ const UserManagementPage = () => {
                       <TableCell>{u.department || '—'}</TableCell>
                       <TableCell>{u.campus || '—'}</TableCell>
                       <TableCell><Badge variant={u.status === 'active' ? 'default' : 'secondary'} className="text-xs">{u.status}</Badge></TableCell>
+                      <TableCell className="text-right">
+                        {u.user_id !== user?.id && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setDeleteTarget(u)}
+                            className="text-destructive hover:text-destructive h-8 w-8 p-0"
+                            title="Delete user"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        )}
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
