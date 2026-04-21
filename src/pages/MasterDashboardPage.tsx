@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import DashboardTour from '@/components/DashboardTour';
 import AppLayout from '@/components/AppLayout';
 import KpiCard from '@/components/KpiCard';
