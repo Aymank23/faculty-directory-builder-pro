@@ -17,6 +17,7 @@ import { toast } from 'sonner';
 import { departments, campuses, academicRanks, ftPtStatuses, highestDegrees, tenureStatuses } from '@/lib/constants';
 import { normalizeDepartment } from '@/lib/normalize';
 import { repairQualification } from '@/lib/qualifications';
+import { repairService } from '@/lib/services';
 
 const FacultyProfilePage = () => {
   const { user } = useAuth();
@@ -59,7 +60,7 @@ const FacultyProfilePage = () => {
     queryKey: ['my-services', facultyId],
     queryFn: async () => {
       const { data } = await supabase.from('service_contributions').select('*').eq('faculty_id', facultyId!).order('created_at', { ascending: false });
-      return data || [];
+      return (data || []).map((row: any) => ({ ...row, ...repairService(row) }));
     },
     enabled: !!facultyId,
   });

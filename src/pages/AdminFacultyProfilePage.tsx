@@ -10,6 +10,7 @@ import { useQuery } from '@tanstack/react-query';
 import { ArrowLeft, FileText, BookOpen, GraduationCap, Heart, Briefcase, Award } from 'lucide-react';
 import { normalizeDepartment } from '@/lib/normalize';
 import { repairQualification } from '@/lib/qualifications';
+import { repairService } from '@/lib/services';
 
 const VALID_IC_TYPES = new Set(['PRJ', 'Book', 'Chapter']);
 
@@ -49,7 +50,10 @@ const AdminFacultyProfilePage = () => {
   });
   const { data: services = [] } = useQuery({
     queryKey: ['admin-faculty-svc', id],
-    queryFn: async () => (await supabase.from('service_contributions').select('*').eq('faculty_id', id!)).data || [],
+    queryFn: async () => {
+      const { data } = await supabase.from('service_contributions').select('*').eq('faculty_id', id!);
+      return (data || []).map((row: any) => ({ ...row, ...repairService(row) }));
+    },
     enabled: !!id,
   });
   const { data: awards = [] } = useQuery({
