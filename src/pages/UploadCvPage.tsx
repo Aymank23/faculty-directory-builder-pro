@@ -454,7 +454,18 @@ const UploadCvPage = () => {
           result.icsInserted++;
         }
       }
-      const newQuals = (extracted.qualifications || []).filter(q => {
+      // Repair + validate qualifications before insert (year may be in field_area, etc.)
+      const repairedQuals = (extracted.qualifications || []).map(q =>
+        repairQualification({
+          degree_certification: q.degree_certification,
+          institution: q.institution ?? null,
+          year: q.year ?? null,
+          field_area: q.field_area ?? null,
+        })
+      );
+      const newQuals = repairedQuals.filter(q => {
+        if (!q.degree_certification) return false;
+        if (validateQualification(q).length > 0) return false;
         return !existingQuals.some((eq: any) =>
           eq.degree_certification === q.degree_certification &&
           eq.institution === q.institution
@@ -465,9 +476,9 @@ const UploadCvPage = () => {
           newQuals.map(q => ({
             faculty_id: facultyId,
             degree_certification: q.degree_certification,
-            institution: q.institution || null,
-            year: q.year ? parseInt(q.year) || null : null,
-            field_area: q.field_area || null,
+            institution: q.institution,
+            year: q.year,
+            field_area: q.field_area,
           }))
         );
         if (e) { console.error('[Save CV] qual insert error', e); throw new Error(`Qualification insert failed: ${e.message}`); }
