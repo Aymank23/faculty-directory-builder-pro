@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { icTypes, icCategories, quartiles } from '@/lib/constants';
 import { normalizeDepartment } from '@/lib/normalize';
+import { repairQualification, validateQualification } from '@/lib/qualifications';
 import * as XLSX from 'xlsx';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
