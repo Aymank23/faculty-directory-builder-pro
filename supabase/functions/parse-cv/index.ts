@@ -180,20 +180,51 @@ function extractProfile(lines: string[]) {
   return profile;
 }
 
+// Detect whether a string represents a degree/certification (heuristic).
+const DEGREE_TOKENS_RE = /\b(ph\.?d|m\.?b\.?a|m\.?sc|m\.?a|b\.?sc|b\.?a|b\.?b\.?a|d\.?b\.?a|ed\.?d|j\.?d|llb|llm|diploma|certificate|certification|cert|fellow|cpa|cma|cfa|cia|cisa|frm|acca|aca|dipifr|pmp|bachelor|master|doctorate)\b/i;
+
+function looksLikeDegreeToken(line: string) {
+  return !!line && DEGREE_TOKENS_RE.test(line);
+}
+
 function extractQualifications(lines: string[]) {
   const content = lines.filter((line) => !looksLikeSectionHeading(line) && !/^(degree|institution|year|field\s*\/\s*area)$/i.test(line));
   const qualifications: Array<Record<string, string | number | null>> = [];
 
+  // Iterate in 4-cell blocks but use CONTENT-BASED assignment so that a
+  // missing/shifted cell in the source CV does not push the year into the
+  // field/area column or vice-versa.
   for (let i = 0; i + 3 < content.length; i += 4) {
-    const degree = content[i];
-    const institution = content[i + 1];
-    const year = content[i + 2];
-    const field = content[i + 3];
-    if (isPlaceholder(degree) || isPlaceholder(institution)) continue;
+    const block = [content[i], content[i + 1], content[i + 2], content[i + 3]]
+      .map((c) => (c == null ? "" : c))
+      .filter((c) => !isPlaceholder(c));
+    if (block.length < 2) continue;
+
+    // 1. Pull the year out of the block, wherever it lives.
+    let year: number | null = null;
+    const nonYear: string[] = [];
+    for (const cell of block) {
+      const y = !year ? normalizeYear(cell) : null;
+      if (y && String(cell).trim().length <= 6) {
+        year = y;
+      } else {
+        nonYear.push(cell);
+      }
+    }
+
+    // 2. Identify the degree/certification by token; fall back to first cell.
+    const degreeIdx = nonYear.findIndex(looksLikeDegreeToken);
+    const degree = degreeIdx >= 0 ? nonYear[degreeIdx] : nonYear[0];
+    const others = degreeIdx >= 0 ? nonYear.filter((_, idx) => idx !== degreeIdx) : nonYear.slice(1);
+    const institution = others[0] ?? null;
+    const field = others[1] ?? null;
+
+    if (!degree) continue;
+
     qualifications.push({
       degree_certification: degree,
       institution,
-      year: normalizeYear(year) ?? year,
+      year,
       field_area: field,
       source_section: "Academic & Professional Qualifications",
     });

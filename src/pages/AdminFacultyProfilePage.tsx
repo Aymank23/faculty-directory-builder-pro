@@ -9,6 +9,7 @@ import { supabase } from '@/lib/supabase';
 import { useQuery } from '@tanstack/react-query';
 import { ArrowLeft, FileText, BookOpen, GraduationCap, Heart, Briefcase, Award } from 'lucide-react';
 import { normalizeDepartment } from '@/lib/normalize';
+import { repairQualification } from '@/lib/qualifications';
 
 const VALID_IC_TYPES = new Set(['PRJ', 'Book', 'Chapter']);
 
@@ -35,7 +36,10 @@ const AdminFacultyProfilePage = () => {
 
   const { data: qualifications = [] } = useQuery({
     queryKey: ['admin-faculty-quals', id],
-    queryFn: async () => (await supabase.from('academic_qualifications').select('*').eq('faculty_id', id!).order('year', { ascending: false })).data || [],
+    queryFn: async () => {
+      const { data } = await supabase.from('academic_qualifications').select('*').eq('faculty_id', id!).order('year', { ascending: false });
+      return (data || []).map((row: any) => ({ ...row, ...repairQualification(row) }));
+    },
     enabled: !!id,
   });
   const { data: engagements = [] } = useQuery({

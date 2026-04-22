@@ -16,6 +16,7 @@ import { User, GraduationCap, Briefcase, Heart, Award, Plus, Trash2, Upload, Pen
 import { toast } from 'sonner';
 import { departments, campuses, academicRanks, ftPtStatuses, highestDegrees, tenureStatuses } from '@/lib/constants';
 import { normalizeDepartment } from '@/lib/normalize';
+import { repairQualification } from '@/lib/qualifications';
 
 const FacultyProfilePage = () => {
   const { user } = useAuth();
@@ -42,7 +43,7 @@ const FacultyProfilePage = () => {
     queryKey: ['my-qualifications', facultyId],
     queryFn: async () => {
       const { data } = await supabase.from('academic_qualifications').select('*').eq('faculty_id', facultyId!).order('year', { ascending: false });
-      return data || [];
+      return (data || []).map((row: any) => ({ ...row, ...repairQualification(row) }));
     },
     enabled: !!facultyId,
   });
@@ -281,7 +282,7 @@ const FacultyProfilePage = () => {
             icon={GraduationCap}
             columns={['Degree / Certification', 'Institution', 'Year', 'Field / Area']}
             rows={qualifications}
-            renderRow={(q: any) => [q.degree_certification, q.institution || '—', q.year || '—', q.field_area || '—']}
+            renderRow={(q: any) => [q.degree_certification || '—', q.institution || '—', q.year || '—', q.field_area || '—']}
             emptyText="No qualifications recorded."
             tableName="academic_qualifications"
             facultyId={facultyId!}
