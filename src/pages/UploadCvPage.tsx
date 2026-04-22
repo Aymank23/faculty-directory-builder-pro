@@ -21,6 +21,7 @@ import {
 import { icTypes, icCategories, quartiles } from '@/lib/constants';
 import { normalizeDepartment } from '@/lib/normalize';
 import { repairQualification, validateQualification } from '@/lib/qualifications';
+import { repairService } from '@/lib/services';
 import * as XLSX from 'xlsx';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -495,14 +496,22 @@ const UploadCvPage = () => {
         result.engAdded = extracted.engagements.length;
       }
       if (extracted.services?.length) {
-        const { error: e } = await supabase.from('service_contributions').insert(
-          extracted.services.map(s => ({
-            faculty_id: facultyId, from_to: s.from_to || null,
-            level: s.level || null, committee_role: s.committee_role,
-          }))
-        );
-        if (e) { console.error('[Save CV] service error', e); throw new Error(`Services insert failed: ${e.message}`); }
-        result.svcAdded = extracted.services.length;
+        const repairedServices = extracted.services
+          .map(s => repairService(s as any))
+          .filter(s => s.committee_role); // require role to persist
+        if (repairedServices.length) {
+          const { error: e } = await supabase.from('service_contributions').insert(
+            repairedServices.map(s => ({
+              faculty_id: facultyId,
+              from_to: s.from_to,
+              level: s.level,
+              committee_role: s.committee_role,
+              year: s.year,
+            }))
+          );
+          if (e) { console.error('[Save CV] service error', e); throw new Error(`Services insert failed: ${e.message}`); }
+          result.svcAdded = repairedServices.length;
+        }
       }
       if (extracted.awards?.length) {
         const { error: e } = await supabase.from('awards_recognition').insert(
