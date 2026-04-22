@@ -11,6 +11,8 @@ import { ArrowLeft, FileText, BookOpen, GraduationCap, Heart, Briefcase, Award }
 import { normalizeDepartment } from '@/lib/normalize';
 import { repairQualification } from '@/lib/qualifications';
 import { repairService } from '@/lib/services';
+import { repairEngagement } from '@/lib/engagements';
+import { cleanCvValue } from '@/lib/cvNoise';
 
 const VALID_IC_TYPES = new Set(['PRJ', 'Book', 'Chapter']);
 
@@ -45,7 +47,10 @@ const AdminFacultyProfilePage = () => {
   });
   const { data: engagements = [] } = useQuery({
     queryKey: ['admin-faculty-eng', id],
-    queryFn: async () => (await supabase.from('professional_engagements').select('*').eq('faculty_id', id!)).data || [],
+    queryFn: async () => {
+      const { data } = await supabase.from('professional_engagements').select('*').eq('faculty_id', id!);
+      return (data || []).map((row: any) => ({ ...row, ...repairEngagement(row) }));
+    },
     enabled: !!id,
   });
   const { data: services = [] } = useQuery({
@@ -58,7 +63,15 @@ const AdminFacultyProfilePage = () => {
   });
   const { data: awards = [] } = useQuery({
     queryKey: ['admin-faculty-awards', id],
-    queryFn: async () => (await supabase.from('awards_recognition').select('*').eq('faculty_id', id!).order('year', { ascending: false })).data || [],
+    queryFn: async () => {
+      const { data } = await supabase.from('awards_recognition').select('*').eq('faculty_id', id!).order('year', { ascending: false });
+      return (data || []).map((row: any) => ({
+        ...row,
+        award: cleanCvValue(row.award),
+        award_name: cleanCvValue(row.award_name),
+        institution_organization: cleanCvValue(row.institution_organization),
+      }));
+    },
     enabled: !!id,
   });
 
