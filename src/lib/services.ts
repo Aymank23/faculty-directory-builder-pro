@@ -27,13 +27,12 @@ const PERIOD_RE = /(\b(19|20)\d{2}\b.*\b(19|20)\d{2}\b|\b(19|20)\d{2}\b\s*[-–�
 const LEVEL_TOKENS = /^(department|school|college|university|national|international|community|professional|industry)$/i;
 
 // Section-header / narrative noise that should never be treated as a real
-// period or role (e.g. "(Since Fall 2020 – listed from most recent to last)").
-const NOISE_RE = /listed\s+from\s+most\s+recent|most\s+recent\s+to\s+last|^[\(\[].*listed.*[\)\]]$/i;
+// period or role. Sourced from the shared CV noise rule so any new patterns
+// added there propagate to this repair function automatically.
+import { isCvNoise } from './cvNoise';
 
 function isNoise(value: unknown): boolean {
-  const s = value == null ? '' : String(value).trim();
-  if (!s) return false;
-  return NOISE_RE.test(s);
+  return isCvNoise(value);
 }
 
 function clean(value: unknown): string | null {

@@ -18,6 +18,8 @@ import { departments, campuses, academicRanks, ftPtStatuses, highestDegrees, ten
 import { normalizeDepartment } from '@/lib/normalize';
 import { repairQualification } from '@/lib/qualifications';
 import { repairService } from '@/lib/services';
+import { repairEngagement } from '@/lib/engagements';
+import { cleanCvValue } from '@/lib/cvNoise';
 
 const FacultyProfilePage = () => {
   const { user } = useAuth();
@@ -52,7 +54,7 @@ const FacultyProfilePage = () => {
     queryKey: ['my-engagements', facultyId],
     queryFn: async () => {
       const { data } = await supabase.from('professional_engagements').select('*').eq('faculty_id', facultyId!).order('created_at', { ascending: false });
-      return data || [];
+      return (data || []).map((row: any) => ({ ...row, ...repairEngagement(row) }));
     },
     enabled: !!facultyId,
   });
@@ -68,7 +70,12 @@ const FacultyProfilePage = () => {
     queryKey: ['my-awards', facultyId],
     queryFn: async () => {
       const { data } = await supabase.from('awards_recognition').select('*').eq('faculty_id', facultyId!).order('year', { ascending: false });
-      return data || [];
+      return (data || []).map((row: any) => ({
+        ...row,
+        award: cleanCvValue(row.award),
+        award_name: cleanCvValue(row.award_name),
+        institution_organization: cleanCvValue(row.institution_organization),
+      }));
     },
     enabled: !!facultyId,
   });

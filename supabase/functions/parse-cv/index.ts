@@ -17,6 +17,19 @@ const PLACEHOLDERS = [
   "documentation is needed for every item listed",
 ];
 
+// Narrative section headers / parser noise that historically polluted real
+// data fields (e.g. "(Since Fall 2020 – listed from most recent to last)").
+// Lines matching these patterns are dropped during sanitization.
+const NOISE_PATTERNS: RegExp[] = [
+  /listed\s+from\s+most\s+recent/i,
+  /most\s+recent\s+to\s+last/i,
+  /^[\(\[].*listed.*[\)\]]$/i,
+];
+
+function isNoiseLine(line: string): boolean {
+  return NOISE_PATTERNS.some((re) => re.test(line));
+}
+
 const MAIN_SECTION_MATCHERS: Array<{ key: string; pattern: RegExp }> = [
   { key: "personal_info", pattern: /^#*\s*1\.?\s*personal/i },
   { key: "qualifications", pattern: /^#*\s*2\.?\s*academic\s*&?\s*professional qualifications/i },
@@ -68,6 +81,7 @@ function sanitizeText(cvText: string) {
     .filter((line) => {
       if (!line) return false;
       if (isPlaceholder(line)) return false;
+      if (isNoiseLine(line)) return false;
       if (/^w:[a-z]/i.test(line)) return false;
       if (/^[<>/\\]+$/.test(line)) return false;
       return true;
