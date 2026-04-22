@@ -26,10 +26,21 @@ const YEAR_RE = /\b(19|20)\d{2}\b/;
 const PERIOD_RE = /(\b(19|20)\d{2}\b.*\b(19|20)\d{2}\b|\b(19|20)\d{2}\b\s*[-–—]\s*(present|now|today)|\b(19|20)\d{2}\b\s*[-–—]\s*$|since\s+\w+\s+\d{4}|fall\s+\d{4}|spring\s+\d{4}|summer\s+\d{4})/i;
 const LEVEL_TOKENS = /^(department|school|college|university|national|international|community|professional|industry)$/i;
 
+// Section-header / narrative noise that should never be treated as a real
+// period or role (e.g. "(Since Fall 2020 – listed from most recent to last)").
+const NOISE_RE = /listed\s+from\s+most\s+recent|most\s+recent\s+to\s+last|^[\(\[].*listed.*[\)\]]$/i;
+
+function isNoise(value: unknown): boolean {
+  const s = value == null ? '' : String(value).trim();
+  if (!s) return false;
+  return NOISE_RE.test(s);
+}
+
 function clean(value: unknown): string | null {
   if (value == null) return null;
   const s = String(value).trim();
   if (!s || s === '—' || s === '-') return null;
+  if (isNoise(s)) return null;
   return s;
 }
 
