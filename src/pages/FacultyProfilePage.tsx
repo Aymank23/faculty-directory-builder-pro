@@ -455,6 +455,7 @@ const CvSection = ({ title, icon: Icon, columns, rows, renderRow, emptyText, tab
             <TableHeader>
               <TableRow>
                 {columns.map(c => <TableHead key={c}>{c}</TableHead>)}
+                {PROOF_TABLES.has(tableName) && <TableHead>Proof</TableHead>}
                 <TableHead className="w-12"></TableHead>
               </TableRow>
             </TableHeader>
@@ -464,6 +465,19 @@ const CvSection = ({ title, icon: Icon, columns, rows, renderRow, emptyText, tab
                 return (
                   <TableRow key={row.id || i}>
                     {cells.map((cell, j) => <TableCell key={j} className="text-sm">{cell}</TableCell>)}
+                    {PROOF_TABLES.has(tableName) && (
+                      <TableCell>
+                        <ProofUploadCell
+                          tableName={tableName as any}
+                          rowId={row.id}
+                          facultyId={facultyId}
+                          proofStatus={row.proof_status}
+                          proofFilePath={row.proof_file_path}
+                          proofReviewComment={row.proof_review_comment}
+                          queryKey={queryKey}
+                        />
+                      </TableCell>
+                    )}
                     <TableCell>
                       <Button variant="ghost" size="sm" onClick={() => handleDelete(row)} className="text-destructive hover:text-destructive">
                         <Trash2 className="h-3.5 w-3.5" />
