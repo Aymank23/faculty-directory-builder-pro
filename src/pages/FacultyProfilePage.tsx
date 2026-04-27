@@ -343,6 +343,28 @@ const FacultyProfilePage = () => {
           />
         )}
 
+        {/* Section 3: Professional Experience */}
+        {profile && (
+          <CvSection
+            title="3. Professional Experience"
+            icon={Briefcase}
+            columns={['Period', 'Position', 'Organization', 'Key Responsibilities']}
+            rows={experience}
+            renderRow={(x: any) => [x.period || '—', x.position_title || '—', x.organization || '—', x.key_responsibilities || '—']}
+            emptyText="No professional experience recorded."
+            tableName="professional_experience"
+            facultyId={facultyId!}
+            userId={user!.id}
+            queryKey="my-experience"
+            formFields={[
+              { name: 'period', label: 'Period (e.g. 2018–2022)' },
+              { name: 'position_title', label: 'Position Title', required: true },
+              { name: 'organization', label: 'Organization' },
+              { name: 'key_responsibilities', label: 'Key Responsibilities' },
+            ]}
+          />
+        )}
+
         {/* Section 5: Service Contributions */}
         {profile && (
           <CvSection
