@@ -61,6 +61,20 @@ const FacultyProfilePage = () => {
     },
     enabled: !!facultyId,
   });
+  const { data: experience = [] } = useQuery({
+    queryKey: ['my-experience', facultyId],
+    queryFn: async () => {
+      const { data } = await supabase.from('professional_experience').select('*').eq('faculty_id', facultyId!).order('created_at', { ascending: false });
+      return (data || []).map((row: any) => ({
+        ...row,
+        position_title: cleanCvValue(row.position_title),
+        organization: cleanCvValue(row.organization),
+        period: cleanCvValue(row.period),
+        key_responsibilities: cleanCvValue(row.key_responsibilities),
+      }));
+    },
+    enabled: !!facultyId,
+  });
   const { data: services = [] } = useQuery({
     queryKey: ['my-services', facultyId],
     queryFn: async () => {
