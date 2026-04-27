@@ -568,7 +568,8 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      norm_doi: { Args: { v: string }; Returns: string }
+      norm_text: { Args: { v: string }; Returns: string }
     }
     Enums: {
       [_ in never]: never
