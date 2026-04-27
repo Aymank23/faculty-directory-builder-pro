@@ -20,6 +20,9 @@ import { repairQualification } from '@/lib/qualifications';
 import { repairService } from '@/lib/services';
 import { repairEngagement } from '@/lib/engagements';
 import { cleanCvValue } from '@/lib/cvNoise';
+import ProofUploadCell from '@/components/ProofUploadCell';
+
+const PROOF_TABLES = new Set(['professional_engagements', 'service_contributions', 'professional_experience']);
 
 const FacultyProfilePage = () => {
   const { user } = useAuth();
