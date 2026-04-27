@@ -411,6 +411,11 @@ export type Database = {
           faculty_id: string | null
           from_to: string | null
           id: string
+          proof_file_path: string | null
+          proof_review_comment: string | null
+          proof_reviewed_at: string | null
+          proof_reviewed_by: string | null
+          proof_status: string | null
           year: number | null
         }
         Insert: {
@@ -422,6 +427,11 @@ export type Database = {
           faculty_id?: string | null
           from_to?: string | null
           id?: string
+          proof_file_path?: string | null
+          proof_review_comment?: string | null
+          proof_reviewed_at?: string | null
+          proof_reviewed_by?: string | null
+          proof_status?: string | null
           year?: number | null
         }
         Update: {
@@ -433,6 +443,11 @@ export type Database = {
           faculty_id?: string | null
           from_to?: string | null
           id?: string
+          proof_file_path?: string | null
+          proof_review_comment?: string | null
+          proof_reviewed_at?: string | null
+          proof_reviewed_by?: string | null
+          proof_status?: string | null
           year?: number | null
         }
         Relationships: [
@@ -454,6 +469,11 @@ export type Database = {
           organization: string | null
           period: string | null
           position_title: string | null
+          proof_file_path: string | null
+          proof_review_comment: string | null
+          proof_reviewed_at: string | null
+          proof_reviewed_by: string | null
+          proof_status: string | null
         }
         Insert: {
           created_at?: string
@@ -463,6 +483,11 @@ export type Database = {
           organization?: string | null
           period?: string | null
           position_title?: string | null
+          proof_file_path?: string | null
+          proof_review_comment?: string | null
+          proof_reviewed_at?: string | null
+          proof_reviewed_by?: string | null
+          proof_status?: string | null
         }
         Update: {
           created_at?: string
@@ -472,6 +497,11 @@ export type Database = {
           organization?: string | null
           period?: string | null
           position_title?: string | null
+          proof_file_path?: string | null
+          proof_review_comment?: string | null
+          proof_reviewed_at?: string | null
+          proof_reviewed_by?: string | null
+          proof_status?: string | null
         }
         Relationships: []
       }
@@ -485,6 +515,11 @@ export type Database = {
           from_to: string | null
           id: string
           level: string | null
+          proof_file_path: string | null
+          proof_review_comment: string | null
+          proof_reviewed_at: string | null
+          proof_reviewed_by: string | null
+          proof_status: string | null
           year: number | null
         }
         Insert: {
@@ -496,6 +531,11 @@ export type Database = {
           from_to?: string | null
           id?: string
           level?: string | null
+          proof_file_path?: string | null
+          proof_review_comment?: string | null
+          proof_reviewed_at?: string | null
+          proof_reviewed_by?: string | null
+          proof_status?: string | null
           year?: number | null
         }
         Update: {
@@ -507,6 +547,11 @@ export type Database = {
           from_to?: string | null
           id?: string
           level?: string | null
+          proof_file_path?: string | null
+          proof_review_comment?: string | null
+          proof_reviewed_at?: string | null
+          proof_reviewed_by?: string | null
+          proof_status?: string | null
           year?: number | null
         }
         Relationships: [
@@ -568,6 +613,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      canonical_department: { Args: { v: string }; Returns: string }
+      canonical_ft_pt: { Args: { v: string }; Returns: string }
+      clean_cv: { Args: { v: string }; Returns: string }
+      is_cv_noise: { Args: { v: string }; Returns: boolean }
       norm_doi: { Args: { v: string }; Returns: string }
       norm_text: { Args: { v: string }; Returns: string }
     }
