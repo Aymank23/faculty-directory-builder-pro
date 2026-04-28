@@ -24,6 +24,10 @@ export interface RepairedEngagement {
   year: number | null;
 }
 
+function normalizeKeyPart(value: unknown): string {
+  return cleanCvValue(value)?.toLowerCase().replace(/\s+/g, ' ').trim() ?? '';
+}
+
 const YEAR_RE = /\b(19|20)\d{2}\b/;
 const PERIOD_RE = /(\b(19|20)\d{2}\b\s*[-–—]\s*\b(19|20)\d{2}\b|\b(19|20)\d{2}\b\s*[-–—]\s*(present|now|current|today)|\b(19|20)\d{2}\s*[-–—]\s*$|since\s+\w+\s+\d{4})/i;
 
@@ -78,4 +82,12 @@ export function repairEngagement(row: RawEngagement): RepairedEngagement {
     details: outDetails,
     year,
   };
+}
+
+export function getEngagementUniqueKey(row: Pick<RepairedEngagement, 'activity' | 'from_to'>): string | null {
+  const activity = normalizeKeyPart(row.activity);
+  if (!activity) return null;
+
+  const fromTo = normalizeKeyPart(row.from_to);
+  return `${activity}::${fromTo}`;
 }
