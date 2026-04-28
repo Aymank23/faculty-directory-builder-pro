@@ -203,7 +203,23 @@ function looksLikeDegreeToken(line: string) {
 }
 
 function extractQualifications(lines: string[]) {
-  const content = lines.filter((line) => !looksLikeSectionHeading(line) && !/^(degree|institution|year|field\s*\/\s*area)$/i.test(line));
+  const headerCellRe = /^(degree(\s*\/\s*certification)?|institution|date\s*\/\s*year|year|field\s*\/\s*area)$/i;
+  const rawContent = lines.filter((line) => !looksLikeSectionHeading(line));
+  const normalizedContent = rawContent.flatMap((line) => {
+    if (!line.includes("|")) return [line];
+
+    const cells = line
+      .split("|")
+      .map((cell) => cell.trim())
+      .filter(Boolean);
+
+    if (!cells.length) return [];
+    if (cells.every((cell) => headerCellRe.test(cell))) return [];
+    if (cells.length >= 2) return cells;
+    return [line];
+  });
+
+  const content = normalizedContent.filter((line) => !headerCellRe.test(line) && !isPlaceholder(line));
   const qualifications: Array<Record<string, string | number | null>> = [];
 
   // Iterate in 4-cell blocks but use CONTENT-BASED assignment so that a
