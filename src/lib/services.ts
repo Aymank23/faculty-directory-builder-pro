@@ -22,6 +22,10 @@ export interface RepairedService {
   year: number | null;
 }
 
+function normalizeKeyPart(value: unknown): string {
+  return clean(value)?.toLowerCase().replace(/\s+/g, ' ').trim() ?? '';
+}
+
 const YEAR_RE = /\b(19|20)\d{2}\b/;
 const PERIOD_RE = /(\b(19|20)\d{2}\b.*\b(19|20)\d{2}\b|\b(19|20)\d{2}\b\s*[-–—]\s*(present|now|today)|\b(19|20)\d{2}\b\s*[-–—]\s*$|since\s+\w+\s+\d{4}|fall\s+\d{4}|spring\s+\d{4}|summer\s+\d{4})/i;
 const LEVEL_TOKENS = /^(department|school|college|university|national|international|community|professional|industry)$/i;
@@ -120,4 +124,17 @@ export function repairService(row: RawService): RepairedService {
   const year = extractYear(from_to) ?? extractYear(row.year) ?? null;
 
   return { from_to, level, committee_role, year };
+}
+
+export function getServiceUniqueKey(
+  row: Pick<RepairedService, 'committee_role' | 'from_to' | 'year'> & { description?: string | null },
+): string | null {
+  const committeeRole = normalizeKeyPart(row.committee_role);
+  if (!committeeRole) return null;
+
+  const fromTo = normalizeKeyPart(row.from_to);
+  const description = normalizeKeyPart(row.description);
+  const year = row.year ?? 0;
+
+  return `${committeeRole}::${fromTo}::${description}::${year}`;
 }
