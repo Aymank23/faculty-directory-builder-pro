@@ -21,7 +21,7 @@ import {
 import { icTypes, icCategories, quartiles } from '@/lib/constants';
 import { normalizeDepartment } from '@/lib/normalize';
 import { repairQualification, validateQualification } from '@/lib/qualifications';
-import { repairService } from '@/lib/services';
+import { getServiceUniqueKey, repairService } from '@/lib/services';
 import { getEngagementUniqueKey, repairEngagement } from '@/lib/engagements';
 import { cleanCvValue } from '@/lib/cvNoise';
 import * as XLSX from 'xlsx';
@@ -571,18 +571,44 @@ const UploadCvPage = () => {
         const repairedServices = extracted.services
           .map(s => repairService(s as any))
           .filter(s => s.committee_role); // require role to persist
+
         if (repairedServices.length) {
-          const { error: e } = await supabase.from('service_contributions').insert(
-            repairedServices.map(s => ({
+          const { data: existingServices, error: existingServicesError } = await supabase
+            .from('service_contributions')
+            .select('committee_role, from_to, description, year')
+            .eq('faculty_id', facultyId);
+
+          if (existingServicesError) {
+            console.error('[Save CV] services lookup error', existingServicesError);
+            throw new Error(`Services lookup failed: ${existingServicesError.message}`);
+          }
+
+          const seenKeys = new Set(
+            (existingServices || [])
+              .map((service: any) => getServiceUniqueKey(service))
+              .filter((key): key is string => Boolean(key))
+          );
+
+          const newServiceRows = repairedServices.filter((service) => {
+            const key = getServiceUniqueKey(service);
+            if (!key || seenKeys.has(key)) return false;
+            seenKeys.add(key);
+            return true;
+          });
+
+          if (newServiceRows.length) {
+            const { error: e } = await supabase.from('service_contributions').insert(
+              newServiceRows.map(s => ({
               faculty_id: facultyId,
               from_to: s.from_to,
               level: s.level,
               committee_role: s.committee_role,
               year: s.year,
             }))
-          );
-          if (e) { console.error('[Save CV] service error', e); throw new Error(`Services insert failed: ${e.message}`); }
-          result.svcAdded = repairedServices.length;
+            );
+            if (e) { console.error('[Save CV] service error', e); throw new Error(`Services insert failed: ${e.message}`); }
+            result.svcAdded = newServiceRows.length;
+          }
         }
       }
       if (extracted.awards?.length) {
