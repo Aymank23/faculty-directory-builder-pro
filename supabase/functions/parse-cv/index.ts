@@ -32,7 +32,8 @@ function isNoiseLine(line: string): boolean {
 
 const MAIN_SECTION_MATCHERS: Array<{ key: string; pattern: RegExp }> = [
   { key: "personal_info", pattern: /^#*\s*1\.?\s*personal/i },
-  { key: "qualifications", pattern: /^#*\s*2\.?\s*academic\s*&?\s*professional qualifications/i },
+  // Tolerant of duplicated/extra words (e.g. "2. Academic  Academic & Professional Qualifications")
+  { key: "qualifications", pattern: /^#*\s*2\.?\s*[\w\s&./-]*?\bprofessional\s+qualifications\b/i },
   { key: "professional_experience", pattern: /^#*\s*3\.?\s*professional experience/i },
   { key: "intellectual_contributions", pattern: /intellectual contributions/i },
   { key: "professional_engagement", pattern: /professional engagement activities/i },
