@@ -22,7 +22,7 @@ import { icTypes, icCategories, quartiles } from '@/lib/constants';
 import { normalizeDepartment } from '@/lib/normalize';
 import { repairQualification, validateQualification } from '@/lib/qualifications';
 import { repairService } from '@/lib/services';
-import { repairEngagement } from '@/lib/engagements';
+import { getEngagementUniqueKey, repairEngagement } from '@/lib/engagements';
 import { cleanCvValue } from '@/lib/cvNoise';
 import * as XLSX from 'xlsx';
 
@@ -526,19 +526,45 @@ const UploadCvPage = () => {
       if (extracted.engagements?.length) {
         const repairedEng = extracted.engagements
           .map(en => repairEngagement(en as any))
-          .filter(en => en.activity); // require activity to persist
+          .filter(en => en.activity);
+
         if (repairedEng.length) {
-          const { error: e } = await supabase.from('professional_engagements').insert(
-            repairedEng.map(en => ({
-              faculty_id: facultyId,
-              from_to: en.from_to,
-              activity: en.activity,
-              details: en.details,
-              year: en.year,
-            }))
+          const { data: existingEngagements, error: existingEngagementsError } = await supabase
+            .from('professional_engagements')
+            .select('activity, from_to')
+            .eq('faculty_id', facultyId);
+
+          if (existingEngagementsError) {
+            console.error('[Save CV] engagement lookup error', existingEngagementsError);
+            throw new Error(`Engagement lookup failed: ${existingEngagementsError.message}`);
+          }
+
+          const seenKeys = new Set(
+            (existingEngagements || [])
+              .map((eng: any) => getEngagementUniqueKey(eng))
+              .filter((key): key is string => Boolean(key))
           );
-          if (e) { console.error('[Save CV] engagement error', e); throw new Error(`Engagements insert failed: ${e.message}`); }
-          result.engAdded = repairedEng.length;
+
+          const newEngagementRows = repairedEng.filter((eng) => {
+            const key = getEngagementUniqueKey(eng);
+            if (!key || seenKeys.has(key)) return false;
+            seenKeys.add(key);
+            return true;
+          });
+
+          if (newEngagementRows.length) {
+            const { error: e } = await supabase.from('professional_engagements').insert(
+              newEngagementRows.map(en => ({
+                faculty_id: facultyId,
+                from_to: en.from_to,
+                activity: en.activity,
+                details: en.details,
+                year: en.year,
+              }))
+            );
+            if (e) { console.error('[Save CV] engagement error', e); throw new Error(`Engagements insert failed: ${e.message}`); }
+            result.engAdded = newEngagementRows.length;
+          }
         }
       }
       if (extracted.services?.length) {
