@@ -14,25 +14,23 @@ const PLACEHOLDERS = [
   "enter year.",
   "enter text",
   "click or tap to enter a date",
+  "click or tap here to enter a date",
   "documentation is needed for every item listed",
+  "n/a",
+  "na",
+  "none",
+  "null",
 ];
 
-// Narrative section headers / parser noise that historically polluted real
-// data fields (e.g. "(Since Fall 2020 – listed from most recent to last)").
-// Lines matching these patterns are dropped during sanitization.
 const NOISE_PATTERNS: RegExp[] = [
   /listed\s+from\s+most\s+recent/i,
   /most\s+recent\s+to\s+last/i,
   /^[\(\[].*listed.*[\)\]]$/i,
+  /^[—\-–\s]+$/,
 ];
-
-function isNoiseLine(line: string): boolean {
-  return NOISE_PATTERNS.some((re) => re.test(line));
-}
 
 const MAIN_SECTION_MATCHERS: Array<{ key: string; pattern: RegExp }> = [
   { key: "personal_info", pattern: /^#*\s*1\.?\s*personal/i },
-  // Tolerant of duplicated/extra words (e.g. "2. Academic  Academic & Professional Qualifications")
   { key: "qualifications", pattern: /^#*\s*2\.?\s*[\w\s&./-]*?\bprofessional\s+qualifications\b/i },
   { key: "professional_experience", pattern: /^#*\s*3\.?\s*professional experience/i },
   { key: "intellectual_contributions", pattern: /intellectual contributions/i },
@@ -49,18 +47,39 @@ const IC_SECTION_MATCHERS: Array<{ key: string; label: string; pattern: RegExp; 
   { key: "academic_engagement", label: "Academic Engagement Activities", pattern: /academic engagement activities/i },
 ];
 
+const SERVICE_LEVEL_RE = /^(department|school|college|university|community|professional|industry|national|international)$/i;
+const QUARTILE_RE = /^(Q[1-4]|A\*|A|B|C|NA|N\/A)$/i;
+const IC_CATEGORY_RE = /(scholarship|teaching|learning|integration|discovery|applied|practice|engagement|service)/i;
+const CITATION_RE = /(doi|journal|review|vol\.|issue|pp\.|\((19|20)\d{2}\)|https?:\/\/doi\.org\/|10\.\d{4,9}\/.+)/i;
+const HEADER_BLOB_RE = /(year\s*\|\s*award|from-to\s*\||degree\s*\|\s*institution|citation\s*\|\s*scopus rank)/i;
+
+const TABLE_HEADER_PATTERNS = {
+  qualifications: /^degree(?:\s*\/\s*certification)?\s*\|\s*institution\s*\|\s*(?:date\s*\/\s*year|year)\s*\|\s*field\s*\/\s*area$/i,
+  awards: /^year\s*\|\s*award\s*\/\s*recognition\s*\|\s*institution\s*\/\s*organization$/i,
+  engagements: /^from-?to\s*\|\s*activity\s*\|\s*details$/i,
+  service: /^from-?to\s*\|\s*level\s*\|\s*committee\s*\/\s*role$/i,
+  professionalExperience: /^period\s*\|\s*organization\s*\/?\s*employer\s*\|\s*position\s*\/?\s*title\s*\|\s*key responsibilities/i,
+  prj: /^citation\s*\|\s*scopus rank\s*\|\s*ic category$/i,
+  bookLike: /^citation\s*\|\s*(?:publisher(?:\s+name)?|scopus rank)\s*\|\s*ic category$/i,
+  otherIc: /^year\s*\|\s*(?:type(?:\s+of\s+contributions?)?|type)\s*\|\s*category\s*\|\s*details$/i,
+};
+
+type RowStatus = "ready" | "ignored_placeholder" | "rejected_header" | "needs_review";
+
+type ReviewedRow<T = Record<string, unknown>> = {
+  raw: string;
+  status: RowStatus;
+  issues: string[];
+  data: T | null;
+  section: string;
+  subtype?: string;
+};
+
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
-}
-
-function isPlaceholder(value: unknown) {
-  if (value == null || value === "") return true;
-  if (typeof value !== "string") return false;
-  const normalized = value.toLowerCase().trim();
-  return PLACEHOLDERS.some((placeholder) => normalized.includes(placeholder));
 }
 
 function cleanLine(line: string) {
@@ -72,6 +91,23 @@ function cleanLine(line: string) {
     .replace(/\u00a0/g, " ")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+function isPlaceholder(value: unknown) {
+  if (value == null || value === "") return true;
+  const normalized = String(value).toLowerCase().trim();
+  return PLACEHOLDERS.some((placeholder) => normalized.includes(placeholder));
+}
+
+function isNoiseLine(line: string) {
+  return NOISE_PATTERNS.some((re) => re.test(line));
+}
+
+function cleanValue(value: unknown) {
+  if (value == null) return null;
+  const cleaned = cleanLine(String(value));
+  if (!cleaned || isPlaceholder(cleaned) || isNoiseLine(cleaned)) return null;
+  return cleaned;
 }
 
 function sanitizeText(cvText: string) {
@@ -100,57 +136,87 @@ function looksLikeSectionHeading(line: string) {
     IC_SECTION_MATCHERS.some(({ pattern }) => pattern.test(line));
 }
 
-const QUALIFICATION_HEADER_RE = /^(degree(\s*\/\s*certification)?|institution|date\s*\/\s*year|year|field\s*\/\s*area)$/i;
-const AWARD_HEADER_RE = /^(year|award\s*\/\s*recognition|institution\s*\/\s*organization)$/i;
-
 function normalizeCell(value: unknown) {
-  if (typeof value !== "string") return "";
-  return value.replace(/\s+/g, " ").trim();
+  return cleanLine(String(value ?? ""));
 }
 
-function splitStructuredLine(line: string) {
-  if (!line.includes("|")) return [normalizeCell(line)].filter(Boolean);
-  return line.split("|").map((cell) => normalizeCell(cell));
+function parseCells(rawLine: string) {
+  return rawLine.split("|").map((cell) => normalizeCell(cell));
 }
 
-function hasHeaderCells(lines: string[], headerRe: RegExp, minMatches = 2) {
-  return lines.some((line) => {
-    const cells = splitStructuredLine(line);
-    if (!cells.length) return false;
-    return cells.filter((cell) => headerRe.test(cell)).length >= minMatches;
-  });
+function createRow<T>(section: string, raw: string, status: RowStatus, issues: string[] = [], data: T | null = null, subtype?: string): ReviewedRow<T> {
+  return { section, raw, status, issues, data, subtype };
 }
 
-function hasMeaningfulCells(lines: string[]) {
-  return lines.some((line) => splitStructuredLine(line).some((cell) => cell && !isPlaceholder(cell) && !looksLikeSectionHeading(cell)));
-}
-
-function summarizeSection(lines: string[], items: unknown[], options?: { headerRe?: RegExp; minHeaderMatches?: number }) {
-  const filteredLines = lines.filter((line) => !looksLikeSectionHeading(line));
-  const headerDetected = options?.headerRe ? hasHeaderCells(filteredLines, options.headerRe, options.minHeaderMatches ?? 2) : filteredLines.length > 0;
-  const hasContent = hasMeaningfulCells(filteredLines);
-
+function groupReviewedRows<T>(rows: ReviewedRow<T>[]) {
   return {
-    detected: lines.length > 0,
-    headerDetected,
-    hasContent,
-    parsedCount: items.length,
-    empty: headerDetected && items.length === 0,
-    skipped: !headerDetected,
-    skipReason: !headerDetected ? "No section title or matching table headers found." : undefined,
+    ready: rows.filter((row) => row.status === "ready"),
+    ignored_placeholder: rows.filter((row) => row.status === "ignored_placeholder"),
+    rejected_header: rows.filter((row) => row.status === "rejected_header"),
+    needs_review: rows.filter((row) => row.status === "needs_review"),
   };
 }
 
-function looksLikePeriod(line: string) {
-  return /^(\d{4}|[A-Za-z]{3,9}-\d{4}|[A-Za-z]{3,9}\s+\d{4}|\d{4}\s*(to|\-|–|—)\s*(present|date|\d{4})|\d{4}\s*present|\d{4}-present|\d{4}-\d{4}|\d{4}\s*to\s*present)/i.test(line);
+function summarizeReviewedSection<T>(lines: string[], rows: ReviewedRow<T>[], headerPattern?: RegExp) {
+  const nonHeadingLines = lines.filter((line) => !looksLikeSectionHeading(line));
+  const tableLines = nonHeadingLines.filter((line) => line.includes("|"));
+  const detected = lines.length > 0;
+  const headerDetected = headerPattern ? tableLines.some((line) => headerPattern.test(line)) : false;
+  const grouped = groupReviewedRows(rows);
+  const meaningfulRows = grouped.ready.length + grouped.needs_review.length;
+  return {
+    detected,
+    headerDetected,
+    parsedCount: grouped.ready.length,
+    empty: detected && tableLines.length > 0 && meaningfulRows === 0,
+    skipped: !detected,
+    skipReason: !detected ? "Section heading not found in extracted document order." : undefined,
+    ready: grouped.ready.length,
+    ignored_placeholder: grouped.ignored_placeholder.length,
+    rejected_header: grouped.rejected_header.length,
+    needs_review: grouped.needs_review.length,
+  };
 }
 
-function looksLikeQuartile(line: string) {
-  return /^(Q[1-4]|NA|N\/A)$/i.test(line.trim());
+function looksLikeYearOrRange(value: string | null | undefined) {
+  if (!value) return false;
+  return /^(19|20)\d{2}$/.test(value)
+    || /^(19|20)\d{2}\s*[-–—\/]\s*((19|20)\d{2}|present|current|now)$/i.test(value)
+    || /^(spring|summer|fall|winter)\s+(19|20)\d{2}$/i.test(value)
+    || /^(since\s+)?[A-Za-z]{3,12}\s+(19|20)\d{2}$/i.test(value);
 }
 
-function looksLikeScholarship(line: string) {
-  return /(scholarship|teaching|learning|integration|discovery|applied|basic)/i.test(line);
+function looksLikePeriod(value: string | null | undefined) {
+  if (!value) return false;
+  return looksLikeYearOrRange(value)
+    || /^(19|20)\d{2}\s*(to|[-–—])\s*(present|current|now|(19|20)\d{2})$/i.test(value)
+    || /^(present|current)$/i.test(value);
+}
+
+function looksLikeCitation(value: string | null | undefined) {
+  if (!value) return false;
+  return CITATION_RE.test(value) || ((value.match(/(19|20)\d{2}/g)?.length ?? 0) > 0 && /[\.;:,]/.test(value));
+}
+
+function looksLikeIcCategory(value: string | null | undefined) {
+  if (!value) return false;
+  return IC_CATEGORY_RE.test(value);
+}
+
+function hasMultiRecordPattern(value: string | null | undefined) {
+  if (!value) return false;
+  if (value.includes(" | ")) return true;
+  return (value.match(/\((19|20)\d{2}\)/g)?.length ?? 0) > 1;
+}
+
+function looksLikeServiceLevel(value: string | null | undefined) {
+  if (!value) return false;
+  return SERVICE_LEVEL_RE.test(value);
+}
+
+function looksLikeQuartileOrRank(value: string | null | undefined) {
+  if (!value) return false;
+  return QUARTILE_RE.test(value) || /^scopus$/i.test(value);
 }
 
 function sectionize(lines: string[]) {
@@ -226,9 +292,9 @@ function extractProfile(lines: string[]) {
     const match = line.match(/^([^:]+):\s*(.+)$/);
     if (!match) continue;
     const label = match[1].toLowerCase().trim();
-    const value = match[2].trim();
+    const value = cleanValue(match[2]);
     const key = labelMap[label];
-    if (!key || isPlaceholder(value)) continue;
+    if (!key || !value) continue;
     profile[key] = value;
   }
 
@@ -236,72 +302,194 @@ function extractProfile(lines: string[]) {
   return profile;
 }
 
-// Detect whether a string represents a degree/certification (heuristic).
-const DEGREE_TOKENS_RE = /\b(ph\.?d|m\.?b\.?a|m\.?sc|m\.?a|b\.?sc|b\.?a|b\.?b\.?a|d\.?b\.?a|ed\.?d|j\.?d|llb|llm|diploma|certificate|certification|cert|fellow|cpa|cma|cfa|cia|cisa|frm|acca|aca|dipifr|pmp|bachelor|master|doctorate)\b/i;
+function reviewStrictTableSection<T>(
+  lines: string[],
+  section: string,
+  expectedCells: number,
+  headerPattern: RegExp,
+  mapper: (cells: string[], raw: string) => ReviewedRow<T>,
+) {
+  const rows: ReviewedRow<T>[] = [];
+  const nonHeadingLines = lines.filter((line) => !looksLikeSectionHeading(line));
 
-function looksLikeDegreeToken(line: string) {
-  return !!line && DEGREE_TOKENS_RE.test(line);
+  for (const raw of nonHeadingLines) {
+    if (headerPattern.test(raw)) {
+      rows.push(createRow<T>(section, raw, "rejected_header", ["Header row rejected."], null));
+      continue;
+    }
+
+    if (!raw.includes("|")) {
+      const cleaned = cleanValue(raw);
+      if (!cleaned) {
+        rows.push(createRow<T>(section, raw, "ignored_placeholder", ["Placeholder or empty row ignored."], null));
+      } else {
+        rows.push(createRow<T>(section, raw, "needs_review", ["Non-tabular content found inside a structured table section."], null));
+      }
+      continue;
+    }
+
+    const cells = parseCells(raw);
+    const meaningfulCells = cells.map((cell) => cleanValue(cell)).filter(Boolean);
+    if (meaningfulCells.length === 0) {
+      rows.push(createRow<T>(section, raw, "ignored_placeholder", ["Placeholder row ignored."], null));
+      continue;
+    }
+
+    if (cells.length !== expectedCells) {
+      rows.push(createRow<T>(section, raw, "needs_review", [`Expected ${expectedCells} columns but found ${cells.length}.`], null));
+      continue;
+    }
+
+    rows.push(mapper(cells, raw));
+  }
+
+  return rows;
 }
 
 function extractQualifications(lines: string[]) {
-  const rawContent = lines.filter((line) => !looksLikeSectionHeading(line));
-  const normalizedContent = rawContent.flatMap((line) => {
-    if (!line.includes("|")) return [line];
+  return reviewStrictTableSection(
+    lines,
+    "Academic & Professional Qualifications",
+    4,
+    TABLE_HEADER_PATTERNS.qualifications,
+    (cells, raw) => {
+      const degree = cleanValue(cells[0]);
+      const institution = cleanValue(cells[1]);
+      const yearCell = cleanValue(cells[2]);
+      const fieldArea = cleanValue(cells[3]);
+      const issues: string[] = [];
 
-    const cells = line
-      .split("|")
-      .map((cell) => cell.trim())
-      .filter(Boolean);
+      if (!degree && !institution) issues.push("Missing degree and institution.");
+      if (yearCell && !looksLikeYearOrRange(yearCell)) issues.push("Year column is not numeric or date-like.");
+      if ([degree, institution, fieldArea].some((value) => HEADER_BLOB_RE.test(value || ""))) issues.push("Header text leaked into data row.");
 
-    if (!cells.length) return [];
-    if (cells.every((cell) => QUALIFICATION_HEADER_RE.test(cell))) return [];
-    if (cells.length >= 2) return cells;
-    return [line];
-  });
+      if (issues.length > 0) return createRow("Academic & Professional Qualifications", raw, "needs_review", issues, null);
 
-  const content = normalizedContent.filter((line) => !QUALIFICATION_HEADER_RE.test(line) && !isPlaceholder(line));
-  const qualifications: Array<Record<string, string | number | null>> = [];
+      return createRow("Academic & Professional Qualifications", raw, "ready", [], {
+        degree_certification: degree,
+        institution,
+        year: normalizeYear(yearCell || "") ?? null,
+        field_area: fieldArea,
+        source_section: "Academic & Professional Qualifications",
+      });
+    },
+  );
+}
 
-  // Iterate in 4-cell blocks but use CONTENT-BASED assignment so that a
-  // missing/shifted cell in the source CV does not push the year into the
-  // field/area column or vice-versa.
-  for (let i = 0; i + 3 < content.length; i += 4) {
-    const block = [content[i], content[i + 1], content[i + 2], content[i + 3]]
-      .map((c) => (c == null ? "" : c))
-      .filter((c) => !isPlaceholder(c));
-    if (block.length < 2) continue;
+function extractAwards(lines: string[]) {
+  return reviewStrictTableSection(
+    lines,
+    "Awards & Recognition",
+    3,
+    TABLE_HEADER_PATTERNS.awards,
+    (cells, raw) => {
+      const yearCell = cleanValue(cells[0]);
+      const award = cleanValue(cells[1]);
+      const institution = cleanValue(cells[2]);
+      const issues: string[] = [];
 
-    // 1. Pull the year out of the block, wherever it lives.
-    let year: number | null = null;
-    const nonYear: string[] = [];
-    for (const cell of block) {
-      const y = !year ? normalizeYear(cell) : null;
-      if (y && String(cell).trim().length <= 6) {
-        year = y;
-      } else {
-        nonYear.push(cell);
-      }
-    }
+      if (yearCell && !looksLikeYearOrRange(yearCell)) issues.push("Year column is not numeric or date-like.");
+      if (!award) issues.push("Missing award name.");
+      if ([award, institution].some((value) => HEADER_BLOB_RE.test(value || ""))) issues.push("Header text leaked into award row.");
 
-    // 2. Identify the degree/certification by token; fall back to first cell.
-    const degreeIdx = nonYear.findIndex(looksLikeDegreeToken);
-    const degree = degreeIdx >= 0 ? nonYear[degreeIdx] : nonYear[0];
-    const others = degreeIdx >= 0 ? nonYear.filter((_, idx) => idx !== degreeIdx) : nonYear.slice(1);
-    const institution = others[0] ?? null;
-    const field = others[1] ?? null;
+      if (issues.length > 0) return createRow("Awards & Recognition", raw, "needs_review", issues, null);
 
-    if (!degree) continue;
+      return createRow("Awards & Recognition", raw, "ready", [], {
+        year: normalizeYear(yearCell || "") ?? null,
+        award,
+        institution_organization: institution,
+        source_section: "Awards & Recognition",
+      });
+    },
+  );
+}
 
-    qualifications.push({
-      degree_certification: degree,
-      institution,
-      year,
-      field_area: field,
-      source_section: "Academic & Professional Qualifications",
-    });
-  }
+function extractEngagements(lines: string[]) {
+  return reviewStrictTableSection(
+    lines,
+    "Professional Engagement Activities",
+    3,
+    TABLE_HEADER_PATTERNS.engagements,
+    (cells, raw) => {
+      const fromTo = cleanValue(cells[0]);
+      const activity = cleanValue(cells[1]);
+      const details = cleanValue(cells[2]);
+      const issues: string[] = [];
 
-  return qualifications;
+      if (fromTo && !looksLikePeriod(fromTo)) issues.push("From-To column is not period-like.");
+      if (!activity) issues.push("Missing activity.");
+      if (looksLikeCitation(activity) || looksLikeCitation(details)) issues.push("Row looks like an intellectual contribution, not an engagement.");
+      if (hasMultiRecordPattern(activity) || hasMultiRecordPattern(details)) issues.push("Row appears to contain concatenated multiple records.");
+
+      if (issues.length > 0) return createRow("Professional Engagement Activities", raw, "needs_review", issues, null);
+
+      return createRow("Professional Engagement Activities", raw, "ready", [], {
+        from_to: fromTo,
+        activity,
+        details,
+        source_section: "Professional Engagement Activities",
+      });
+    },
+  );
+}
+
+function extractServices(lines: string[]) {
+  return reviewStrictTableSection(
+    lines,
+    "Service Contributions",
+    3,
+    TABLE_HEADER_PATTERNS.service,
+    (cells, raw) => {
+      const fromTo = cleanValue(cells[0]);
+      const level = cleanValue(cells[1]);
+      const committeeRole = cleanValue(cells[2]);
+      const issues: string[] = [];
+
+      if (fromTo && !looksLikePeriod(fromTo)) issues.push("From-To column is not period-like.");
+      if (level && !looksLikeServiceLevel(level)) issues.push("Level is not a recognized service scope.");
+      if (!committeeRole) issues.push("Missing committee / role.");
+      if (looksLikeCitation(committeeRole) || hasMultiRecordPattern(committeeRole)) issues.push("Row appears to contain mixed or concatenated content.");
+
+      if (issues.length > 0) return createRow("Service Contributions", raw, "needs_review", issues, null);
+
+      return createRow("Service Contributions", raw, "ready", [], {
+        from_to: fromTo,
+        level,
+        committee_role: committeeRole,
+        source_section: "Service Contributions",
+      });
+    },
+  );
+}
+
+function extractProfessionalExperience(lines: string[]) {
+  return reviewStrictTableSection(
+    lines,
+    "Professional Experience",
+    4,
+    TABLE_HEADER_PATTERNS.professionalExperience,
+    (cells, raw) => {
+      const period = cleanValue(cells[0]);
+      const organization = cleanValue(cells[1]);
+      const positionTitle = cleanValue(cells[2]);
+      const responsibilities = cleanValue(cells[3]);
+      const issues: string[] = [];
+
+      if (period && !looksLikePeriod(period)) issues.push("Period column is not date-like.");
+      if (!organization && !positionTitle) issues.push("Missing organization and position.");
+      if (hasMultiRecordPattern(responsibilities)) issues.push("Responsibilities appear to contain multiple merged rows.");
+
+      if (issues.length > 0) return createRow("Professional Experience", raw, "needs_review", issues, null);
+
+      return createRow("Professional Experience", raw, "ready", [], {
+        period,
+        organization,
+        position_title: positionTitle,
+        key_responsibilities: responsibilities,
+        source_section: "Professional Experience",
+      });
+    },
+  );
 }
 
 function extractTitleFromCitation(citation: string) {
@@ -346,179 +534,106 @@ function buildIcEntry(base: Record<string, unknown>) {
 }
 
 function extractPrjEntries(lines: string[]) {
-  const content = lines.filter((line) => !looksLikeSectionHeading(line) && !/^(citation|scopus rank|ic category)/i.test(line));
-  const entries: any[] = [];
+  return reviewStrictTableSection(
+    lines,
+    "PRJs",
+    3,
+    TABLE_HEADER_PATTERNS.prj,
+    (cells, raw) => {
+      const citation = cleanValue(cells[0]);
+      const scopusRank = cleanValue(cells[1]);
+      const icCategory = cleanValue(cells[2]);
+      const issues: string[] = [];
 
-  for (let i = 0; i < content.length; i++) {
-    const citation = content[i];
-    const quartile = content[i + 1];
-    const category = content[i + 2];
-    if (!citation || looksLikeQuartile(citation) || looksLikeScholarship(citation)) continue;
-    if (!normalizeYear(citation) && !/doi|journal|review|management|education|analysis|ethics|vaccines|methodology|performance|studies/i.test(citation)) continue;
+      if (!citation || !looksLikeCitation(citation)) issues.push("Citation is missing or does not look like a PRJ citation.");
+      if (scopusRank && !looksLikeQuartileOrRank(scopusRank)) issues.push("Scopus rank is not recognized.");
+      if (icCategory && !looksLikeIcCategory(icCategory)) issues.push("IC category is not recognized.");
+      if (hasMultiRecordPattern(citation)) issues.push("Citation row appears to contain multiple merged records.");
 
-    entries.push(buildIcEntry({
-      raw_text: citation,
-      quartile: looksLikeQuartile(quartile || "") ? quartile : null,
-      ic_category: looksLikeScholarship(category || "") ? category : null,
-      ic_type: "PRJ",
-      source_section: "PRJs",
-    }));
+      if (issues.length > 0) return createRow("PRJs", raw, "needs_review", issues, null, "PRJ");
 
-    if (looksLikeQuartile(quartile || "")) i += 1;
-    if (looksLikeScholarship(category || "")) i += 1;
-  }
-
-  return entries;
+      return createRow("PRJs", raw, "ready", [], buildIcEntry({
+        raw_text: citation,
+        quartile: scopusRank,
+        ic_category: icCategory,
+        ic_type: "PRJ",
+        source_section: "PRJs",
+      }), "PRJ");
+    },
+  );
 }
 
 function extractBookLikeEntries(lines: string[], icType: string, sourceSection: string) {
-  const content = lines.filter((line) => !looksLikeSectionHeading(line) && !/^(citation|publisher name|ic category)/i.test(line));
-  const entries: any[] = [];
-  for (let i = 0; i + 2 < content.length; i += 3) {
-    const citation = content[i];
-    const category = content[i + 2];
-    if (!citation || isPlaceholder(citation)) continue;
-    entries.push(buildIcEntry({
-      raw_text: citation,
-      ic_type: icType,
-      ic_category: looksLikeScholarship(category) ? category : null,
-      source_section: sourceSection,
-    }));
-  }
-  return entries;
+  return reviewStrictTableSection(
+    lines,
+    sourceSection,
+    3,
+    TABLE_HEADER_PATTERNS.bookLike,
+    (cells, raw) => {
+      const citation = cleanValue(cells[0]);
+      const publisher = cleanValue(cells[1]);
+      const icCategory = cleanValue(cells[2]);
+      const issues: string[] = [];
+
+      if (!citation || !looksLikeCitation(citation)) issues.push("Citation is missing or malformed.");
+      if (icCategory && !looksLikeIcCategory(icCategory)) issues.push("IC category is not recognized.");
+      if (hasMultiRecordPattern(citation)) issues.push("Citation row appears to contain multiple merged records.");
+
+      if (issues.length > 0) return createRow(sourceSection, raw, "needs_review", issues, null, icType);
+
+      return createRow(sourceSection, raw, "ready", [], buildIcEntry({
+        raw_text: citation,
+        ic_type: icType,
+        ic_category: icCategory,
+        source_section: sourceSection,
+        journal_outlet: publisher,
+      }), icType);
+    },
+  );
 }
 
-function extractYearGroupedIcEntries(lines: string[], defaultType: string, sourceSection: string) {
-  const content = lines.filter((line) => !looksLikeSectionHeading(line) && !/^(year|type of contributions|category|details)$/i.test(line));
-  const entries: any[] = [];
+function extractOtherIcEntries(lines: string[], sourceSection: string) {
+  return reviewStrictTableSection(
+    lines,
+    sourceSection,
+    4,
+    TABLE_HEADER_PATTERNS.otherIc,
+    (cells, raw) => {
+      const yearCell = cleanValue(cells[0]);
+      const type = cleanValue(cells[1]);
+      const icCategory = cleanValue(cells[2]);
+      const details = cleanValue(cells[3]);
+      const issues: string[] = [];
 
-  for (let i = 0; i < content.length; ) {
-    const yearLine = content[i];
-    if (!yearLine || isPlaceholder(yearLine) || !normalizeYear(yearLine)) {
-      i += 1;
-      continue;
-    }
+      if (yearCell && !looksLikeYearOrRange(yearCell)) issues.push("Year column is not numeric or date-like.");
+      if (!type) issues.push("Missing contribution type.");
+      if (icCategory && !looksLikeIcCategory(icCategory)) issues.push("IC category is not recognized.");
+      if (!details) issues.push("Missing details.");
+      if (hasMultiRecordPattern(details)) issues.push("Details appear to contain multiple merged rows.");
 
-    const typeLine = content[i + 1] || defaultType;
-    const categoryLine = content[i + 2] || null;
-    let detailIndex = i + 3;
-    const detailParts: string[] = [];
-    while (detailIndex < content.length && !normalizeYear(content[detailIndex])) {
-      if (!looksLikeSectionHeading(content[detailIndex])) detailParts.push(content[detailIndex]);
-      detailIndex += 1;
-    }
+      if (issues.length > 0) return createRow(sourceSection, raw, "needs_review", issues, null, "Other IC");
 
-    const detail = detailParts.join(" ").trim();
-    entries.push(buildIcEntry({
-      raw_text: detail || `${typeLine} ${yearLine}`,
-      year: normalizeYear(yearLine),
-      ic_type: isPlaceholder(typeLine) ? defaultType : typeLine,
-      ic_category: categoryLine,
-      source_section: sourceSection,
-      title: detail || typeLine,
-    }));
-
-    i = Math.max(detailIndex, i + 4);
-  }
-
-  return entries;
+      return createRow(sourceSection, raw, "ready", [], {
+        year: normalizeYear(yearCell || "") ?? null,
+        type,
+        ic_category: icCategory,
+        details,
+        source_section: sourceSection,
+      }, "Other IC");
+    },
+  );
 }
 
-// Valid IC types (PRJ, Book, Chapter only). Academic engagement activities, conference proceedings,
-// editorial roles etc. must NOT be in intellectual_contributions — they belong in
-// professional_engagements / service_contributions.
-const VALID_IC_TYPES = new Set(["PRJ", "Book", "Chapter"]);
-
-function extractIntellectualContributions(lines: string[]) {
+function extractIntellectualContributionReview(lines: string[]) {
   const sections = splitIcSections(lines);
-  return [
-    ...(sections.prjs ? extractPrjEntries(sections.prjs) : []),
-    ...(sections.books ? extractBookLikeEntries(sections.books, "Book", "Books") : []),
-    ...(sections.chapters ? extractBookLikeEntries(sections.chapters, "Chapter", "Chapters") : []),
-  ].filter((entry) => entry.title && !isPlaceholder(entry.title) && VALID_IC_TYPES.has(String(entry.ic_type)));
-}
 
-// Extract academic engagements (year-grouped IC sections that are really engagement entries)
-function extractEngagementsFromIcSection(lines: string[]) {
-  const sections = splitIcSections(lines);
-  const engagementRows: any[] = [];
-  if (sections.other_ics) {
-    extractYearGroupedIcEntries(sections.other_ics, "Other IC", "Other ICs").forEach((e) => {
-      engagementRows.push({
-        from_to: e.year ? String(e.year) : null,
-        activity: e.title || e.ic_type || "Other intellectual contribution",
-        details: e.apa_citation || e.raw_text || null,
-        engagement_type: e.ic_type || "Other IC",
-        year: e.year || null,
-        source_section: "Other ICs (reclassified from CV)",
-      });
-    });
-  }
-  if (sections.academic_engagement) {
-    extractYearGroupedIcEntries(sections.academic_engagement, "Academic Engagement", "Academic Engagement Activities").forEach((e) => {
-      engagementRows.push({
-        from_to: e.year ? String(e.year) : null,
-        activity: e.title || e.ic_type || "Academic engagement",
-        details: e.apa_citation || e.raw_text || null,
-        engagement_type: e.ic_type || "Academic Engagement",
-        year: e.year || null,
-        source_section: "Academic Engagement Activities",
-      });
-    });
-  }
-  return engagementRows;
-}
+  const prjs = sections.prjs ? extractPrjEntries(sections.prjs) : [];
+  const books = sections.books ? extractBookLikeEntries(sections.books, "Book", "Books") : [];
+  const chapters = sections.chapters ? extractBookLikeEntries(sections.chapters, "Chapter", "Chapters") : [];
+  const otherIcs = sections.other_ics ? extractOtherIcEntries(sections.other_ics, "Other Intellectual Contributions") : [];
+  const academicEngagement = sections.academic_engagement ? extractOtherIcEntries(sections.academic_engagement, "Academic Engagement Activities") : [];
 
-function extractTripleRows(lines: string[], headers: RegExp[], fieldNames: [string, string, string], sourceSection: string) {
-  const content = lines.filter((line) => !looksLikeSectionHeading(line) && !headers.some((header) => header.test(line)));
-  const rows: any[] = [];
-  for (let i = 0; i + 2 < content.length; i += 3) {
-    const first = content[i];
-    const second = content[i + 1];
-    const third = content[i + 2];
-    const meaningfulValues = [first, second, third].filter((value) => !isPlaceholder(value));
-    if (meaningfulValues.length < 2) continue;
-    rows.push({
-      [fieldNames[0]]: isPlaceholder(first) ? null : first,
-      [fieldNames[1]]: isPlaceholder(second) ? null : second,
-      [fieldNames[2]]: isPlaceholder(third) ? null : third,
-      source_section: sourceSection,
-    });
-  }
-  return rows;
-}
-
-function extractProfessionalExperience(lines: string[]) {
-  const content = lines.filter((line) => !looksLikeSectionHeading(line) && !/^(period|organization\/ employer|position\/title|key responsibilities relevant to teaching)/i.test(line));
-  const rows: any[] = [];
-
-  for (let i = 0; i < content.length; ) {
-    const period = content[i];
-    if (!period || !looksLikePeriod(period)) {
-      i += 1;
-      continue;
-    }
-    const organization = content[i + 1];
-    const position = content[i + 2];
-    let detailIndex = i + 3;
-    const details: string[] = [];
-    while (detailIndex < content.length && !looksLikePeriod(content[detailIndex])) {
-      if (!looksLikeSectionHeading(content[detailIndex])) details.push(content[detailIndex]);
-      detailIndex += 1;
-    }
-    if (organization && !isPlaceholder(organization)) {
-      rows.push({
-        period,
-        organization,
-        position_title: isPlaceholder(position) ? null : position,
-        key_responsibilities: details.join(" ").trim() || null,
-        source_section: "Professional Experience",
-      });
-    }
-    i = Math.max(detailIndex, i + 4);
-  }
-
-  return rows;
+  return { sections, prjs, books, chapters, otherIcs, academicEngagement };
 }
 
 serve(async (req) => {
@@ -535,63 +650,86 @@ serve(async (req) => {
     const warnings: string[] = [];
 
     if (enableAiParsing) {
-      warnings.push("AI parsing is optional and non-blocking; rule-based AACSB parsing was used.");
+      warnings.push("AI parsing remains disabled in this strict AACSB mode; rule-based section parsing was used.");
     }
 
     const personalInfo = extractProfile(sections.personal_info);
-    const qualifications = extractQualifications(sections.qualifications);
-    const intellectualContributions = extractIntellectualContributions(sections.intellectual_contributions);
-    const professionalExperience = extractProfessionalExperience(sections.professional_experience);
-    const reclassifiedEngagements = extractEngagementsFromIcSection(sections.intellectual_contributions);
-    const baseEngagements = extractTripleRows(
-      sections.professional_engagement,
-      [/^from-to$/i, /^activity$/i, /^details$/i],
-      ["from_to", "activity", "details"],
-      "Professional Engagement Activities",
-    );
-    const engagements = [...baseEngagements, ...reclassifiedEngagements];
-    const services = extractTripleRows(
-      sections.service,
-      [/^from-to$/i, /^level$/i, /^committee\s*\/\s*role$/i],
-      ["from_to", "level", "committee_role"],
-      "Service Contributions",
-    );
-    const awards = extractTripleRows(
-      sections.awards,
-      [/^year$/i, /^award\s*\/\s*recognition$/i, /^institution\s*\/\s*organization$/i],
-      ["year", "award", "institution_organization"],
-      "Awards & Recognition",
-    ).map((award) => ({
-      ...award,
-      year: normalizeYear(String(award.year || "")) ?? award.year,
-    }));
+    const qualificationReview = extractQualifications(sections.qualifications);
+    const awardReview = extractAwards(sections.awards);
+    const engagementReview = extractEngagements(sections.professional_engagement);
+    const serviceReview = extractServices(sections.service);
+    const professionalExperienceReview = extractProfessionalExperience(sections.professional_experience);
+    const icReview = extractIntellectualContributionReview(sections.intellectual_contributions);
 
-    const sectionSummary = {
-      qualifications: summarizeSection(sections.qualifications, qualifications, { headerRe: QUALIFICATION_HEADER_RE, minHeaderMatches: 2 }),
-      awards: summarizeSection(sections.awards, awards, { headerRe: AWARD_HEADER_RE, minHeaderMatches: 2 }),
-      professional_experience: summarizeSection(sections.professional_experience, professionalExperience),
-      professional_engagement: summarizeSection(sections.professional_engagement, engagements),
-      service: summarizeSection(sections.service, services),
-      intellectual_contributions: summarizeSection(sections.intellectual_contributions, intellectualContributions),
+    const readyQualifications = qualificationReview.filter((row) => row.status === "ready" && row.data).map((row) => row.data);
+    const readyAwards = awardReview.filter((row) => row.status === "ready" && row.data).map((row) => row.data);
+    const readyEngagements = engagementReview.filter((row) => row.status === "ready" && row.data).map((row) => row.data);
+    const readyServices = serviceReview.filter((row) => row.status === "ready" && row.data).map((row) => row.data);
+    const readyProfessionalExperience = professionalExperienceReview.filter((row) => row.status === "ready" && row.data).map((row) => row.data);
+    const readyIcs = [...icReview.prjs, ...icReview.books, ...icReview.chapters]
+      .filter((row) => row.status === "ready" && row.data)
+      .map((row) => row.data);
+
+    const reviewSections = {
+      qualifications: groupReviewedRows(qualificationReview),
+      awards: groupReviewedRows(awardReview),
+      professional_engagement: groupReviewedRows(engagementReview),
+      service: groupReviewedRows(serviceReview),
+      professional_experience: groupReviewedRows(professionalExperienceReview),
+      prjs: groupReviewedRows(icReview.prjs),
+      books: groupReviewedRows(icReview.books),
+      chapters: groupReviewedRows(icReview.chapters),
+      other_ics: groupReviewedRows(icReview.otherIcs),
+      academic_engagement: groupReviewedRows(icReview.academicEngagement),
     };
 
-    if (!intellectualContributions.length) warnings.push("No intellectual contributions were confidently extracted; please review the raw text.");
-    if (sectionSummary.qualifications.empty) warnings.push("Qualifications section was detected but contains no valid records; it will stay available as an empty section.");
-    else if (!qualifications.length) warnings.push("Qualifications table could not be fully mapped; please review before saving.");
-    if (sectionSummary.awards.empty) warnings.push("Awards section was detected but contains no valid records; it will stay available as an empty section.");
-    if (!personalInfo.first_name || !personalInfo.last_name) warnings.push("Faculty profile fields are incomplete and may need review.");
+    const sectionSummary = {
+      qualifications: summarizeReviewedSection(sections.qualifications, qualificationReview, TABLE_HEADER_PATTERNS.qualifications),
+      awards: summarizeReviewedSection(sections.awards, awardReview, TABLE_HEADER_PATTERNS.awards),
+      professional_experience: summarizeReviewedSection(sections.professional_experience, professionalExperienceReview, TABLE_HEADER_PATTERNS.professionalExperience),
+      professional_engagement: summarizeReviewedSection(sections.professional_engagement, engagementReview, TABLE_HEADER_PATTERNS.engagements),
+      service: summarizeReviewedSection(sections.service, serviceReview, TABLE_HEADER_PATTERNS.service),
+      prjs: summarizeReviewedSection(icReview.sections.prjs || [], icReview.prjs, TABLE_HEADER_PATTERNS.prj),
+      books: summarizeReviewedSection(icReview.sections.books || [], icReview.books, TABLE_HEADER_PATTERNS.bookLike),
+      chapters: summarizeReviewedSection(icReview.sections.chapters || [], icReview.chapters, TABLE_HEADER_PATTERNS.bookLike),
+      other_ics: summarizeReviewedSection(icReview.sections.other_ics || [], icReview.otherIcs, TABLE_HEADER_PATTERNS.otherIc),
+      academic_engagement: summarizeReviewedSection(icReview.sections.academic_engagement || [], icReview.academicEngagement, TABLE_HEADER_PATTERNS.otherIc),
+    };
+
+    const totalNeedsReview = Object.values(sectionSummary).reduce((sum, section) => sum + (section.needs_review || 0), 0);
+    const totalRejectedHeaders = Object.values(sectionSummary).reduce((sum, section) => sum + (section.rejected_header || 0), 0);
+    const totalIgnored = Object.values(sectionSummary).reduce((sum, section) => sum + (section.ignored_placeholder || 0), 0);
+
+    if (!readyQualifications.length && sectionSummary.qualifications.detected) {
+      warnings.push("Qualifications were detected structurally, but no valid qualification rows passed validation.");
+    }
+    if (!readyAwards.length && sectionSummary.awards.detected) {
+      warnings.push("Awards were detected structurally, but no valid award rows passed validation.");
+    }
+    if (totalNeedsReview > 0) {
+      warnings.push(`${totalNeedsReview} row(s) need review and were excluded from database-ready output.`);
+    }
+    if (totalRejectedHeaders > 0) {
+      warnings.push(`${totalRejectedHeaders} header row(s) were rejected and will not be saved.`);
+    }
+    if (totalIgnored > 0) {
+      warnings.push(`${totalIgnored} placeholder row(s) were ignored.`);
+    }
+    if (!personalInfo.first_name || !personalInfo.last_name) {
+      warnings.push("Faculty profile fields are incomplete and may need review.");
+    }
 
     return json({
       ok: true,
       data: {
         cv_type: /practitioner/i.test(cvText) ? "practitioner" : "academic",
         personal_info: personalInfo,
-        qualifications,
-        intellectual_contributions: intellectualContributions,
-        engagements,
-        services,
-        awards,
-        professional_experience: professionalExperience,
+        qualifications: readyQualifications,
+        intellectual_contributions: readyIcs,
+        engagements: readyEngagements,
+        services: readyServices,
+        awards: readyAwards,
+        professional_experience: readyProfessionalExperience,
       },
       warnings,
       diagnostics: {
@@ -600,8 +738,15 @@ serve(async (req) => {
         sections_parsed: Object.entries(sectionSummary).filter(([, value]) => value.parsedCount > 0).map(([key]) => key),
         sections_skipped: Object.entries(sectionSummary).filter(([, value]) => value.skipped).map(([key, value]) => ({ key, reason: value.skipReason })),
         section_summary: sectionSummary,
+        review_sections: reviewSections,
+        validation_summary: {
+          ready: Object.values(sectionSummary).reduce((sum, section) => sum + (section.ready || 0), 0),
+          needs_review: totalNeedsReview,
+          rejected_header: totalRejectedHeaders,
+          ignored_placeholder: totalIgnored,
+        },
         text_length: cvText.length,
-        ic_count: intellectualContributions.length,
+        ic_count: readyIcs.length,
       },
     });
   } catch (e) {
