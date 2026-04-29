@@ -119,7 +119,9 @@ interface ParseCvResponse {
     sections_empty?: string[];
     sections_parsed?: string[];
     sections_skipped?: Array<{ key: string; reason?: string }>;
-    section_summary?: Record<string, { parsedCount: number; empty: boolean; detected: boolean; skipped: boolean }>;
+    section_summary?: Record<string, { parsedCount: number; empty: boolean; detected: boolean; skipped: boolean; ready?: number; ignored_placeholder?: number; rejected_header?: number; needs_review?: number }>;
+    review_sections?: Record<string, { ready?: any[]; ignored_placeholder?: Array<{ raw: string; issues?: string[] }>; rejected_header?: Array<{ raw: string; issues?: string[] }>; needs_review?: Array<{ raw: string; issues?: string[] }> }>;
+    validation_summary?: { ready?: number; needs_review?: number; rejected_header?: number; ignored_placeholder?: number };
   };
 }
 
