@@ -326,6 +326,10 @@ const UploadCvPage = () => {
     setExtracted({ ...extracted, intellectual_contributions: updated });
   };
 
+  const blockingValidationCount =
+    (parseDiagnostics?.validation_summary?.needs_review || 0) +
+    (parseDiagnostics?.validation_summary?.rejected_header || 0);
+
   const handleSave = async () => {
     console.log('[Save CV] click triggered', { hasExtracted: !!extracted, hasProfile: !!profile, hasUser: !!user });
     if (!user) {
@@ -334,6 +338,10 @@ const UploadCvPage = () => {
     }
     if (!extracted) {
       toast.error('No parsed CV data to save. Please parse a CV first.');
+      return;
+    }
+    if (blockingValidationCount > 0) {
+      toast.error(`Cannot save: ${blockingValidationCount} row${blockingValidationCount === 1 ? '' : 's'} failed validation. Review the "Other Sections" tab and fix the source CV.`);
       return;
     }
 
