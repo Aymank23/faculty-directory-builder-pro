@@ -114,6 +114,13 @@ interface ParseCvResponse {
   data?: ExtractedData;
   warnings?: string[];
   error?: string;
+  diagnostics?: {
+    sections_detected?: string[];
+    sections_empty?: string[];
+    sections_parsed?: string[];
+    sections_skipped?: Array<{ key: string; reason?: string }>;
+    section_summary?: Record<string, { parsedCount: number; empty: boolean; detected: boolean; skipped: boolean }>;
+  };
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -161,6 +168,7 @@ const UploadCvPage = () => {
   const [saveResult, setSaveResult] = useState<any>(null);
   const [enableAiParsing, setEnableAiParsing] = useState(false);
   const [parseWarnings, setParseWarnings] = useState<string[]>([]);
+  const [parseDiagnostics, setParseDiagnostics] = useState<ParseCvResponse['diagnostics'] | null>(null);
   const [progressStage, setProgressStage] = useState<'idle' | 'upload' | 'parse' | 'extract' | 'preview' | 'save'>('idle');
 
   const { data: profile } = useQuery({
@@ -285,6 +293,7 @@ const UploadCvPage = () => {
         setProfileEdits(nextData.personal_info);
       }
       setParseWarnings(parsed.warnings || []);
+      setParseDiagnostics(parsed.diagnostics || null);
       setExtracted(nextData);
       setProgressStage('preview');
       setStep('review');
@@ -967,7 +976,7 @@ const UploadCvPage = () => {
                 <Card>
                   <CardContent className="pt-4">
                     {extracted.qualifications.length === 0 ? (
-                      <p className="text-sm text-muted-foreground text-center py-4">No qualifications found.</p>
+                      <p className="text-sm text-muted-foreground text-center py-4">No records.</p>
                     ) : (
                       <Table>
                         <TableHeader>
@@ -1000,6 +1009,39 @@ const UploadCvPage = () => {
                 </Card>
               </TabsContent>
               <TabsContent value="other" className="mt-4">
+                {parseDiagnostics && (
+                  <Card className="mb-4">
+                    <CardContent className="pt-4 space-y-3">
+                      <p className="text-sm font-medium text-foreground">Parsing summary</p>
+                      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                        <div>
+                          <p className="text-[11px] font-medium text-muted-foreground">Detected</p>
+                          <p className="text-xs text-foreground">{parseDiagnostics.sections_detected?.join(', ') || 'None'}</p>
+                        </div>
+                        <div>
+                          <p className="text-[11px] font-medium text-muted-foreground">Empty</p>
+                          <p className="text-xs text-foreground">{parseDiagnostics.sections_empty?.join(', ') || 'None'}</p>
+                        </div>
+                        <div>
+                          <p className="text-[11px] font-medium text-muted-foreground">Parsed</p>
+                          <p className="text-xs text-foreground">{parseDiagnostics.sections_parsed?.join(', ') || 'None'}</p>
+                        </div>
+                        <div>
+                          <p className="text-[11px] font-medium text-muted-foreground">Skipped</p>
+                          {parseDiagnostics.sections_skipped?.length ? (
+                            <ul className="text-xs text-foreground space-y-1">
+                              {parseDiagnostics.sections_skipped.map((section) => (
+                                <li key={section.key}>{section.key}: {section.reason || 'Skipped'}</li>
+                              ))}
+                            </ul>
+                          ) : (
+                            <p className="text-xs text-foreground">None</p>
+                          )}
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
                 <Accordion type="multiple" defaultValue={['engagements', 'services', 'awards', 'profexp']}>
                   {extracted.professional_experience && extracted.professional_experience.length > 0 && (
                     <AccordionItem value="profexp">
@@ -1035,7 +1077,7 @@ const UploadCvPage = () => {
                       <span className="flex items-center gap-2"><Briefcase className="h-4 w-4" /> Engagements <Badge variant="secondary" className="text-[10px]">{extracted.engagements.length}</Badge></span>
                     </AccordionTrigger>
                     <AccordionContent>
-                      {extracted.engagements.length === 0 ? <p className="text-xs text-muted-foreground">None found</p> : (
+                      {extracted.engagements.length === 0 ? <p className="text-xs text-muted-foreground">No records.</p> : (
                         <Table>
                           <TableHeader><TableRow><TableHead className="text-xs">Period</TableHead><TableHead className="text-xs">Activity</TableHead><TableHead className="text-xs">Details</TableHead></TableRow></TableHeader>
                           <TableBody>
@@ -1056,7 +1098,7 @@ const UploadCvPage = () => {
                       <span className="flex items-center gap-2"><Shield className="h-4 w-4" /> Service <Badge variant="secondary" className="text-[10px]">{extracted.services.length}</Badge></span>
                     </AccordionTrigger>
                     <AccordionContent>
-                      {extracted.services.length === 0 ? <p className="text-xs text-muted-foreground">None found</p> : (
+                      {extracted.services.length === 0 ? <p className="text-xs text-muted-foreground">No records.</p> : (
                         <Table>
                           <TableHeader><TableRow><TableHead className="text-xs">Period</TableHead><TableHead className="text-xs">Level</TableHead><TableHead className="text-xs">Committee / Role</TableHead></TableRow></TableHeader>
                           <TableBody>
@@ -1077,7 +1119,7 @@ const UploadCvPage = () => {
                       <span className="flex items-center gap-2"><Award className="h-4 w-4" /> Awards <Badge variant="secondary" className="text-[10px]">{extracted.awards.length}</Badge></span>
                     </AccordionTrigger>
                     <AccordionContent>
-                      {extracted.awards.length === 0 ? <p className="text-xs text-muted-foreground">None found</p> : (
+                      {extracted.awards.length === 0 ? <p className="text-xs text-muted-foreground">No records.</p> : (
                         <Table>
                           <TableHeader><TableRow><TableHead className="text-xs">Year</TableHead><TableHead className="text-xs">Award</TableHead><TableHead className="text-xs">Organization</TableHead></TableRow></TableHeader>
                           <TableBody>

@@ -40,46 +40,44 @@ async function extractDocxText(fileBytes: Uint8Array): Promise<string> {
 function parseWordXml(xml: string): string {
   const lines: string[] = [];
 
-  // Split by paragraphs <w:p ...>...</w:p>
-  const paragraphs = xml.match(/<w:p[ >][\s\S]*?<\/w:p>/g) || [];
+  const blocks = xml.match(/<w:tbl[ >][\s\S]*?<\/w:tbl>|<w:p[ >][\s\S]*?<\/w:p>/g) || [];
 
-  for (const para of paragraphs) {
-    // Extract all text runs <w:t ...>text</w:t>
-    const textMatches = para.match(/<w:t[^>]*>([\s\S]*?)<\/w:t>/g) || [];
+  for (const block of blocks) {
+    if (block.startsWith('<w:tbl')) {
+      const rows = block.match(/<w:tr[ >][\s\S]*?<\/w:tr>/g) || [];
+      for (const row of rows) {
+        const cells = row.match(/<w:tc[ >][\s\S]*?<\/w:tc>/g) || [];
+        const cellTexts = cells.map(cell => {
+          const tMatches = cell.match(/<w:t[^>]*>([\s\S]*?)<\/w:t>/g) || [];
+          return tMatches.map(m => {
+            const match = m.match(/<w:t[^>]*>([\s\S]*?)<\/w:t>/);
+            return match ? match[1] : '';
+          }).join(' ').replace(/\s+/g, ' ').trim();
+        });
+
+        if (cellTexts.some(cell => cell.length > 0)) {
+          lines.push(cellTexts.join(' | '));
+        }
+      }
+      continue;
+    }
+
+    const textMatches = block.match(/<w:t[^>]*>([\s\S]*?)<\/w:t>/g) || [];
     const texts = textMatches.map(m => {
       const match = m.match(/<w:t[^>]*>([\s\S]*?)<\/w:t>/);
       return match ? match[1] : '';
     });
 
     const line = texts.join('').trim();
-    if (line) {
-      // Check if this paragraph has a heading style
-      const styleMatch = para.match(/<w:pStyle\s+w:val="([^"]+)"/);
-      const style = styleMatch ? styleMatch[1] : '';
+    if (!line) continue;
 
-      if (style.toLowerCase().includes('heading') || style.match(/^h\d$/i)) {
-        lines.push(`\n## ${line}\n`);
-      } else {
-        lines.push(line);
-      }
-    }
-  }
+    const styleMatch = block.match(/<w:pStyle\s+w:val="([^"]+)"/);
+    const style = styleMatch ? styleMatch[1] : '';
 
-  // Also extract table content
-  const tables = xml.match(/<w:tbl>[\s\S]*?<\/w:tbl>/g) || [];
-  for (const table of tables) {
-    const rows = table.match(/<w:tr[ >][\s\S]*?<\/w:tr>/g) || [];
-    for (const row of rows) {
-      const cells = row.match(/<w:tc[ >][\s\S]*?<\/w:tc>/g) || [];
-      const cellTexts = cells.map(cell => {
-        const tMatches = cell.match(/<w:t[^>]*>([\s\S]*?)<\/w:t>/g) || [];
-        return tMatches.map(m => {
-          const match = m.match(/<w:t[^>]*>([\s\S]*?)<\/w:t>/);
-          return match ? match[1] : '';
-        }).join(' ').trim();
-      });
-      const rowText = cellTexts.filter(Boolean).join(' | ');
-      if (rowText) lines.push(rowText);
+    if (style.toLowerCase().includes('heading') || style.match(/^h\d$/i)) {
+      lines.push(`\n## ${line}\n`);
+    } else {
+      lines.push(line);
     }
   }
 

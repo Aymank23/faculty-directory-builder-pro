@@ -267,7 +267,18 @@ const CvUploadDialog = ({ open, onOpenChange, facultyId, userId }: CvUploadDialo
   };
 
   const sectionSummary = (label: string, items: any[] | undefined) => {
-    if (!items?.length) return null;
+    if (!items?.length) {
+      return (
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <Check className="h-4 w-4 text-primary" />
+            <span className="text-sm font-medium text-foreground">{label}</span>
+            <Badge variant="secondary" className="text-xs">0</Badge>
+          </div>
+          <p className="ml-6 text-xs text-muted-foreground">No records</p>
+        </div>
+      );
+    }
     return (
       <div className="space-y-1">
         <div className="flex items-center gap-2">
@@ -461,10 +472,6 @@ const CvUploadDialog = ({ open, onOpenChange, facultyId, userId }: CvUploadDialo
                   {sectionSummary('Professional Engagements', extracted.engagements)}
                   {sectionSummary('Service Contributions', extracted.services)}
                   {sectionSummary('Awards & Recognition', extracted.awards)}
-                  {!extracted.qualifications?.length && !extracted.engagements?.length &&
-                   !extracted.services?.length && !extracted.awards?.length && (
-                    <p className="text-sm text-muted-foreground">No additional data extracted.</p>
-                  )}
                 </div>
               </TabsContent>
 
