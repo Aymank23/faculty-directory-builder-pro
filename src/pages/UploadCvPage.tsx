@@ -1013,9 +1013,95 @@ const UploadCvPage = () => {
               <TabsContent value="other" className="mt-4">
                 {parseDiagnostics && (
                   <Card className="mb-4">
-                    <CardContent className="pt-4 space-y-3">
-                      <p className="text-sm font-medium text-foreground">Parsing summary</p>
+                    <CardContent className="pt-4 space-y-4">
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm font-medium text-foreground">Parsing summary</p>
+                        {(() => {
+                          const vs = parseDiagnostics.validation_summary || {};
+                          const blocking = (vs.needs_review || 0) + (vs.rejected_header || 0);
+                          return blocking > 0 ? (
+                            <Badge variant="destructive" className="text-[10px]">
+                              {blocking} row{blocking === 1 ? '' : 's'} blocking save
+                            </Badge>
+                          ) : (
+                            <Badge variant="secondary" className="text-[10px] bg-green-500/15 text-green-700 dark:text-green-400">
+                              All rows valid
+                            </Badge>
+                          );
+                        })()}
+                      </div>
                       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                        <div>
+                          <p className="text-[11px] font-medium text-muted-foreground">Ready</p>
+                          <p className="text-xs text-foreground">{parseDiagnostics.validation_summary?.ready ?? 0}</p>
+                        </div>
+                        <div>
+                          <p className="text-[11px] font-medium text-muted-foreground">Needs review</p>
+                          <p className="text-xs text-foreground">{parseDiagnostics.validation_summary?.needs_review ?? 0}</p>
+                        </div>
+                        <div>
+                          <p className="text-[11px] font-medium text-muted-foreground">Rejected headers</p>
+                          <p className="text-xs text-foreground">{parseDiagnostics.validation_summary?.rejected_header ?? 0}</p>
+                        </div>
+                        <div>
+                          <p className="text-[11px] font-medium text-muted-foreground">Ignored placeholders</p>
+                          <p className="text-xs text-foreground">{parseDiagnostics.validation_summary?.ignored_placeholder ?? 0}</p>
+                        </div>
+                      </div>
+                      {parseDiagnostics.review_sections && Object.keys(parseDiagnostics.review_sections).length > 0 && (
+                        <div className="space-y-3">
+                          <p className="text-xs font-medium text-foreground">Per-section preview</p>
+                          <Accordion type="multiple" className="border rounded-md">
+                            {Object.entries(parseDiagnostics.review_sections).map(([sectionKey, buckets]) => {
+                              const ready = buckets.ready?.length || 0;
+                              const review = buckets.needs_review?.length || 0;
+                              const rejected = buckets.rejected_header?.length || 0;
+                              const ignored = buckets.ignored_placeholder?.length || 0;
+                              const blocking = review + rejected;
+                              return (
+                                <AccordionItem key={sectionKey} value={sectionKey}>
+                                  <AccordionTrigger className="text-xs px-3">
+                                    <span className="flex items-center gap-2">
+                                      <span className="font-medium">{sectionKey}</span>
+                                      <Badge variant="secondary" className="text-[10px]">Ready {ready}</Badge>
+                                      {review > 0 && <Badge variant="outline" className="text-[10px] border-amber-500 text-amber-600">Review {review}</Badge>}
+                                      {rejected > 0 && <Badge variant="destructive" className="text-[10px]">Header {rejected}</Badge>}
+                                      {ignored > 0 && <Badge variant="secondary" className="text-[10px] opacity-70">Skipped {ignored}</Badge>}
+                                      {blocking > 0 && <Badge variant="destructive" className="text-[10px]">Blocks save</Badge>}
+                                    </span>
+                                  </AccordionTrigger>
+                                  <AccordionContent className="px-3 space-y-3">
+                                    {(['needs_review', 'rejected_header', 'ignored_placeholder'] as const).map((bucket) => {
+                                      const items = buckets[bucket] || [];
+                                      if (!items.length) return null;
+                                      const label = bucket === 'needs_review' ? 'Needs review' : bucket === 'rejected_header' ? 'Rejected (header rows)' : 'Ignored placeholders';
+                                      return (
+                                        <div key={bucket}>
+                                          <p className="text-[11px] font-medium text-muted-foreground mb-1">{label}</p>
+                                          <ul className="space-y-1">
+                                            {items.slice(0, 25).map((row, i) => (
+                                              <li key={i} className="text-[11px] font-mono bg-muted/50 px-2 py-1 rounded">
+                                                <div className="truncate">{row.raw}</div>
+                                                {row.issues?.length ? (
+                                                  <div className="text-amber-600 dark:text-amber-400 mt-0.5">{row.issues.join('; ')}</div>
+                                                ) : null}
+                                              </li>
+                                            ))}
+                                            {items.length > 25 && (
+                                              <li className="text-[10px] text-muted-foreground">…and {items.length - 25} more</li>
+                                            )}
+                                          </ul>
+                                        </div>
+                                      );
+                                    })}
+                                  </AccordionContent>
+                                </AccordionItem>
+                              );
+                            })}
+                          </Accordion>
+                        </div>
+                      )}
+                      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4 pt-2 border-t">
                         <div>
                           <p className="text-[11px] font-medium text-muted-foreground">Detected</p>
                           <p className="text-xs text-foreground">{parseDiagnostics.sections_detected?.join(', ') || 'None'}</p>
