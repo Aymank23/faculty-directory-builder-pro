@@ -1243,13 +1243,21 @@ const UploadCvPage = () => {
                 </Card>
               </TabsContent>
             </Tabs>
-            <div className="flex items-center justify-between pt-4 border-t">
+            <div className="flex items-center justify-between pt-4 border-t gap-3">
               <Button variant="outline" onClick={() => { setStep('upload'); setExtracted(null); }}>
                 ← Back to Upload
               </Button>
-              <Button onClick={handleSave} disabled={saving} size="lg">
-                {saving ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Saving…</> : <><Save className="h-4 w-4 mr-2" /> Save & Update All Dashboards</>}
-              </Button>
+              <div className="flex flex-col items-end gap-1">
+                {blockingValidationCount > 0 && (
+                  <p className="text-[11px] text-destructive flex items-center gap-1">
+                    <AlertTriangle className="h-3 w-3" />
+                    {blockingValidationCount} row{blockingValidationCount === 1 ? '' : 's'} need fixing in the source CV before saving
+                  </p>
+                )}
+                <Button onClick={handleSave} disabled={saving || blockingValidationCount > 0} size="lg">
+                  {saving ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Saving…</> : <><Save className="h-4 w-4 mr-2" /> Save & Update All Dashboards</>}
+                </Button>
+              </div>
             </div>
           </>
         )}
