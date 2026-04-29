@@ -100,6 +100,47 @@ function looksLikeSectionHeading(line: string) {
     IC_SECTION_MATCHERS.some(({ pattern }) => pattern.test(line));
 }
 
+const QUALIFICATION_HEADER_RE = /^(degree(\s*\/\s*certification)?|institution|date\s*\/\s*year|year|field\s*\/\s*area)$/i;
+const AWARD_HEADER_RE = /^(year|award\s*\/\s*recognition|institution\s*\/\s*organization)$/i;
+
+function normalizeCell(value: unknown) {
+  if (typeof value !== "string") return "";
+  return value.replace(/\s+/g, " ").trim();
+}
+
+function splitStructuredLine(line: string) {
+  if (!line.includes("|")) return [normalizeCell(line)].filter(Boolean);
+  return line.split("|").map((cell) => normalizeCell(cell));
+}
+
+function hasHeaderCells(lines: string[], headerRe: RegExp, minMatches = 2) {
+  return lines.some((line) => {
+    const cells = splitStructuredLine(line);
+    if (!cells.length) return false;
+    return cells.filter((cell) => headerRe.test(cell)).length >= minMatches;
+  });
+}
+
+function hasMeaningfulCells(lines: string[]) {
+  return lines.some((line) => splitStructuredLine(line).some((cell) => cell && !isPlaceholder(cell) && !looksLikeSectionHeading(cell)));
+}
+
+function summarizeSection(lines: string[], items: unknown[], options?: { headerRe?: RegExp; minHeaderMatches?: number }) {
+  const filteredLines = lines.filter((line) => !looksLikeSectionHeading(line));
+  const headerDetected = options?.headerRe ? hasHeaderCells(filteredLines, options.headerRe, options.minHeaderMatches ?? 2) : filteredLines.length > 0;
+  const hasContent = hasMeaningfulCells(filteredLines);
+
+  return {
+    detected: lines.length > 0,
+    headerDetected,
+    hasContent,
+    parsedCount: items.length,
+    empty: headerDetected && items.length === 0,
+    skipped: !headerDetected,
+    skipReason: !headerDetected ? "No section title or matching table headers found." : undefined,
+  };
+}
+
 function looksLikePeriod(line: string) {
   return /^(\d{4}|[A-Za-z]{3,9}-\d{4}|[A-Za-z]{3,9}\s+\d{4}|\d{4}\s*(to|\-|–|—)\s*(present|date|\d{4})|\d{4}\s*present|\d{4}-present|\d{4}-\d{4}|\d{4}\s*to\s*present)/i.test(line);
 }
@@ -203,7 +244,6 @@ function looksLikeDegreeToken(line: string) {
 }
 
 function extractQualifications(lines: string[]) {
-  const headerCellRe = /^(degree(\s*\/\s*certification)?|institution|date\s*\/\s*year|year|field\s*\/\s*area)$/i;
   const rawContent = lines.filter((line) => !looksLikeSectionHeading(line));
   const normalizedContent = rawContent.flatMap((line) => {
     if (!line.includes("|")) return [line];
@@ -214,12 +254,12 @@ function extractQualifications(lines: string[]) {
       .filter(Boolean);
 
     if (!cells.length) return [];
-    if (cells.every((cell) => headerCellRe.test(cell))) return [];
+    if (cells.every((cell) => QUALIFICATION_HEADER_RE.test(cell))) return [];
     if (cells.length >= 2) return cells;
     return [line];
   });
 
-  const content = normalizedContent.filter((line) => !headerCellRe.test(line) && !isPlaceholder(line));
+  const content = normalizedContent.filter((line) => !QUALIFICATION_HEADER_RE.test(line) && !isPlaceholder(line));
   const qualifications: Array<Record<string, string | number | null>> = [];
 
   // Iterate in 4-cell blocks but use CONTENT-BASED assignment so that a
@@ -436,11 +476,12 @@ function extractTripleRows(lines: string[], headers: RegExp[], fieldNames: [stri
     const first = content[i];
     const second = content[i + 1];
     const third = content[i + 2];
-    if (isPlaceholder(second) || isPlaceholder(third)) continue;
+    const meaningfulValues = [first, second, third].filter((value) => !isPlaceholder(value));
+    if (meaningfulValues.length < 2) continue;
     rows.push({
-      [fieldNames[0]]: first,
-      [fieldNames[1]]: second,
-      [fieldNames[2]]: third,
+      [fieldNames[0]]: isPlaceholder(first) ? null : first,
+      [fieldNames[1]]: isPlaceholder(second) ? null : second,
+      [fieldNames[2]]: isPlaceholder(third) ? null : third,
       source_section: sourceSection,
     });
   }
@@ -525,8 +566,19 @@ serve(async (req) => {
       year: normalizeYear(String(award.year || "")) ?? award.year,
     }));
 
+    const sectionSummary = {
+      qualifications: summarizeSection(sections.qualifications, qualifications, { headerRe: QUALIFICATION_HEADER_RE, minHeaderMatches: 2 }),
+      awards: summarizeSection(sections.awards, awards, { headerRe: AWARD_HEADER_RE, minHeaderMatches: 2 }),
+      professional_experience: summarizeSection(sections.professional_experience, professionalExperience),
+      professional_engagement: summarizeSection(sections.professional_engagement, engagements),
+      service: summarizeSection(sections.service, services),
+      intellectual_contributions: summarizeSection(sections.intellectual_contributions, intellectualContributions),
+    };
+
     if (!intellectualContributions.length) warnings.push("No intellectual contributions were confidently extracted; please review the raw text.");
-    if (!qualifications.length) warnings.push("Qualifications table could not be fully mapped; please review before saving.");
+    if (sectionSummary.qualifications.empty) warnings.push("Qualifications section was detected but contains no valid records; it will stay available as an empty section.");
+    else if (!qualifications.length) warnings.push("Qualifications table could not be fully mapped; please review before saving.");
+    if (sectionSummary.awards.empty) warnings.push("Awards section was detected but contains no valid records; it will stay available as an empty section.");
     if (!personalInfo.first_name || !personalInfo.last_name) warnings.push("Faculty profile fields are incomplete and may need review.");
 
     return json({
@@ -543,7 +595,11 @@ serve(async (req) => {
       },
       warnings,
       diagnostics: {
-        sections_detected: Object.entries(sections).filter(([, value]) => value.length > 0).map(([key]) => key),
+        sections_detected: Object.entries(sectionSummary).filter(([, value]) => value.detected || value.headerDetected).map(([key]) => key),
+        sections_empty: Object.entries(sectionSummary).filter(([, value]) => value.empty).map(([key]) => key),
+        sections_parsed: Object.entries(sectionSummary).filter(([, value]) => value.parsedCount > 0).map(([key]) => key),
+        sections_skipped: Object.entries(sectionSummary).filter(([, value]) => value.skipped).map(([key, value]) => ({ key, reason: value.skipReason })),
+        section_summary: sectionSummary,
         text_length: cvText.length,
         ic_count: intellectualContributions.length,
       },
