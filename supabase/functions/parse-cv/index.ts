@@ -93,10 +93,33 @@ function cleanLine(line: string) {
     .trim();
 }
 
+// Placeholders that should match as a SUBSTRING (these are unique enough not to false-positive).
+const SUBSTRING_PLACEHOLDERS = [
+  "click or tap here to enter text",
+  "click or tap here",
+  "choose an item",
+  "enter year",
+  "enter year.",
+  "click or tap to enter a date",
+  "click or tap here to enter a date",
+  "documentation is needed for every item listed",
+];
+// Placeholders that must match as a WHOLE LINE / EXACT TOKEN (short ambiguous strings like "na" or "none" must not match anywhere inside real content).
+const EXACT_PLACEHOLDERS = new Set([
+  "n/a",
+  "na",
+  "none",
+  "null",
+  "enter text",
+  "enter text.",
+]);
+
 function isPlaceholder(value: unknown) {
   if (value == null || value === "") return true;
   const normalized = String(value).toLowerCase().trim();
-  return PLACEHOLDERS.some((placeholder) => normalized.includes(placeholder));
+  if (!normalized) return true;
+  if (EXACT_PLACEHOLDERS.has(normalized)) return true;
+  return SUBSTRING_PLACEHOLDERS.some((placeholder) => normalized.includes(placeholder));
 }
 
 function isNoiseLine(line: string) {
