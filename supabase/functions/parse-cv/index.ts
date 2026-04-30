@@ -6,21 +6,7 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const PLACEHOLDERS = [
-  "click or tap here to enter text",
-  "click or tap here",
-  "choose an item",
-  "enter year",
-  "enter year.",
-  "enter text",
-  "click or tap to enter a date",
-  "click or tap here to enter a date",
-  "documentation is needed for every item listed",
-  "n/a",
-  "na",
-  "none",
-  "null",
-];
+// Placeholder lists moved below near isPlaceholder() definition.
 
 const NOISE_PATTERNS: RegExp[] = [
   /listed\s+from\s+most\s+recent/i,
@@ -53,16 +39,22 @@ const IC_CATEGORY_RE = /(scholarship|teaching|learning|integration|discovery|app
 const CITATION_RE = /(doi|journal|review|vol\.|issue|pp\.|\((19|20)\d{2}\)|https?:\/\/doi\.org\/|10\.\d{4,9}\/.+)/i;
 const HEADER_BLOB_RE = /(year\s*\|\s*award|from-to\s*\||degree\s*\|\s*institution|citation\s*\|\s*scopus rank)/i;
 
+// Header patterns are matched after stripping any parenthetical clarifiers (e.g. "(APA Style)").
 const TABLE_HEADER_PATTERNS = {
-  qualifications: /^degree(?:\s*\/\s*certification)?\s*\|\s*institution\s*\|\s*(?:date\s*\/\s*year|year)\s*\|\s*field\s*\/\s*area$/i,
-  awards: /^year\s*\|\s*award\s*\/\s*recognition\s*\|\s*institution\s*\/\s*organization$/i,
-  engagements: /^from-?to\s*\|\s*activity\s*\|\s*details$/i,
-  service: /^from-?to\s*\|\s*level\s*\|\s*committee\s*\/\s*role$/i,
+  qualifications: /^degree(?:\s*\/\s*certification)?\s*\|\s*institution\s*\|\s*(?:date\s*\/\s*year|year)\s*\|\s*field(?:\s*\/\s*area)?$/i,
+  awards: /^year\s*\|\s*award(?:\s*\/\s*recognition)?\s*\|\s*institution(?:\s*\/\s*organization)?$/i,
+  engagements: /^from\s*-?\s*to\s*\|\s*activity\s*\|\s*details$/i,
+  service: /^from\s*-?\s*to\s*\|\s*level\s*\|\s*committee(?:\s*\/\s*role)?$/i,
   professionalExperience: /^period\s*\|\s*organization\s*\/?\s*employer\s*\|\s*position\s*\/?\s*title\s*\|\s*key responsibilities/i,
-  prj: /^citation\s*\|\s*scopus rank\s*\|\s*ic category$/i,
-  bookLike: /^citation\s*\|\s*(?:publisher(?:\s+name)?|scopus rank)\s*\|\s*ic category$/i,
-  otherIc: /^year\s*\|\s*(?:type(?:\s+of\s+contributions?)?|type)\s*\|\s*category\s*\|\s*details$/i,
+  prj: /^citation\s*\|\s*scopus\s+rank\s*\|\s*ic\s+category$/i,
+  bookLike: /^citation\s*\|\s*(?:publisher(?:\s+name)?|scopus\s+rank)\s*\|\s*ic\s+category$/i,
+  otherIc: /^year\s*\|\s*(?:type(?:\s+of\s+contributions?)?|type)\s*\|\s*(?:ic\s+)?category\s*\|\s*details$/i,
 };
+
+function stripParenthetical(line: string) {
+  // For header detection only: drop parenthetical clarifiers like "(APA Style)", "(s)" so headers match canonical form.
+  return line.replace(/\s*\([^)]*\)\s*/g, " ").replace(/\s+/g, " ").trim();
+}
 
 type RowStatus = "ready" | "ignored_placeholder" | "rejected_header" | "needs_review";
 
@@ -93,10 +85,35 @@ function cleanLine(line: string) {
     .trim();
 }
 
+// Placeholders that should match as a SUBSTRING (these are unique enough not to false-positive).
+const SUBSTRING_PLACEHOLDERS = [
+  "click or tap here to enter text",
+  "click or tap here",
+  "choose an item",
+  "enter year",
+  "enter year.",
+  "click or tap to enter a date",
+  "click or tap here to enter a date",
+  "documentation is needed for every item listed",
+];
+// Placeholders that must match as a WHOLE LINE / EXACT TOKEN (short ambiguous strings like "na" or "none" must not match anywhere inside real content).
+const EXACT_PLACEHOLDERS = new Set([
+  "n/a",
+  "na",
+  "none",
+  "null",
+  "enter text",
+  "enter text.",
+]);
+
 function isPlaceholder(value: unknown) {
   if (value == null || value === "") return true;
-  const normalized = String(value).toLowerCase().trim();
-  return PLACEHOLDERS.some((placeholder) => normalized.includes(placeholder));
+  const normalized = String(value).toLowerCase().trim().replace(/\s+/g, " ");
+  if (!normalized) return true;
+  // De-spaced variant catches DOCX run-split artefacts like "E nter Year" -> "enter year".
+  const despaced = normalized.replace(/\b(\w)\s+(?=\w)/g, "$1");
+  if (EXACT_PLACEHOLDERS.has(normalized) || EXACT_PLACEHOLDERS.has(despaced)) return true;
+  return SUBSTRING_PLACEHOLDERS.some((p) => normalized.includes(p) || despaced.includes(p));
 }
 
 function isNoiseLine(line: string) {
@@ -110,11 +127,27 @@ function cleanValue(value: unknown) {
   return cleaned;
 }
 
+function stripInlineNoise(line: string) {
+  // Strip parenthetical narrative noise (e.g. "(Listed from most recent to last)")
+  // but PRESERVE the rest of the line so headings remain intact.
+  let out = line;
+  // Remove parenthetical chunks that contain noise phrases.
+  out = out.replace(/\s*\([^)]*(?:listed\s+from\s+most\s+recent|most\s+recent\s+to\s+last|since\s+fall\s+\d{4}[^)]*listed[^)]*)[^)]*\)\s*/gi, " ");
+  return out.replace(/\s+/g, " ").trim();
+}
+
 function sanitizeText(cvText: string) {
   return cvText
     .replace(/\r/g, "")
     .split("\n")
     .map(cleanLine)
+    .map((line) => {
+      // If a line contains noise inline AND looks like a heading or contains other content, strip the noise rather than drop the line.
+      if (line && isNoiseLine(line) && (looksLikeSectionHeading(line) || /^#+\s/.test(line) || /\b(qualifications|awards|service|engagement|contributions|professional|recognition)\b/i.test(line))) {
+        return stripInlineNoise(line);
+      }
+      return line;
+    })
     .filter((line) => {
       if (!line) return false;
       if (isPlaceholder(line)) return false;
@@ -313,7 +346,9 @@ function reviewStrictTableSection<T>(
   const nonHeadingLines = lines.filter((line) => !looksLikeSectionHeading(line));
 
   for (const raw of nonHeadingLines) {
-    if (headerPattern.test(raw)) {
+    // Test header against both the raw line and a parenthetical-stripped variant ("Citation (APA Style) | …" -> "Citation | …").
+    const headerCandidate = stripParenthetical(raw);
+    if (headerPattern.test(raw) || headerPattern.test(headerCandidate)) {
       rows.push(createRow<T>(section, raw, "rejected_header", ["Header row rejected."], null));
       continue;
     }
@@ -416,10 +451,15 @@ function extractEngagements(lines: string[]) {
       const details = cleanValue(cells[2]);
       const issues: string[] = [];
 
+      // Only call looksLikePeriod a "real" failure if the cell exists and isn't already a period.
       if (fromTo && !looksLikePeriod(fromTo)) issues.push("From-To column is not period-like.");
       if (!activity) issues.push("Missing activity.");
-      if (looksLikeCitation(activity) || looksLikeCitation(details)) issues.push("Row looks like an intellectual contribution, not an engagement.");
-      if (hasMultiRecordPattern(activity) || hasMultiRecordPattern(details)) issues.push("Row appears to contain concatenated multiple records.");
+      // If the row already has a period in column 1, the row IS in the engagement schema; do not also reject it as an IC just because the details mention a year.
+      const firstCellLooksLikePeriod = looksLikePeriod(fromTo);
+      if (!firstCellLooksLikePeriod && (looksLikeCitation(activity) || looksLikeCitation(details))) {
+        issues.push("Row looks like an intellectual contribution, not an engagement.");
+      }
+      if (hasMultiRecordPattern(activity)) issues.push("Activity appears to contain concatenated multiple records.");
 
       if (issues.length > 0) return createRow("Professional Engagement Activities", raw, "needs_review", issues, null);
 
