@@ -39,16 +39,22 @@ const IC_CATEGORY_RE = /(scholarship|teaching|learning|integration|discovery|app
 const CITATION_RE = /(doi|journal|review|vol\.|issue|pp\.|\((19|20)\d{2}\)|https?:\/\/doi\.org\/|10\.\d{4,9}\/.+)/i;
 const HEADER_BLOB_RE = /(year\s*\|\s*award|from-to\s*\||degree\s*\|\s*institution|citation\s*\|\s*scopus rank)/i;
 
+// Header patterns are matched after stripping any parenthetical clarifiers (e.g. "(APA Style)").
 const TABLE_HEADER_PATTERNS = {
-  qualifications: /^degree(?:\s*\/\s*certification)?\s*\|\s*institution\s*\|\s*(?:date\s*\/\s*year|year)\s*\|\s*field\s*\/\s*area$/i,
-  awards: /^year\s*\|\s*award\s*\/\s*recognition\s*\|\s*institution\s*\/\s*organization$/i,
-  engagements: /^from-?to\s*\|\s*activity\s*\|\s*details$/i,
-  service: /^from-?to\s*\|\s*level\s*\|\s*committee\s*\/\s*role$/i,
+  qualifications: /^degree(?:\s*\/\s*certification)?\s*\|\s*institution\s*\|\s*(?:date\s*\/\s*year|year)\s*\|\s*field(?:\s*\/\s*area)?$/i,
+  awards: /^year\s*\|\s*award(?:\s*\/\s*recognition)?\s*\|\s*institution(?:\s*\/\s*organization)?$/i,
+  engagements: /^from\s*-?\s*to\s*\|\s*activity\s*\|\s*details$/i,
+  service: /^from\s*-?\s*to\s*\|\s*level\s*\|\s*committee(?:\s*\/\s*role)?$/i,
   professionalExperience: /^period\s*\|\s*organization\s*\/?\s*employer\s*\|\s*position\s*\/?\s*title\s*\|\s*key responsibilities/i,
-  prj: /^citation\s*\|\s*scopus rank\s*\|\s*ic category$/i,
-  bookLike: /^citation\s*\|\s*(?:publisher(?:\s+name)?|scopus rank)\s*\|\s*ic category$/i,
-  otherIc: /^year\s*\|\s*(?:type(?:\s+of\s+contributions?)?|type)\s*\|\s*category\s*\|\s*details$/i,
+  prj: /^citation\s*\|\s*scopus\s+rank\s*\|\s*ic\s+category$/i,
+  bookLike: /^citation\s*\|\s*(?:publisher(?:\s+name)?|scopus\s+rank)\s*\|\s*ic\s+category$/i,
+  otherIc: /^year\s*\|\s*(?:type(?:\s+of\s+contributions?)?|type)\s*\|\s*(?:ic\s+)?category\s*\|\s*details$/i,
 };
+
+function stripParenthetical(line: string) {
+  // For header detection only: drop parenthetical clarifiers like "(APA Style)", "(s)" so headers match canonical form.
+  return line.replace(/\s*\([^)]*\)\s*/g, " ").replace(/\s+/g, " ").trim();
+}
 
 type RowStatus = "ready" | "ignored_placeholder" | "rejected_header" | "needs_review";
 
