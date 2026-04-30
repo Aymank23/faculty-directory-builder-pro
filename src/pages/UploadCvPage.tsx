@@ -326,7 +326,10 @@ const UploadCvPage = () => {
     setExtracted({ ...extracted, intellectual_contributions: updated });
   };
 
-  const blockingValidationCount =
+  // Non-blocking: rows flagged needs_review / rejected_header are simply skipped
+  // by the parser's categorization (only `ready` rows reach the DB), so we surface
+  // these as warnings but never prevent saving.
+  const reviewWarningCount =
     (parseDiagnostics?.validation_summary?.needs_review || 0) +
     (parseDiagnostics?.validation_summary?.rejected_header || 0);
 
@@ -338,10 +341,6 @@ const UploadCvPage = () => {
     }
     if (!extracted) {
       toast.error('No parsed CV data to save. Please parse a CV first.');
-      return;
-    }
-    if (blockingValidationCount > 0) {
-      toast.error(`Cannot save: ${blockingValidationCount} row${blockingValidationCount === 1 ? '' : 's'} failed validation. Review the "Other Sections" tab and fix the source CV.`);
       return;
     }
 
