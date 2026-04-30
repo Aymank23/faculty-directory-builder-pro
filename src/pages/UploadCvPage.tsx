@@ -555,9 +555,20 @@ const UploadCvPage = () => {
         result.qualAdded = newQuals.length;
       }
       if (extracted.engagements?.length) {
+        // Guard: reject IC-blob leakage (e.g. "Editorial Position", concatenated multi-record rows containing pipes,
+        // or rows whose activity/details still carry the IC category labels). These are artefacts of older parser bugs.
+        const looksLikeIcLeak = (s: string | null | undefined) => {
+          if (!s) return false;
+          if (s.includes(' | ')) return true;
+          if (/\b(basic\/discovery|applied\/integration|pedagogical\/teaching)\s+scholarship\b/i.test(s)) return true;
+          if (/\beditorial position\b/i.test(s)) return true;
+          if ((s.match(/\((19|20)\d{2}\)/g)?.length ?? 0) > 1) return true;
+          return false;
+        };
         const repairedEng = extracted.engagements
           .map(en => repairEngagement(en as any))
-          .filter(en => en.activity);
+          .filter(en => en.activity)
+          .filter(en => !looksLikeIcLeak(en.activity) && !looksLikeIcLeak(en.details));
 
         if (repairedEng.length) {
           const { data: existingEngagements, error: existingEngagementsError } = await supabase
