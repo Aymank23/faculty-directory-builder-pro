@@ -1247,13 +1247,13 @@ const UploadCvPage = () => {
                 ← Back to Upload
               </Button>
               <div className="flex flex-col items-end gap-1">
-                {blockingValidationCount > 0 && (
-                  <p className="text-[11px] text-destructive flex items-center gap-1">
+                {reviewWarningCount > 0 && (
+                  <p className="text-[11px] text-muted-foreground flex items-center gap-1">
                     <AlertTriangle className="h-3 w-3" />
-                    {blockingValidationCount} row{blockingValidationCount === 1 ? '' : 's'} need fixing in the source CV before saving
+                    {reviewWarningCount} row{reviewWarningCount === 1 ? '' : 's'} flagged for review will be skipped on save
                   </p>
                 )}
-                <Button onClick={handleSave} disabled={saving || blockingValidationCount > 0} size="lg">
+                <Button onClick={handleSave} disabled={saving} size="lg">
                   {saving ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Saving…</> : <><Save className="h-4 w-4 mr-2" /> Save & Update All Dashboards</>}
                 </Button>
               </div>
