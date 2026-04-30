@@ -1047,19 +1047,15 @@ const UploadCvPage = () => {
                     <CardContent className="pt-4 space-y-4">
                       <div className="flex items-center justify-between">
                         <p className="text-sm font-medium text-foreground">Parsing summary</p>
-                        {(() => {
-                          const vs = parseDiagnostics.validation_summary || {};
-                          const blocking = (vs.needs_review || 0) + (vs.rejected_header || 0);
-                          return blocking > 0 ? (
-                            <Badge variant="destructive" className="text-[10px]">
-                              {blocking} row{blocking === 1 ? '' : 's'} blocking save
-                            </Badge>
-                          ) : (
-                            <Badge variant="secondary" className="text-[10px] bg-green-500/15 text-green-700 dark:text-green-400">
-                              All rows valid
-                            </Badge>
-                          );
-                        })()}
+                        {reviewWarningCount > 0 ? (
+                          <Badge variant="outline" className="text-[10px] border-amber-500 text-amber-700 dark:text-amber-400">
+                            {reviewWarningCount} row{reviewWarningCount === 1 ? '' : 's'} will be skipped
+                          </Badge>
+                        ) : (
+                          <Badge variant="secondary" className="text-[10px] bg-green-500/15 text-green-700 dark:text-green-400">
+                            All parsed rows ready
+                          </Badge>
+                        )}
                       </div>
                       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
                         <div>
@@ -1079,6 +1075,23 @@ const UploadCvPage = () => {
                           <p className="text-xs text-foreground">{parseDiagnostics.validation_summary?.ignored_placeholder ?? 0}</p>
                         </div>
                       </div>
+                      {parseDiagnostics.section_summary && (
+                        <div className="space-y-2">
+                          <p className="text-xs font-medium text-foreground">Section totals</p>
+                          <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+                            {Object.entries(parseDiagnostics.section_summary).map(([sectionKey, summary]) => (
+                              <div key={sectionKey} className="rounded-md border p-3 space-y-1">
+                                <p className="text-[11px] font-medium text-foreground capitalize">{sectionKey.replace(/_/g, ' ')}</p>
+                                <div className="flex flex-wrap gap-2 text-[10px] text-muted-foreground">
+                                  <span>extracted {summary.ready ?? 0}</span>
+                                  <span>ignored {((summary.ignored_placeholder || 0) + (summary.rejected_header || 0) + (summary.needs_review || 0))}</span>
+                                  <span>ready to save {summary.ready ?? 0}</span>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                       {parseDiagnostics.review_sections && Object.keys(parseDiagnostics.review_sections).length > 0 && (
                         <div className="space-y-3">
                           <p className="text-xs font-medium text-foreground">Per-section preview</p>
