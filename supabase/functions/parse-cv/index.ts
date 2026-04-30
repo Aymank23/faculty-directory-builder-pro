@@ -671,11 +671,7 @@ serve(async (req) => {
     }
 
     const lines = sanitizeText(cvText);
-    console.log("DEBUG: sanitized lines (first 50):", JSON.stringify(lines.slice(0, 50)));
     const sections = sectionize(lines);
-    console.log("DEBUG: section sizes:", Object.fromEntries(Object.entries(sections).map(([k, v]) => [k, v.length])));
-    console.log("DEBUG: qualifications lines:", JSON.stringify(sections.qualifications));
-    console.log("DEBUG: personal_info lines:", JSON.stringify(sections.personal_info));
     const warnings: string[] = [];
 
     if (enableAiParsing) {
