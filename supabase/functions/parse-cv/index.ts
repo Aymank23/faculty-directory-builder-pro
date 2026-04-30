@@ -344,7 +344,9 @@ function reviewStrictTableSection<T>(
   const nonHeadingLines = lines.filter((line) => !looksLikeSectionHeading(line));
 
   for (const raw of nonHeadingLines) {
-    if (headerPattern.test(raw)) {
+    // Test header against both the raw line and a parenthetical-stripped variant ("Citation (APA Style) | …" -> "Citation | …").
+    const headerCandidate = stripParenthetical(raw);
+    if (headerPattern.test(raw) || headerPattern.test(headerCandidate)) {
       rows.push(createRow<T>(section, raw, "rejected_header", ["Header row rejected."], null));
       continue;
     }
