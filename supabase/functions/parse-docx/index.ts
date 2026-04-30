@@ -48,9 +48,9 @@ function parseWordXml(xml: string): string {
       for (const row of rows) {
         const cells = row.match(/<w:tc[ >][\s\S]*?<\/w:tc>/g) || [];
         const cellTexts = cells.map(cell => {
-          const tMatches = cell.match(/<w:t[^>]*>([\s\S]*?)<\/w:t>/g) || [];
+          const tMatches = cell.match(/<w:t(?:\s[^>]*)?>([\s\S]*?)<\/w:t>/g) || [];
           return tMatches.map(m => {
-            const match = m.match(/<w:t[^>]*>([\s\S]*?)<\/w:t>/);
+            const match = m.match(/<w:t(?:\s[^>]*)?>([\s\S]*?)<\/w:t>/);
             return match ? match[1] : '';
           }).join(' ').replace(/\s+/g, ' ').trim();
         });
@@ -62,9 +62,9 @@ function parseWordXml(xml: string): string {
       continue;
     }
 
-    const textMatches = block.match(/<w:t[^>]*>([\s\S]*?)<\/w:t>/g) || [];
+    const textMatches = block.match(/<w:t(?:\s[^>]*)?>([\s\S]*?)<\/w:t>/g) || [];
     const texts = textMatches.map(m => {
-      const match = m.match(/<w:t[^>]*>([\s\S]*?)<\/w:t>/);
+      const match = m.match(/<w:t(?:\s[^>]*)?>([\s\S]*?)<\/w:t>/);
       return match ? match[1] : '';
     });
 
