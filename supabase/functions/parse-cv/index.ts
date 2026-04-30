@@ -449,10 +449,15 @@ function extractEngagements(lines: string[]) {
       const details = cleanValue(cells[2]);
       const issues: string[] = [];
 
+      // Only call looksLikePeriod a "real" failure if the cell exists and isn't already a period.
       if (fromTo && !looksLikePeriod(fromTo)) issues.push("From-To column is not period-like.");
       if (!activity) issues.push("Missing activity.");
-      if (looksLikeCitation(activity) || looksLikeCitation(details)) issues.push("Row looks like an intellectual contribution, not an engagement.");
-      if (hasMultiRecordPattern(activity) || hasMultiRecordPattern(details)) issues.push("Row appears to contain concatenated multiple records.");
+      // If the row already has a period in column 1, the row IS in the engagement schema; do not also reject it as an IC just because the details mention a year.
+      const firstCellLooksLikePeriod = looksLikePeriod(fromTo);
+      if (!firstCellLooksLikePeriod && (looksLikeCitation(activity) || looksLikeCitation(details))) {
+        issues.push("Row looks like an intellectual contribution, not an engagement.");
+      }
+      if (hasMultiRecordPattern(activity)) issues.push("Activity appears to contain concatenated multiple records.");
 
       if (issues.length > 0) return createRow("Professional Engagement Activities", raw, "needs_review", issues, null);
 
