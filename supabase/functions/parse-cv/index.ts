@@ -6,21 +6,7 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const PLACEHOLDERS = [
-  "click or tap here to enter text",
-  "click or tap here",
-  "choose an item",
-  "enter year",
-  "enter year.",
-  "enter text",
-  "click or tap to enter a date",
-  "click or tap here to enter a date",
-  "documentation is needed for every item listed",
-  "n/a",
-  "na",
-  "none",
-  "null",
-];
+// Placeholder lists moved below near isPlaceholder() definition.
 
 const NOISE_PATTERNS: RegExp[] = [
   /listed\s+from\s+most\s+recent/i,
