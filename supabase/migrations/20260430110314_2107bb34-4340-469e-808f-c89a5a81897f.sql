@@ -1,0 +1,1 @@
+DELETE FROM public.professional_engagements WHERE faculty_id = 'd9126a59-dc6b-418b-92b8-5bcb703001d0' AND (activity ILIKE '%editorial position%' OR activity LIKE '%|%|%' OR details LIKE '%|%|%');
