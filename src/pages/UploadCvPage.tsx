@@ -465,12 +465,25 @@ const UploadCvPage = () => {
         }
         if (Object.keys(updates).length > 0) {
           updates.updated_at = new Date().toISOString();
-          const { error: upErr } = await supabase.from('faculty_profiles').update(updates).eq('faculty_id', facultyId);
+          let { error: upErr } = await supabase.from('faculty_profiles').update(updates).eq('faculty_id', facultyId);
+          // Handle unique-constraint conflict on employee_id: another profile already
+          // owns this ID. Skip just that field and retry rather than failing the whole save.
+          if (upErr && /faculty_profiles_employee_id_unique/i.test(upErr.message) && 'employee_id' in updates) {
+            console.warn('[Save CV] employee_id conflict — retrying without employee_id', updates.employee_id);
+            toast.warning(`Employee ID "${updates.employee_id}" is already used by another faculty member. Skipping that field.`);
+            delete updates.employee_id;
+            if (Object.keys(updates).length > 1) {
+              const retry = await supabase.from('faculty_profiles').update(updates).eq('faculty_id', facultyId);
+              upErr = retry.error;
+            } else {
+              upErr = null;
+            }
+          }
           if (upErr) {
             console.error('[Save CV] profile update error', upErr);
             throw new Error(`Profile update failed: ${upErr.message}`);
           }
-          result.profileUpdated += Object.keys(updates).length - 1;
+          result.profileUpdated += Math.max(0, Object.keys(updates).length - 1);
           console.log('[Save CV] profile updated fields:', Object.keys(updates));
         }
       }
