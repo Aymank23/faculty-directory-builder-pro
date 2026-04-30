@@ -110,11 +110,27 @@ function cleanValue(value: unknown) {
   return cleaned;
 }
 
+function stripInlineNoise(line: string) {
+  // Strip parenthetical narrative noise (e.g. "(Listed from most recent to last)")
+  // but PRESERVE the rest of the line so headings remain intact.
+  let out = line;
+  // Remove parenthetical chunks that contain noise phrases.
+  out = out.replace(/\s*\([^)]*(?:listed\s+from\s+most\s+recent|most\s+recent\s+to\s+last|since\s+fall\s+\d{4}[^)]*listed[^)]*)[^)]*\)\s*/gi, " ");
+  return out.replace(/\s+/g, " ").trim();
+}
+
 function sanitizeText(cvText: string) {
   return cvText
     .replace(/\r/g, "")
     .split("\n")
     .map(cleanLine)
+    .map((line) => {
+      // If a line contains noise inline AND looks like a heading or contains other content, strip the noise rather than drop the line.
+      if (line && isNoiseLine(line) && (looksLikeSectionHeading(line) || /^#+\s/.test(line) || /\b(qualifications|awards|service|engagement|contributions|professional|recognition)\b/i.test(line))) {
+        return stripInlineNoise(line);
+      }
+      return line;
+    })
     .filter((line) => {
       if (!line) return false;
       if (isPlaceholder(line)) return false;
