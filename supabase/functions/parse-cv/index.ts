@@ -108,10 +108,12 @@ const EXACT_PLACEHOLDERS = new Set([
 
 function isPlaceholder(value: unknown) {
   if (value == null || value === "") return true;
-  const normalized = String(value).toLowerCase().trim();
+  const normalized = String(value).toLowerCase().trim().replace(/\s+/g, " ");
   if (!normalized) return true;
-  if (EXACT_PLACEHOLDERS.has(normalized)) return true;
-  return SUBSTRING_PLACEHOLDERS.some((placeholder) => normalized.includes(placeholder));
+  // De-spaced variant catches DOCX run-split artefacts like "E nter Year" -> "enter year".
+  const despaced = normalized.replace(/\b(\w)\s+(?=\w)/g, "$1");
+  if (EXACT_PLACEHOLDERS.has(normalized) || EXACT_PLACEHOLDERS.has(despaced)) return true;
+  return SUBSTRING_PLACEHOLDERS.some((p) => normalized.includes(p) || despaced.includes(p));
 }
 
 function isNoiseLine(line: string) {
