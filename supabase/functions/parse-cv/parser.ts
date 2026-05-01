@@ -202,8 +202,12 @@ function sanitizeText(cvText: string) {
     })
     .filter((line) => {
       if (!line) return false;
-      if (isPlaceholder(line)) return false;
-      if (isNoiseLine(line)) return false;
+      // Only drop placeholder/noise lines when they are NOT table rows. A table
+      // row may legitimately contain a placeholder cell (e.g. "Choose an item.")
+      // alongside real data — those are handled per-cell downstream.
+      const isTableRow = line.includes("|");
+      if (!isTableRow && isPlaceholder(line)) return false;
+      if (!isTableRow && isNoiseLine(line)) return false;
       if (/^w:[a-z]/i.test(line)) return false;
       if (/^[<>/\\]+$/.test(line)) return false;
       return true;
