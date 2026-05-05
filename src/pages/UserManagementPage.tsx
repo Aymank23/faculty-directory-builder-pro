@@ -196,7 +196,16 @@ const UserManagementPage = () => {
               <Button onClick={handleCreate}>Create User</Button>
             </DialogFooter>
           </DialogContent>
-        </Dialog>
+      </Dialog>
+
+        <DeleteConfirmDialog
+          open={!!deleteTarget}
+          onOpenChange={(o) => { if (!o) setDeleteTarget(null); }}
+          onConfirm={handleDelete}
+          loading={deleting}
+          title="Delete User"
+          description={deleteTarget ? `Delete user "${deleteTarget.username}"? This cannot be undone.` : ''}
+        />
       </div>
     </AppLayout>
   );
