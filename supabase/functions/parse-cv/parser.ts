@@ -623,37 +623,103 @@ function extractProfessionalExperience(lines: string[]) {
   );
 }
 
-function extractTitleFromCitation(citation: string) {
-  const trimmed = citation.trim();
-  const quoted = trimmed.match(/[“\"]([^”\"]+)[”\"]/);
-  if (quoted?.[1]) return quoted[1].trim();
-  const withoutAuthors = trimmed.replace(/^.*?\((19|20)\d{2}\)\.\s*/, "");
-  const parts = withoutAuthors.split(/\.\s+/).map((part) => part.trim()).filter(Boolean);
-  return (parts[0] || trimmed).replace(/^[-–—]+/, "").trim();
-}
+// ---- APA citation parsing layer ----
+// Strict, conservative extractor. Leaves fields blank when confidence is low.
+// Order: DOI -> Year -> Authors (before year) -> Title (first sentence after year) -> Journal (next sentence, stripped of vol/issue/pages)
 
-function extractJournalFromCitation(citation: string, title: string) {
-  const normalized = citation.replace(title, " ").replace(/https?:\/\/doi\.org\/\S+/i, " ");
-  const afterYear = normalized.replace(/^.*?\((19|20)\d{2}\)\.\s*/, "");
-  const parts = afterYear.split(/\.\s+/).map((part) => part.trim()).filter(Boolean);
-  return parts.length > 1 ? parts[1] : undefined;
+const DOI_RE = /(?:https?:\/\/(?:dx\.)?doi\.org\/|doi:\s*)?(10\.\d{4,9}\/[^\s,;]+)/i;
+const URL_RE = /https?:\/\/\S+/gi;
+
+function parseApaCitation(citation: string): {
+  authors: string | null;
+  year: number | null;
+  title: string | null;
+  journal: string | null;
+  doi: string | null;
+} {
+  const result = { authors: null as string | null, year: null as number | null, title: null as string | null, journal: null as string | null, doi: null as string | null };
+  if (!citation) return result;
+
+  let working = citation.replace(/\s+/g, " ").trim();
+
+  // 1) DOI - prefer explicit doi.org URL, else bare 10.x/...
+  const doiUrlMatch = working.match(/https?:\/\/(?:dx\.)?doi\.org\/\S+/i);
+  if (doiUrlMatch) {
+    result.doi = doiUrlMatch[0].replace(/[.,;)\]]+$/, "");
+  } else {
+    const bare = working.match(/\b10\.\d{4,9}\/[^\s,;]+/);
+    if (bare) result.doi = bare[0].replace(/[.,;)\]]+$/, "");
+  }
+
+  // Strip DOI + any other URLs from working copy so they can't leak into journal
+  let stripped = working;
+  if (result.doi) stripped = stripped.split(result.doi).join(" ");
+  stripped = stripped.replace(URL_RE, " ").replace(/\s+/g, " ").trim();
+
+  // 2) Year inside (YYYY)
+  const yearMatch = stripped.match(/\((19|20)\d{2}[a-z]?\)/i);
+  if (yearMatch) {
+    result.year = parseInt(yearMatch[0].replace(/[()a-z]/gi, ""), 10);
+  }
+
+  // 3) Authors = before (YYYY)
+  if (yearMatch) {
+    const authors = stripped.slice(0, stripped.indexOf(yearMatch[0])).trim().replace(/[.,;:\s]+$/, "");
+    if (authors && authors.length <= 400) result.authors = authors;
+  }
+
+  // 4) After-year remainder → title + journal
+  const afterYear = yearMatch
+    ? stripped.slice(stripped.indexOf(yearMatch[0]) + yearMatch[0].length).replace(/^[\s.\-–—:]+/, "")
+    : stripped;
+
+  // Split into sentences by ". " - keep abbreviations safe enough for APA
+  const sentences = afterYear.split(/\.\s+(?=[A-Z“"])/).map((s) => s.replace(/\.\s*$/, "").trim()).filter(Boolean);
+
+  if (sentences.length > 0) {
+    result.title = sentences[0].replace(/^["“]|["”]$/g, "").trim() || null;
+  }
+
+  if (sentences.length > 1) {
+    // Journal = next sentence, but strip trailing volume/issue/pages like ", 53, 101978" or " 12(3), 100-120"
+    let journal = sentences[1];
+    // Cut at first comma followed by digits (volume marker) or "Vol." / "vol "
+    journal = journal.split(/,\s*(?=\d)|\s+vol\.?\s+\d|\s+\d+\s*\(\d+\)/i)[0];
+    journal = journal.replace(/[\s.,;:]+$/, "").trim();
+    // Reject if it looks like a DOI/URL fragment or pure numbers
+    if (journal && !/^https?:|^10\.\d/i.test(journal) && !/^\d+$/.test(journal) && journal.length <= 200) {
+      result.journal = journal;
+    }
+  }
+
+  return result;
 }
 
 function buildIcEntry(base: Record<string, unknown>) {
   const citation = String(base.raw_text || base.apa_citation || "").trim();
+  const parsed = parseApaCitation(citation);
+
   const explicitTitle = typeof base.title === "string" ? base.title.trim() : "";
-  const title = explicitTitle || extractTitleFromCitation(citation);
+  const title = explicitTitle || parsed.title || citation;
+
   const quartile = typeof base.quartile === "string" ? base.quartile.toUpperCase() : null;
   const category = typeof base.ic_category === "string" && !isPlaceholder(base.ic_category) ? base.ic_category : null;
-  const year = typeof base.year === "number" ? base.year : normalizeYear(citation) ?? normalizeYear(String(base.year || ""));
-  const doi = citation.match(/https?:\/\/doi\.org\/\S+|10\.\d{4,9}\/[\w.\-;()/:]+/i)?.[0] || null;
+  const year = typeof base.year === "number" ? base.year : (parsed.year ?? normalizeYear(String(base.year || "")));
+
+  // journal_outlet: explicit override (e.g., publisher cell for books) wins, else parsed journal.
+  // Never accept a value that contains a DOI/URL pattern.
+  const explicitJournal = typeof base.journal_outlet === "string" ? base.journal_outlet.trim() : "";
+  let journal: string | null = explicitJournal || parsed.journal || null;
+  if (journal && /https?:\/\/|10\.\d{4,9}\//i.test(journal)) journal = null;
+
+  const doi = parsed.doi;
   const confidence = quartile && category && year ? "high" : year ? "medium" : "low";
 
   return {
     title,
-    authors: citation && citation.includes(title) ? citation.split(title)[0].replace(/["“”]/g, "").trim().replace(/[.,;:]$/, "") : null,
+    authors: parsed.authors,
     year: year ?? null,
-    journal_outlet: typeof base.journal_outlet === "string" ? base.journal_outlet : extractJournalFromCitation(citation, title) || null,
+    journal_outlet: journal,
     ic_type: base.ic_type || null,
     ic_category: category,
     quartile,

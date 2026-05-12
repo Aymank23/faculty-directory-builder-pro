@@ -81,3 +81,53 @@ describe('AACSB CV parser', () => {
     expect(result.diagnostics?.section_summary?.other_ics.needs_review).toBe(0);
   });
 });
+
+function buildPrjFixture(citation: string) {
+  return `
+## 3. Intellectual Contributions (ICs)
+### 3.1. Peer-Reviewed Journal Articles (PRJs)
+Citation (APA Style) | Scopus Rank | IC Category
+${citation} | Q1 | Applied/Integration Scholarship
+`;
+}
+
+describe('APA citation field mapping', () => {
+  it('maps DOI url to doi (not journal) and extracts journal cleanly', () => {
+    const cite = 'Itani, Omar S., Jaramillo, F., and Paesbrugghe, B. (2020). Between a rock and a hard place: Seizing the opportunity of demanding customers by means of frontline service behaviors. Journal of Retailing and Consumer Services, 53, 101978. https://doi.org/10.1016/j.jretconser.2019.101978';
+    const r = parseCvText(buildPrjFixture(cite));
+    const ic = r.data?.intellectual_contributions[0] as any;
+    expect(ic.year).toBe(2020);
+    expect(ic.doi).toMatch(/10\.1016\/j\.jretconser\.2019\.101978/);
+    expect(ic.journal_outlet).toBe('Journal of Retailing and Consumer Services');
+    expect(ic.authors).toMatch(/^Itani, Omar S\./);
+    expect(ic.journal_outlet).not.toMatch(/doi|http/i);
+  });
+
+  it('handles citations without DOI and leaves doi blank', () => {
+    const cite = 'Smith, J., & Doe, A. (2019). A study of things. Journal of Things, 12(3), 100-120.';
+    const r = parseCvText(buildPrjFixture(cite));
+    const ic = r.data?.intellectual_contributions[0] as any;
+    expect(ic.year).toBe(2019);
+    expect(ic.doi).toBeNull();
+    expect(ic.journal_outlet).toBe('Journal of Things');
+    expect(ic.authors).toMatch(/^Smith, J\., & Doe, A/);
+  });
+
+  it('handles bare 10.x DOI without doi.org url', () => {
+    const cite = 'Brown, K. (2021). Title here. Some Journal, 5, 1-10. doi:10.1234/abcd.efgh';
+    const r = parseCvText(buildPrjFixture(cite));
+    const ic = r.data?.intellectual_contributions[0] as any;
+    expect(ic.doi).toBe('10.1234/abcd.efgh');
+    expect(ic.journal_outlet).toBe('Some Journal');
+  });
+
+  it('multi-author conference paper without journal stays clean', () => {
+    const cite = 'Lee, A., Kim, B., & Park, C. (2022). Novel approach. Proceedings of the AMA Conference, Boston, USA.';
+    const r = parseCvText(buildPrjFixture(cite));
+    const ic = r.data?.intellectual_contributions[0] as any;
+    expect(ic.year).toBe(2022);
+    expect(ic.authors).toMatch(/Lee, A\./);
+    expect(ic.journal_outlet).toMatch(/Proceedings of the AMA Conference/);
+    expect(ic.doi).toBeNull();
+  });
+});
