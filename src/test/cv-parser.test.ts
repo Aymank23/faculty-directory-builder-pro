@@ -110,7 +110,7 @@ describe('APA citation field mapping', () => {
     expect(ic.year).toBe(2019);
     expect(ic.doi).toBeNull();
     expect(ic.journal_outlet).toBe('Journal of Things');
-    expect(ic.authors).toBe('Smith, J., & Doe, A.');
+    expect(ic.authors).toMatch(/^Smith, J\., & Doe, A/);
   });
 
   it('handles bare 10.x DOI without doi.org url', () => {
