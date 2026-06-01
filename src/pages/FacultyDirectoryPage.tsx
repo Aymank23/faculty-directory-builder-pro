@@ -521,6 +521,7 @@ const FacultyDirectoryPage = () => {
                   </Select>
                 </div>
                 <div className="space-y-2"><Label>Discipline / Program (free text)</Label><Input value={editForm.discipline_program} onChange={e => setEditForm((f: any) => ({ ...f, discipline_program: e.target.value }))} /></div>
+              </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Campus</Label>
