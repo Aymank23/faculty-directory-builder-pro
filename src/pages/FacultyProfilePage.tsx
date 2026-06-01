@@ -288,6 +288,7 @@ const FacultyProfilePage = () => {
                 { k: 'degree_country', l: 'Degree Country' },
                 { k: 'date_joining_aksob', l: 'Date Joining AKSOB' },
                 { k: 'discipline_program', l: 'Discipline / Program' },
+                { k: 'discipline', l: 'Discipline (AACSB code: MGT/ECO/FIN/MKT/ACC/HTM/ITM)' },
               ].map(f => (
                 <div key={f.k} className="space-y-2">
                   <Label>{f.l}</Label>
