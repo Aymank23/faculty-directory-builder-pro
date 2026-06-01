@@ -130,11 +130,16 @@ export function normalizeDepartment(value: unknown): string {
   return s;
 }
 
+import { normalizeDiscipline } from './disciplines';
+
 /**
  * Generic field-aware normalizer. Use this when iterating filter values
  * dynamically by column name so the right canonicalizer is applied.
  */
 export function normalizeField(field: string, value: unknown): string {
   if (field === 'department') return normalizeDepartment(value);
+  if (field === 'discipline') return normalizeDiscipline(value);
   return normalizeNA(value);
 }
+
+export { normalizeDiscipline };
