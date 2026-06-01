@@ -85,20 +85,29 @@ const DepartmentReportsPage = () => {
   return (
     <AppLayout>
       <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold font-serif text-foreground">Department Reports</h1>
-          <p className="text-sm text-muted-foreground">{user?.department} — Analytics and productivity overview</p>
+        <div className="flex items-end justify-between gap-4 flex-wrap">
+          <div>
+            <h1 className="text-2xl font-bold font-serif text-foreground">Department Reports</h1>
+            <p className="text-sm text-muted-foreground">{user?.department} — Analytics and productivity overview</p>
+          </div>
+          <Select value={disciplineFilter} onValueChange={setDisciplineFilter}>
+            <SelectTrigger className="w-48"><SelectValue placeholder="Discipline" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Disciplines</SelectItem>
+              {disciplines.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
+            </SelectContent>
+          </Select>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <KpiCard title="Faculty Members" value={faculty.length} icon={Users} />
+          <KpiCard title="Faculty Members" value={filteredFaculty.length} icon={Users} />
           <KpiCard title="Total ICs" value={ics.length} icon={FileText} />
           <KpiCard title="Verified ICs" value={verified.length} icon={CheckCircle} variant="success" />
           <KpiCard title="Q1 Publications" value={q1.length} icon={TrendingUp} variant="success" />
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <KpiCard title="Total PRJs" value={prjs.length} icon={BookOpen} />
-          <KpiCard title="Avg ICs/Faculty" value={faculty.length ? (ics.length / faculty.length).toFixed(1) : '0'} icon={BarChart3} />
+          <KpiCard title="Avg ICs/Faculty" value={filteredFaculty.length ? (ics.length / filteredFaculty.length).toFixed(1) : '0'} icon={BarChart3} />
         </div>
 
         {hasData ? (
