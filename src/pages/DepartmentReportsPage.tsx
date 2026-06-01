@@ -51,7 +51,7 @@ const DepartmentReportsPage = () => {
 
   // Per faculty
   const perFaculty: Record<string, { name: string; total: number; verified: number; prjs: number }> = {};
-  faculty.forEach(f => {
+  filteredFaculty.forEach((f: any) => {
     perFaculty[f.faculty_id] = { name: `${f.first_name} ${f.last_name}`, total: 0, verified: 0, prjs: 0 };
   });
   ics.forEach(ic => {
