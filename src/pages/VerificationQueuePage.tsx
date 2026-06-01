@@ -12,7 +12,9 @@ import { supabase } from '@/lib/supabase';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { CheckSquare, CheckCircle, XCircle, Trash2 } from 'lucide-react';
-import { normalizeDepartment } from '@/lib/normalize';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { disciplines } from '@/lib/constants';
+import { normalizeDepartment, normalizeDiscipline } from '@/lib/normalize';
 
 const VerificationQueuePage = () => {
   const { user } = useAuth();
@@ -22,6 +24,7 @@ const VerificationQueuePage = () => {
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<any>(null);
   const [deleting, setDeleting] = useState(false);
+  const [disciplineFilter, setDisciplineFilter] = useState('all');
 
   const isAdmin = user?.role === 'admin';
   const userDept = user?.department ? normalizeDepartment(user.department) : '';
@@ -38,8 +41,11 @@ const VerificationQueuePage = () => {
     },
   });
 
-  const facultyIds = faculty.map(f => f.faculty_id);
-  const facultyMap = Object.fromEntries(faculty.map(f => [f.faculty_id, `${f.first_name} ${f.last_name}`]));
+  const scopedFaculty = disciplineFilter === 'all'
+    ? faculty
+    : faculty.filter((f: any) => normalizeDiscipline(f.discipline) === disciplineFilter);
+  const facultyIds = scopedFaculty.map((f: any) => f.faculty_id);
+  const facultyMap = Object.fromEntries(scopedFaculty.map((f: any) => [f.faculty_id, `${f.first_name} ${f.last_name}`]));
 
   const { data: pendingIcs = [] } = useQuery({
     queryKey: ['pending-ics', facultyIds],
@@ -100,11 +106,20 @@ const VerificationQueuePage = () => {
   return (
     <AppLayout>
       <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold font-serif text-foreground">Verification Queue</h1>
-          <p className="text-sm text-muted-foreground">
-            {isAdmin ? 'All departments' : user?.department} — Review submitted intellectual contributions
-          </p>
+        <div className="flex items-end justify-between gap-4 flex-wrap">
+          <div>
+            <h1 className="text-2xl font-bold font-serif text-foreground">Verification Queue</h1>
+            <p className="text-sm text-muted-foreground">
+              {isAdmin ? 'All departments' : user?.department} — Review submitted intellectual contributions
+            </p>
+          </div>
+          <Select value={disciplineFilter} onValueChange={setDisciplineFilter}>
+            <SelectTrigger className="w-48"><SelectValue placeholder="Discipline" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Disciplines</SelectItem>
+              {disciplines.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
+            </SelectContent>
+          </Select>
         </div>
 
         <Card>
