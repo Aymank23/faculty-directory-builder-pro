@@ -7,12 +7,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { supabase } from '@/lib/supabase';
 import { useQuery } from '@tanstack/react-query';
 import { FileSpreadsheet } from 'lucide-react';
-import { departments } from '@/lib/constants';
-import { normalizeDepartment } from '@/lib/normalize';
+import { departments, disciplines } from '@/lib/constants';
+import { normalizeDepartment, normalizeDiscipline } from '@/lib/normalize';
 import * as XLSX from 'xlsx';
 
 const AACSBExportsPage = () => {
   const [deptFilter, setDeptFilter] = useState('all');
+  const [disciplineFilter, setDisciplineFilter] = useState('all');
 
   const { data: faculty = [] } = useQuery({
     queryKey: ['export-faculty'],
@@ -33,15 +34,16 @@ const AACSBExportsPage = () => {
   const facultyMap = Object.fromEntries(faculty.map(f => [f.faculty_id, f]));
 
   const exportRows = ics.filter(ic => {
-    if (deptFilter === 'all') return true;
     const fac = facultyMap[ic.faculty_id];
-    // Compare canonical labels so a "Marketing" filter also matches "MKT" rows.
-    return normalizeDepartment(fac?.department) === deptFilter;
+    if (deptFilter !== 'all' && normalizeDepartment(fac?.department) !== deptFilter) return false;
+    if (disciplineFilter !== 'all' && normalizeDiscipline(fac?.discipline) !== disciplineFilter) return false;
+    return true;
   }).map(ic => {
     const fac = facultyMap[ic.faculty_id];
     return {
       'Faculty Name': fac ? `${fac.first_name} ${fac.last_name}` : 'Unknown',
       'Department': fac?.department ? normalizeDepartment(fac.department) : '',
+      'Discipline': fac?.discipline ? normalizeDiscipline(fac.discipline) : '',
       'Campus': fac?.campus || '',
       'Academic Rank': fac?.academic_rank || '',
       'IC Category': ic.ic_category || '',
@@ -76,12 +78,19 @@ const AACSBExportsPage = () => {
           </Button>
         </div>
 
-        <div className="flex gap-3">
+        <div className="flex gap-3 flex-wrap">
           <Select value={deptFilter} onValueChange={setDeptFilter}>
             <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Departments</SelectItem>
               {departments.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <Select value={disciplineFilter} onValueChange={setDisciplineFilter}>
+            <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Disciplines</SelectItem>
+              {disciplines.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
             </SelectContent>
           </Select>
         </div>

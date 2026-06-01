@@ -11,6 +11,10 @@ export const departments = [
   'Economics',
 ];
 
+// AACSB Disciplines — short codes from the LAU AKSOB database.
+// Separate analytical dimension from Department.
+export const disciplines = ['MGT', 'ECO', 'FIN', 'MKT', 'ACC', 'ACC & FIN', 'HTM', 'ITM'];
+
 export const campuses = ['Beirut', 'Byblos', 'Online'];
 
 export const icCategories = ['Basic/Discovery Scholarship', 'Applied/Integration/Application Scholarship', 'Teaching & Learning Scholarship', 'Applied/Integration Scholarship'];

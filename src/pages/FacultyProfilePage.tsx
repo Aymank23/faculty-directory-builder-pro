@@ -110,6 +110,7 @@ const FacultyProfilePage = () => {
         degree_major: profile.degree_major || '', degree_institution: profile.degree_institution || '',
         degree_country: profile.degree_country || '', date_joining_aksob: profile.date_joining_aksob || '',
         discipline_program: profile.discipline_program || '',
+        discipline: profile.discipline || '',
       });
     }
   }, [profile, editOpen]);
@@ -154,6 +155,7 @@ const FacultyProfilePage = () => {
     { label: 'Degree Major', value: profile?.degree_major },
     { label: 'Degree Institution', value: profile?.degree_institution },
     { label: 'Department', value: profile?.department },
+    { label: 'Discipline (AACSB)', value: profile?.discipline },
     { label: 'Campus', value: profile?.campus },
     { label: 'Discipline / Program', value: profile?.discipline_program },
     { label: 'Date Joining AKSOB', value: profile?.date_joining_aksob },
@@ -286,6 +288,7 @@ const FacultyProfilePage = () => {
                 { k: 'degree_country', l: 'Degree Country' },
                 { k: 'date_joining_aksob', l: 'Date Joining AKSOB' },
                 { k: 'discipline_program', l: 'Discipline / Program' },
+                { k: 'discipline', l: 'Discipline (AACSB code: MGT/ECO/FIN/MKT/ACC/HTM/ITM)' },
               ].map(f => (
                 <div key={f.k} className="space-y-2">
                   <Label>{f.l}</Label>

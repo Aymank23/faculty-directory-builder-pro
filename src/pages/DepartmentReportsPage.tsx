@@ -1,18 +1,21 @@
+import { useState, useMemo } from 'react';
 import AppLayout from '@/components/AppLayout';
 import KpiCard from '@/components/KpiCard';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { useQuery } from '@tanstack/react-query';
 import { Users, FileText, CheckCircle, TrendingUp, BookOpen, BarChart3 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
-import { CHART_COLORS } from '@/lib/constants';
-import { normalizeNA, normalizeDepartment } from '@/lib/normalize';
+import { CHART_COLORS, disciplines } from '@/lib/constants';
+import { normalizeNA, normalizeDepartment, normalizeDiscipline } from '@/lib/normalize';
 
 const DepartmentReportsPage = () => {
   const { user } = useAuth();
   const userDept = user?.department ? normalizeDepartment(user.department) : '';
+  const [disciplineFilter, setDisciplineFilter] = useState<string>('all');
 
   // Fetch all faculty and filter client-side via canonical department label so
   // legacy aliases (MKT, MGT, FINA, ITOM, …) resolve to the user's department.
@@ -25,8 +28,12 @@ const DepartmentReportsPage = () => {
     enabled: !!userDept,
   });
 
-  const facultyIds = faculty.map(f => f.faculty_id);
-  const facultyMap = Object.fromEntries(faculty.map(f => [f.faculty_id, f]));
+  const filteredFaculty = useMemo(
+    () => disciplineFilter === 'all' ? faculty : faculty.filter((f: any) => normalizeDiscipline(f.discipline) === disciplineFilter),
+    [faculty, disciplineFilter]
+  );
+  const facultyIds = filteredFaculty.map((f: any) => f.faculty_id);
+  const facultyMap = Object.fromEntries(filteredFaculty.map((f: any) => [f.faculty_id, f]));
 
   const { data: ics = [] } = useQuery({
     queryKey: ['dept-report-ics', facultyIds],
@@ -44,7 +51,7 @@ const DepartmentReportsPage = () => {
 
   // Per faculty
   const perFaculty: Record<string, { name: string; total: number; verified: number; prjs: number }> = {};
-  faculty.forEach(f => {
+  filteredFaculty.forEach((f: any) => {
     perFaculty[f.faculty_id] = { name: `${f.first_name} ${f.last_name}`, total: 0, verified: 0, prjs: 0 };
   });
   ics.forEach(ic => {
@@ -78,20 +85,29 @@ const DepartmentReportsPage = () => {
   return (
     <AppLayout>
       <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold font-serif text-foreground">Department Reports</h1>
-          <p className="text-sm text-muted-foreground">{user?.department} — Analytics and productivity overview</p>
+        <div className="flex items-end justify-between gap-4 flex-wrap">
+          <div>
+            <h1 className="text-2xl font-bold font-serif text-foreground">Department Reports</h1>
+            <p className="text-sm text-muted-foreground">{user?.department} — Analytics and productivity overview</p>
+          </div>
+          <Select value={disciplineFilter} onValueChange={setDisciplineFilter}>
+            <SelectTrigger className="w-48"><SelectValue placeholder="Discipline" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Disciplines</SelectItem>
+              {disciplines.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
+            </SelectContent>
+          </Select>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <KpiCard title="Faculty Members" value={faculty.length} icon={Users} />
+          <KpiCard title="Faculty Members" value={filteredFaculty.length} icon={Users} />
           <KpiCard title="Total ICs" value={ics.length} icon={FileText} />
           <KpiCard title="Verified ICs" value={verified.length} icon={CheckCircle} variant="success" />
           <KpiCard title="Q1 Publications" value={q1.length} icon={TrendingUp} variant="success" />
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <KpiCard title="Total PRJs" value={prjs.length} icon={BookOpen} />
-          <KpiCard title="Avg ICs/Faculty" value={faculty.length ? (ics.length / faculty.length).toFixed(1) : '0'} icon={BarChart3} />
+          <KpiCard title="Avg ICs/Faculty" value={filteredFaculty.length ? (ics.length / filteredFaculty.length).toFixed(1) : '0'} icon={BarChart3} />
         </div>
 
         {hasData ? (

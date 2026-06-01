@@ -15,8 +15,8 @@ import { supabase } from '@/lib/supabase';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
 import { Users, Pencil, Trash2, Search, RotateCcw, Columns3, AlertTriangle, Filter as FilterIcon } from 'lucide-react';
-import { departments, campuses, academicRanks, ftPtStatuses, highestDegrees, facultyQualifications, facultySufficiencies, tenureStatuses } from '@/lib/constants';
-import { normalizeNA, normalizeField, normalizeDepartment } from '@/lib/normalize';
+import { departments, campuses, academicRanks, ftPtStatuses, highestDegrees, facultyQualifications, facultySufficiencies, tenureStatuses, disciplines } from '@/lib/constants';
+import { normalizeNA, normalizeField, normalizeDepartment, normalizeDiscipline } from '@/lib/normalize';
 
 /* ── Multi-select filter helper ───────────────────────── */
 const MultiSelectFilter = ({ label, options, selected, onChange, width = 'w-44' }: {
@@ -82,6 +82,7 @@ const allColumns: ColumnDef[] = [
   { key: 'name', label: 'Full Name', pinned: true, defaultVisible: true, render: f => <span className="font-medium whitespace-nowrap">{[f.first_name, f.middle_names, f.last_name].filter(Boolean).join(' ') || '—'}</span> },
   { key: 'email', label: 'Email', defaultVisible: true, render: f => <span className="text-xs">{f.email || '—'}</span> },
   { key: 'department', label: 'Department', pinned: true, defaultVisible: true, render: f => normalizeDepartment(f.department) === 'N/A' && !f.department ? '—' : normalizeDepartment(f.department) },
+  { key: 'discipline', label: 'Discipline', pinned: true, defaultVisible: true, render: f => f.discipline ? <Badge variant="outline" className="text-xs">{normalizeDiscipline(f.discipline)}</Badge> : '—' },
   { key: 'campus', label: 'Campus', pinned: true, defaultVisible: true, render: f => f.campus || '—' },
   { key: 'academic_rank', label: 'Rank', pinned: true, defaultVisible: true, render: f => <span className="text-xs">{f.academic_rank || '—'}</span> },
   { key: 'admin_title', label: 'Admin Title', defaultVisible: false, render: f => <span className="text-xs">{f.admin_title || '—'}</span> },
@@ -125,6 +126,7 @@ const FacultyDirectoryPage = () => {
   // Filters — multi-select sets, derived from actual data
   const [search, setSearch] = useState('');
   const [deptFilter, setDeptFilter] = useState<Set<string>>(new Set());
+  const [disciplineFilter, setDisciplineFilter] = useState<Set<string>>(new Set());
   const [campusFilter, setCampusFilter] = useState<Set<string>>(new Set());
   const [rankFilter, setRankFilter] = useState<Set<string>>(new Set());
   const [statusFilter, setStatusFilter] = useState<Set<string>>(new Set());
@@ -159,6 +161,7 @@ const FacultyDirectoryPage = () => {
   };
 
   const deptOptions = useMemo(() => distinct('department'), [faculty]);
+  const disciplineOptions = useMemo(() => distinct('discipline'), [faculty]);
   const campusOptions = useMemo(() => distinct('campus'), [faculty]);
   const rankOptions = useMemo(() => distinct('academic_rank'), [faculty]);
   const ftPtOptions = useMemo(() => distinct('ft_pt_status'), [faculty]);
@@ -185,6 +188,7 @@ const FacultyDirectoryPage = () => {
       ) return false;
     }
     if (!matchSet(deptFilter, f.department, 'department')) return false;
+    if (!matchSet(disciplineFilter, f.discipline, 'discipline')) return false;
     if (!matchSet(campusFilter, f.campus, 'campus')) return false;
     if (!matchSet(rankFilter, f.academic_rank, 'academic_rank')) return false;
     if (!matchSet(ftPtFilter, f.ft_pt_status, 'ft_pt_status')) return false;
@@ -197,6 +201,7 @@ const FacultyDirectoryPage = () => {
   const resetFilters = () => {
     setSearch('');
     setDeptFilter(new Set());
+    setDisciplineFilter(new Set());
     setCampusFilter(new Set());
     setRankFilter(new Set());
     setFtPtFilter(new Set());
@@ -205,7 +210,7 @@ const FacultyDirectoryPage = () => {
     setTenureFilter(new Set());
   };
 
-  const hasFilters = !!search || deptFilter.size > 0 || campusFilter.size > 0 || rankFilter.size > 0 ||
+  const hasFilters = !!search || deptFilter.size > 0 || disciplineFilter.size > 0 || campusFilter.size > 0 || rankFilter.size > 0 ||
     ftPtFilter.size > 0 || classFilter.size > 0 || suffFilter.size > 0 || tenureFilter.size > 0;
 
   const activeColumns = useMemo(() => allColumns.filter(c => visibleCols.has(c.key)), [visibleCols]);
@@ -248,7 +253,7 @@ const FacultyDirectoryPage = () => {
       campus: f.campus || '', academic_rank: f.academic_rank || '', ft_pt_status: f.ft_pt_status || 'FT',
       highest_degree: f.highest_degree || '', highest_degree_date: f.highest_degree_date || '',
       date_joining_aksob: f.date_joining_aksob || '', employee_id: f.employee_id || '',
-      discipline_program: f.discipline_program || '', email: f.email || '',
+      discipline_program: f.discipline_program || '', discipline: f.discipline || '', email: f.email || '',
       faculty_qualification: f.faculty_qualification || '', faculty_sufficiency: f.faculty_sufficiency || '',
       tenure_status: f.tenure_status || '', admin_title: f.admin_title || '',
       degree_major: f.degree_major || '', degree_institution: f.degree_institution || '',
@@ -265,6 +270,11 @@ const FacultyDirectoryPage = () => {
       // Canonicalize department aliases on save so future filters see one bucket.
       if (key === 'department' && v) {
         const canon = normalizeDepartment(v);
+        v = canon === 'N/A' ? null : canon;
+      }
+      // Canonicalize discipline codes on save (MGT/ECO/FIN/MKT/ACC/HTM/ITM).
+      if (key === 'discipline' && v) {
+        const canon = normalizeDiscipline(v);
         v = canon === 'N/A' ? null : canon;
       }
       payload[key] = v;
@@ -416,6 +426,7 @@ const FacultyDirectoryPage = () => {
             />
           </div>
           <MultiSelectFilter label="Department" options={deptOptions} selected={deptFilter} onChange={setDeptFilter} width="w-44" />
+          <MultiSelectFilter label="Discipline" options={disciplineOptions} selected={disciplineFilter} onChange={setDisciplineFilter} width="w-40" />
           <MultiSelectFilter label="Campus" options={campusOptions} selected={campusFilter} onChange={setCampusFilter} width="w-36" />
           <MultiSelectFilter label="Rank" options={rankOptions} selected={rankFilter} onChange={setRankFilter} width="w-44" />
           <MultiSelectFilter label="FT/PT" options={ftPtOptions} selected={ftPtFilter} onChange={setFtPtFilter} width="w-32" />
@@ -503,6 +514,16 @@ const FacultyDirectoryPage = () => {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
+                  <Label>Discipline (AACSB)</Label>
+                  <Select value={editForm.discipline} onValueChange={v => setEditForm((f: any) => ({ ...f, discipline: v }))}>
+                    <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                    <SelectContent>{disciplines.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2"><Label>Discipline / Program (free text)</Label><Input value={editForm.discipline_program} onChange={e => setEditForm((f: any) => ({ ...f, discipline_program: e.target.value }))} /></div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
                   <Label>Campus</Label>
                   <Select value={editForm.campus} onValueChange={v => setEditForm((f: any) => ({ ...f, campus: v }))}>
                     <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
@@ -569,7 +590,7 @@ const FacultyDirectoryPage = () => {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2"><Label>Degree Country</Label><Input value={editForm.degree_country} onChange={e => setEditForm((f: any) => ({ ...f, degree_country: e.target.value }))} /></div>
-                <div className="space-y-2"><Label>Discipline / Program</Label><Input value={editForm.discipline_program} onChange={e => setEditForm((f: any) => ({ ...f, discipline_program: e.target.value }))} /></div>
+                <div />
               </div>
             </div>
             <DialogFooter>
