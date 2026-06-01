@@ -230,6 +230,7 @@ export type Database = {
           degree_institution: string | null
           degree_major: string | null
           department: string | null
+          discipline: string | null
           discipline_program: string | null
           email: string | null
           employee_id: string | null
@@ -257,6 +258,7 @@ export type Database = {
           degree_institution?: string | null
           degree_major?: string | null
           department?: string | null
+          discipline?: string | null
           discipline_program?: string | null
           email?: string | null
           employee_id?: string | null
@@ -284,6 +286,7 @@ export type Database = {
           degree_institution?: string | null
           degree_major?: string | null
           department?: string | null
+          discipline?: string | null
           discipline_program?: string | null
           email?: string | null
           employee_id?: string | null
@@ -614,6 +617,7 @@ export type Database = {
     }
     Functions: {
       canonical_department: { Args: { v: string }; Returns: string }
+      canonical_discipline: { Args: { v: string }; Returns: string }
       canonical_ft_pt: { Args: { v: string }; Returns: string }
       clean_cv: { Args: { v: string }; Returns: string }
       is_cv_noise: { Args: { v: string }; Returns: boolean }
