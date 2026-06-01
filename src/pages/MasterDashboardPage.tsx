@@ -13,8 +13,8 @@ import { supabase } from '@/lib/supabase';
 import { useQuery } from '@tanstack/react-query';
 import { BarChart3, BookOpen, FileText, Clock, CheckCircle, XCircle, TrendingUp, Users, UserCheck, RotateCcw } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend, LineChart, Line } from 'recharts';
-import { CHART_COLORS, departments, campuses, icCategories, icTypes, quartiles, icStatuses, facultyQualifications } from '@/lib/constants';
-import { normalizeNA, isNA, normalizeDepartment } from '@/lib/normalize';
+import { CHART_COLORS, departments, campuses, icCategories, icTypes, quartiles, icStatuses, facultyQualifications, disciplines } from '@/lib/constants';
+import { normalizeNA, isNA, normalizeDepartment, normalizeDiscipline } from '@/lib/normalize';
 
 const CLASSIFICATION_COLORS: Record<string, string> = {
   SA: 'hsl(var(--chart-1))',
@@ -27,6 +27,7 @@ const CLASSIFICATION_COLORS: Record<string, string> = {
 
 const MasterDashboardPage = () => {
   const [deptFilter, setDeptFilter] = useState('all');
+  const [disciplineFilter, setDisciplineFilter] = useState('all');
   const [campusFilter, setCampusFilter] = useState('all');
   const [yearFrom, setYearFrom] = useState('2020');
   const [yearTo, setYearTo] = useState(new Date().getFullYear().toString());
@@ -64,6 +65,7 @@ const MasterDashboardPage = () => {
   const ics = allIcs.filter(ic => {
     const fac = facultyMap[ic.faculty_id];
     if (deptFilter !== 'all' && normalizeDepartment(fac?.department) !== deptFilter) return false;
+    if (disciplineFilter !== 'all' && normalizeDiscipline(fac?.discipline) !== disciplineFilter) return false;
     if (campusFilter !== 'all' && fac?.campus !== campusFilter) return false;
     if (ic.year && (ic.year < fromYear || ic.year > toYear)) return false;
     if (categoryFilter !== 'all' && ic.ic_category !== categoryFilter) return false;
@@ -75,6 +77,7 @@ const MasterDashboardPage = () => {
 
   const filteredFaculty = faculty.filter(f => {
     if (deptFilter !== 'all' && normalizeDepartment(f.department) !== deptFilter) return false;
+    if (disciplineFilter !== 'all' && normalizeDiscipline(f.discipline) !== disciplineFilter) return false;
     if (campusFilter !== 'all' && f.campus !== campusFilter) return false;
     return true;
   });
@@ -185,6 +188,13 @@ const MasterDashboardPage = () => {
             <SelectContent>
               <SelectItem value="all">All Departments</SelectItem>
               {departments.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <Select value={disciplineFilter} onValueChange={setDisciplineFilter}>
+            <SelectTrigger className="w-40"><SelectValue placeholder="Discipline" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Disciplines</SelectItem>
+              {disciplines.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
             </SelectContent>
           </Select>
           <Select value={campusFilter} onValueChange={setCampusFilter}>
