@@ -1,18 +1,21 @@
+import { useState, useMemo } from 'react';
 import AppLayout from '@/components/AppLayout';
 import KpiCard from '@/components/KpiCard';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { useQuery } from '@tanstack/react-query';
 import { Users, FileText, CheckCircle, TrendingUp, BookOpen, BarChart3 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
-import { CHART_COLORS } from '@/lib/constants';
-import { normalizeNA, normalizeDepartment } from '@/lib/normalize';
+import { CHART_COLORS, disciplines } from '@/lib/constants';
+import { normalizeNA, normalizeDepartment, normalizeDiscipline } from '@/lib/normalize';
 
 const DepartmentReportsPage = () => {
   const { user } = useAuth();
   const userDept = user?.department ? normalizeDepartment(user.department) : '';
+  const [disciplineFilter, setDisciplineFilter] = useState<string>('all');
 
   // Fetch all faculty and filter client-side via canonical department label so
   // legacy aliases (MKT, MGT, FINA, ITOM, …) resolve to the user's department.
@@ -25,8 +28,12 @@ const DepartmentReportsPage = () => {
     enabled: !!userDept,
   });
 
-  const facultyIds = faculty.map(f => f.faculty_id);
-  const facultyMap = Object.fromEntries(faculty.map(f => [f.faculty_id, f]));
+  const filteredFaculty = useMemo(
+    () => disciplineFilter === 'all' ? faculty : faculty.filter((f: any) => normalizeDiscipline(f.discipline) === disciplineFilter),
+    [faculty, disciplineFilter]
+  );
+  const facultyIds = filteredFaculty.map((f: any) => f.faculty_id);
+  const facultyMap = Object.fromEntries(filteredFaculty.map((f: any) => [f.faculty_id, f]));
 
   const { data: ics = [] } = useQuery({
     queryKey: ['dept-report-ics', facultyIds],
