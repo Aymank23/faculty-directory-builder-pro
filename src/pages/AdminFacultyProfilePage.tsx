@@ -106,7 +106,7 @@ const AdminFacultyProfilePage = () => {
             </Button>
             <h1 className="text-2xl font-bold font-serif text-foreground">{fullName || '—'}</h1>
             <p className="text-sm text-muted-foreground">
-              {[profile.academic_rank, normalizeDepartment(profile.department), profile.campus].filter(v => v && v !== 'N/A').join(' · ')}
+              {[profile.academic_rank, normalizeDepartment(profile.department), profile.discipline, profile.campus].filter(v => v && v !== 'N/A').join(' · ')}
             </p>
           </div>
           <Button asChild variant="outline" size="sm">
