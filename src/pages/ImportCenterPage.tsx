@@ -12,7 +12,7 @@ import { Upload, FileSpreadsheet, CheckCircle, AlertTriangle, RotateCcw, Eye, Pl
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import * as XLSX from 'xlsx';
-import { normalizeDepartment } from '@/lib/normalize';
+import { normalizeDepartment, normalizeDiscipline } from '@/lib/normalize';
 
 /* ── Types ────────────────────────────────────────────── */
 
@@ -63,6 +63,7 @@ interface ExistingFaculty {
   middle_names: string | null;
   title: string | null;
   discipline_program: string | null;
+  discipline: string | null;
   date_joining_aksob: string | null;
   highest_degree_date: string | null;
 }
@@ -236,7 +237,7 @@ const COMPARE_FIELDS = [
   'ft_pt_status', 'highest_degree', 'employee_id', 'faculty_qualification',
   'faculty_sufficiency', 'email', 'tenure_status', 'admin_title',
   'degree_major', 'degree_institution', 'degree_country', 'middle_names',
-  'title', 'discipline_program', 'date_joining_aksob', 'highest_degree_date',
+  'title', 'discipline_program', 'discipline', 'date_joining_aksob', 'highest_degree_date',
 ] as const;
 
 const computeChangedFields = (newRow: Record<string, any>, existing: ExistingFaculty): string[] => {
@@ -291,6 +292,12 @@ const mapExcelRowToFaculty = (r: Record<string, any>): Record<string, any> => {
     middle_names: normalizeText(val('Middle Names', 'middle_names')) || null,
     title: normalizeText(val('Title', 'title')) || null,
     discipline_program: normalizeText(val('Major', 'discipline_program')) || null,
+    discipline: ((): string | null => {
+      const raw = normalizeText(val('Disciplines', 'Discipline', 'discipline'));
+      if (!raw) return null;
+      const canon = normalizeDiscipline(raw);
+      return canon === 'N/A' ? null : canon;
+    })(),
   };
   const hireDate = val('HR Hiredate', 'date_joining_aksob', 'Hire Date');
   if (hireDate) { const p = parseFlexibleDate(hireDate); if (p) row.date_joining_aksob = p; }
@@ -329,6 +336,7 @@ const HEADER_MAP: Record<string, string> = {
   dateearned: 'highest_degree_date', highestdegreedate: 'highest_degree_date',
   major: 'degree_major', establishment: 'degree_institution', institution: 'degree_institution',
   country: 'degree_country',
+  disciplines: 'discipline', discipline: 'discipline',
 };
 
 /* ══════════════════════════════════════════════════════ */
