@@ -590,7 +590,7 @@ const FacultyDirectoryPage = () => {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2"><Label>Degree Country</Label><Input value={editForm.degree_country} onChange={e => setEditForm((f: any) => ({ ...f, degree_country: e.target.value }))} /></div>
-                <div className="space-y-2"><Label>Discipline / Program</Label><Input value={editForm.discipline_program} onChange={e => setEditForm((f: any) => ({ ...f, discipline_program: e.target.value }))} /></div>
+                <div />
               </div>
             </div>
             <DialogFooter>
