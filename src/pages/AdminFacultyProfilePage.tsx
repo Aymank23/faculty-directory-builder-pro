@@ -13,11 +13,16 @@ import { repairQualification } from '@/lib/qualifications';
 import { repairService } from '@/lib/services';
 import { repairEngagement } from '@/lib/engagements';
 import { cleanCvValue } from '@/lib/cvNoise';
+import CvSectionCard from '@/components/CvSectionCard';
+import { useAuth } from '@/contexts/AuthContext';
+
 
 const VALID_IC_TYPES = new Set(['PRJ', 'Book', 'Chapter']);
 
 const AdminFacultyProfilePage = () => {
+  const { user } = useAuth();
   const { id } = useParams<{ id: string }>();
+
 
   const { data: profile, isLoading } = useQuery({
     queryKey: ['admin-faculty-profile', id],
@@ -121,67 +126,113 @@ const AdminFacultyProfilePage = () => {
           <KpiCard title="Verified" value={validIcs.filter(i => i.status === 'verified').length} icon={FileText} variant="success" />
         </div>
 
-        <Card>
-          <CardHeader><CardTitle className="font-serif text-base flex items-center gap-2"><BookOpen className="h-4 w-4 text-primary" /> Intellectual Contributions ({validIcs.length})</CardTitle></CardHeader>
-          <CardContent className="p-0">
-            {validIcs.length === 0 ? (
-              <p className="p-6 text-sm text-muted-foreground text-center">No valid intellectual contributions.</p>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Title</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead>Year</TableHead>
-                    <TableHead>Quartile</TableHead>
-                    <TableHead>Status</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {validIcs.map(ic => (
-                    <TableRow key={ic.ic_id}>
-                      <TableCell className="font-medium max-w-xl truncate">{ic.title || '—'}</TableCell>
-                      <TableCell>{ic.ic_type || '—'}</TableCell>
-                      <TableCell>{ic.year || '—'}</TableCell>
-                      <TableCell>{ic.quartile || '—'}</TableCell>
-                      <TableCell><Badge variant="outline" className="capitalize text-xs">{(ic.status || '').replace('_', ' ')}</Badge></TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
-          </CardContent>
-        </Card>
+        <CvSectionCard
+          title="2. Academic & Professional Qualifications"
+          icon={GraduationCap}
+          columns={['Degree / Certification', 'Institution', 'Year', 'Field / Area']}
+          rows={qualifications}
+          renderRow={(q: any) => [q.degree_certification, q.institution, q.year, q.field_area]}
+          emptyText="No qualifications recorded."
+          tableName="academic_qualifications"
+          facultyId={profile.faculty_id}
+          userId={user?.id || ''}
+          queryKey="admin-faculty-quals"
+          formFields={[
+            { name: 'degree_certification', label: 'Degree / Certification', required: true },
+            { name: 'institution', label: 'Institution' },
+            { name: 'year', label: 'Year', type: 'number' },
+            { name: 'field_area', label: 'Field / Area' },
+          ]}
+        />
 
-        <SectionTable title="Academic & Professional Qualifications" icon={GraduationCap} rows={qualifications} columns={['Degree', 'Institution', 'Year', 'Field/Area']} render={(q: any) => [q.degree_certification, q.institution, q.year, q.field_area]} />
-        <SectionTable title="Professional Engagement Activities" icon={Briefcase} rows={engagements} columns={['From-To', 'Activity', 'Details']} render={(e: any) => [e.from_to, e.activity, e.details]} />
-        <SectionTable title="Service Contributions" icon={Heart} rows={services} columns={['From-To', 'Level', 'Committee/Role']} render={(s: any) => [s.from_to, s.level, s.committee_role]} />
-        <SectionTable title="Awards & Recognition" icon={Award} rows={awards} columns={['Year', 'Award', 'Institution']} render={(a: any) => [a.year, a.award, a.institution_organization]} />
+        <CvSectionCard
+          title="3. Intellectual Contributions"
+          icon={BookOpen}
+          columns={['Title', 'Authors', 'Year', 'Journal / Outlet', 'Type', 'Quartile', 'Status']}
+          rows={ics}
+          renderRow={(ic: any) => [ic.title, ic.authors, ic.year, ic.journal_outlet, ic.ic_type, ic.quartile, (ic.status || '').replace('_', ' ')]}
+          emptyText="No intellectual contributions recorded."
+          tableName="intellectual_contributions"
+          facultyId={profile.faculty_id}
+          userId={user?.id || ''}
+          queryKey="admin-faculty-ics"
+          pkField="ic_id"
+          formFields={[
+            { name: 'title', label: 'Title', required: true },
+            { name: 'authors', label: 'Authors' },
+            { name: 'year', label: 'Year', type: 'number' },
+            { name: 'journal_outlet', label: 'Journal / Outlet' },
+            { name: 'ic_type', label: 'IC Type (PRJ, Book, Chapter, …)' },
+            { name: 'ic_category', label: 'IC Category' },
+            { name: 'indexing_database', label: 'Indexing Database' },
+            { name: 'quartile', label: 'Quartile (Q1–Q4)' },
+            { name: 'abdc_rank', label: 'ABDC Rank' },
+            { name: 'doi', label: 'DOI' },
+            { name: 'apa_citation', label: 'APA Citation', type: 'textarea' },
+          ]}
+        />
+
+        <CvSectionCard
+          title="4. Professional Engagement Activities"
+          icon={Briefcase}
+          columns={['From-To', 'Activity', 'Details']}
+          rows={engagements}
+          renderRow={(e: any) => [e.from_to, e.activity, e.details]}
+          emptyText="No professional engagements recorded."
+          tableName="professional_engagements"
+          facultyId={profile.faculty_id}
+          userId={user?.id || ''}
+          queryKey="admin-faculty-eng"
+          formFields={[
+            { name: 'from_to', label: 'From-To (e.g. 2022–2024)' },
+            { name: 'activity', label: 'Activity', required: true },
+            { name: 'engagement_type', label: 'Engagement Type' },
+            { name: 'details', label: 'Details', type: 'textarea' },
+          ]}
+        />
+
+        <CvSectionCard
+          title="5. Service Contributions"
+          icon={Heart}
+          columns={['From-To', 'Level', 'Committee / Role']}
+          rows={services}
+          renderRow={(s: any) => [s.from_to, s.level, s.committee_role]}
+          emptyText="No service contributions recorded."
+          tableName="service_contributions"
+          facultyId={profile.faculty_id}
+          userId={user?.id || ''}
+          queryKey="admin-faculty-svc"
+          formFields={[
+            { name: 'from_to', label: 'From-To (e.g. 2021–Present)' },
+            { name: 'level', label: 'Level (e.g. Department, School, University)' },
+            { name: 'committee_role', label: 'Committee / Role', required: true },
+            { name: 'contribution_type', label: 'Contribution Type' },
+            { name: 'description', label: 'Description', type: 'textarea' },
+          ]}
+        />
+
+        <CvSectionCard
+          title="6. Awards & Recognition"
+          icon={Award}
+          columns={['Year', 'Award / Recognition', 'Institution / Organization']}
+          rows={awards}
+          renderRow={(a: any) => [a.year, a.award, a.institution_organization]}
+          emptyText="No awards recorded."
+          tableName="awards_recognition"
+          facultyId={profile.faculty_id}
+          userId={user?.id || ''}
+          queryKey="admin-faculty-awards"
+          formFields={[
+            { name: 'year', label: 'Year', type: 'number' },
+            { name: 'award', label: 'Award / Recognition', required: true },
+            { name: 'institution_organization', label: 'Institution / Organization' },
+          ]}
+        />
       </div>
     </AppLayout>
   );
 };
 
-const SectionTable = ({ title, icon: Icon, rows, columns, render }: { title: string; icon: any; rows: any[]; columns: string[]; render: (row: any) => any[] }) => (
-  <Card>
-    <CardHeader><CardTitle className="font-serif text-base flex items-center gap-2"><Icon className="h-4 w-4 text-primary" /> {title} ({rows.length})</CardTitle></CardHeader>
-    <CardContent className="p-0">
-      {rows.length === 0 ? (
-        <p className="p-6 text-sm text-muted-foreground text-center">No entries.</p>
-      ) : (
-        <Table>
-          <TableHeader><TableRow>{columns.map(c => <TableHead key={c}>{c}</TableHead>)}</TableRow></TableHeader>
-          <TableBody>
-            {rows.map((r, i) => (
-              <TableRow key={r.id || r.ic_id || i}>
-                {render(r).map((cell, j) => <TableCell key={j} className="text-sm">{cell || '—'}</TableCell>)}
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      )}
-    </CardContent>
-  </Card>
-);
+
 
 export default AdminFacultyProfilePage;

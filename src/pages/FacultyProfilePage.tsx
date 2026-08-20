@@ -12,7 +12,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Badge } from '@/components/ui/badge';
-import { User, GraduationCap, Briefcase, Heart, Award, Plus, Trash2, Upload, Pencil } from 'lucide-react';
+import { User, GraduationCap, Briefcase, Heart, Award, Upload, Pencil, BookOpen } from 'lucide-react';
 import { toast } from 'sonner';
 import { departments, campuses, academicRanks, ftPtStatuses, highestDegrees, tenureStatuses } from '@/lib/constants';
 import { normalizeDepartment } from '@/lib/normalize';
@@ -20,9 +20,8 @@ import { repairQualification } from '@/lib/qualifications';
 import { repairService } from '@/lib/services';
 import { repairEngagement } from '@/lib/engagements';
 import { cleanCvValue } from '@/lib/cvNoise';
-import ProofUploadCell from '@/components/ProofUploadCell';
+import CvSectionCard from '@/components/CvSectionCard';
 
-const PROOF_TABLES = new Set(['professional_engagements', 'service_contributions', 'professional_experience']);
 
 const FacultyProfilePage = () => {
   const { user } = useAuth();
@@ -53,6 +52,15 @@ const FacultyProfilePage = () => {
     },
     enabled: !!facultyId,
   });
+  const { data: ics = [] } = useQuery({
+    queryKey: ['my-ics', facultyId],
+    queryFn: async () => {
+      const { data } = await supabase.from('intellectual_contributions').select('*').eq('faculty_id', facultyId!).order('year', { ascending: false });
+      return data || [];
+    },
+    enabled: !!facultyId,
+  });
+
   const { data: engagements = [] } = useQuery({
     queryKey: ['my-engagements', facultyId],
     queryFn: async () => {
@@ -305,12 +313,12 @@ const FacultyProfilePage = () => {
 
         {/* Section 2: Academic & Professional Qualifications */}
         {profile && (
-          <CvSection
+          <CvSectionCard
             title="2. Academic & Professional Qualifications"
             icon={GraduationCap}
             columns={['Degree / Certification', 'Institution', 'Year', 'Field / Area']}
             rows={qualifications}
-            renderRow={(q: any) => [q.degree_certification || '—', q.institution || '—', q.year || '—', q.field_area || '—']}
+            renderRow={(q: any) => [q.degree_certification, q.institution, q.year, q.field_area]}
             emptyText="No qualifications recorded."
             tableName="academic_qualifications"
             facultyId={facultyId!}
@@ -325,14 +333,44 @@ const FacultyProfilePage = () => {
           />
         )}
 
+        {/* Section 3: Intellectual Contributions */}
+        {profile && (
+          <CvSectionCard
+            title="3. Intellectual Contributions"
+            icon={BookOpen}
+            columns={['Title', 'Authors', 'Year', 'Journal / Outlet', 'Type', 'Quartile']}
+            rows={ics}
+            renderRow={(ic: any) => [ic.title, ic.authors, ic.year, ic.journal_outlet, ic.ic_type, ic.quartile]}
+            emptyText="No intellectual contributions recorded."
+            tableName="intellectual_contributions"
+            facultyId={facultyId!}
+            userId={user!.id}
+            queryKey="my-ics"
+            pkField="ic_id"
+            formFields={[
+              { name: 'title', label: 'Title', required: true },
+              { name: 'authors', label: 'Authors' },
+              { name: 'year', label: 'Year', type: 'number' },
+              { name: 'journal_outlet', label: 'Journal / Outlet' },
+              { name: 'ic_type', label: 'IC Type (PRJ, Book, Chapter, …)' },
+              { name: 'ic_category', label: 'IC Category' },
+              { name: 'indexing_database', label: 'Indexing Database' },
+              { name: 'quartile', label: 'Quartile (Q1–Q4)' },
+              { name: 'abdc_rank', label: 'ABDC Rank' },
+              { name: 'doi', label: 'DOI' },
+              { name: 'apa_citation', label: 'APA Citation', type: 'textarea' },
+            ]}
+          />
+        )}
+
         {/* Section 4: Professional Engagement Activities */}
         {profile && (
-          <CvSection
+          <CvSectionCard
             title="4. Professional Engagement Activities"
             icon={Briefcase}
             columns={['From-To', 'Activity', 'Details']}
             rows={engagements}
-            renderRow={(e: any) => [e.from_to || '—', e.activity, e.details || '—']}
+            renderRow={(e: any) => [e.from_to, e.activity, e.details]}
             emptyText="No professional engagements recorded."
             tableName="professional_engagements"
             facultyId={facultyId!}
@@ -341,41 +379,20 @@ const FacultyProfilePage = () => {
             formFields={[
               { name: 'from_to', label: 'From-To (e.g. 2022–2024)' },
               { name: 'activity', label: 'Activity', required: true },
-              { name: 'details', label: 'Details' },
-            ]}
-          />
-        )}
-
-        {/* Section 3: Professional Experience */}
-        {profile && (
-          <CvSection
-            title="3. Professional Experience"
-            icon={Briefcase}
-            columns={['Period', 'Position', 'Organization', 'Key Responsibilities']}
-            rows={experience}
-            renderRow={(x: any) => [x.period || '—', x.position_title || '—', x.organization || '—', x.key_responsibilities || '—']}
-            emptyText="No professional experience recorded."
-            tableName="professional_experience"
-            facultyId={facultyId!}
-            userId={user!.id}
-            queryKey="my-experience"
-            formFields={[
-              { name: 'period', label: 'Period (e.g. 2018–2022)' },
-              { name: 'position_title', label: 'Position Title', required: true },
-              { name: 'organization', label: 'Organization' },
-              { name: 'key_responsibilities', label: 'Key Responsibilities' },
+              { name: 'engagement_type', label: 'Engagement Type' },
+              { name: 'details', label: 'Details', type: 'textarea' },
             ]}
           />
         )}
 
         {/* Section 5: Service Contributions */}
         {profile && (
-          <CvSection
+          <CvSectionCard
             title="5. Service Contributions"
             icon={Heart}
             columns={['From-To', 'Level', 'Committee / Role']}
             rows={services}
-            renderRow={(s: any) => [s.from_to || '—', s.level || '—', s.committee_role]}
+            renderRow={(s: any) => [s.from_to, s.level, s.committee_role]}
             emptyText="No service contributions recorded."
             tableName="service_contributions"
             facultyId={facultyId!}
@@ -385,18 +402,20 @@ const FacultyProfilePage = () => {
               { name: 'from_to', label: 'From-To (e.g. 2021–Present)' },
               { name: 'level', label: 'Level (e.g. Department, School, University)' },
               { name: 'committee_role', label: 'Committee / Role', required: true },
+              { name: 'contribution_type', label: 'Contribution Type' },
+              { name: 'description', label: 'Description', type: 'textarea' },
             ]}
           />
         )}
 
         {/* Section 6: Awards & Recognition */}
         {profile && (
-          <CvSection
+          <CvSectionCard
             title="6. Awards & Recognition"
             icon={Award}
             columns={['Year', 'Award / Recognition', 'Institution / Organization']}
             rows={awards}
-            renderRow={(a: any) => [a.year || '—', a.award, a.institution_organization || '—']}
+            renderRow={(a: any) => [a.year, a.award, a.institution_organization]}
             emptyText="No awards recorded."
             tableName="awards_recognition"
             facultyId={facultyId!}
@@ -409,150 +428,35 @@ const FacultyProfilePage = () => {
             ]}
           />
         )}
+
+        {/* Additional: Professional Experience */}
+        {profile && (
+          <CvSectionCard
+            title="Professional Experience"
+            icon={Briefcase}
+            columns={['Period', 'Position', 'Organization', 'Key Responsibilities']}
+            rows={experience}
+            renderRow={(x: any) => [x.period, x.position_title, x.organization, x.key_responsibilities]}
+            emptyText="No professional experience recorded."
+            tableName="professional_experience"
+            facultyId={facultyId!}
+            userId={user!.id}
+            queryKey="my-experience"
+            formFields={[
+              { name: 'period', label: 'Period (e.g. 2018–2022)' },
+              { name: 'position_title', label: 'Position Title', required: true },
+              { name: 'organization', label: 'Organization' },
+              { name: 'key_responsibilities', label: 'Key Responsibilities', type: 'textarea' },
+            ]}
+          />
+        )}
+
       </div>
     </AppLayout>
   );
 };
 
-// Reusable CV Section component
-interface FormField {
-  name: string;
-  label: string;
-  required?: boolean;
-  type?: string;
-}
 
-interface CvSectionProps {
-  title: string;
-  icon: any;
-  columns: string[];
-  rows: any[];
-  renderRow: (row: any) => (string | number)[];
-  emptyText: string;
-  tableName: string;
-  facultyId: string;
-  userId: string;
-  queryKey: string;
-  formFields: FormField[];
-}
 
-const CvSection = ({ title, icon: Icon, columns, rows, renderRow, emptyText, tableName, facultyId, userId, queryKey, formFields }: CvSectionProps) => {
-  const [addOpen, setAddOpen] = useState(false);
-  const [form, setForm] = useState<Record<string, string>>({});
-  const [saving, setSaving] = useState(false);
-  const queryClient = useQueryClient();
-
-  const handleAdd = async () => {
-    const required = formFields.filter(f => f.required);
-    for (const rf of required) {
-      if (!form[rf.name]?.trim()) { toast.error(`${rf.label} is required`); return; }
-    }
-    setSaving(true);
-    const row: any = { faculty_id: facultyId };
-    formFields.forEach(f => {
-      const val = form[f.name]?.trim() || null;
-      row[f.name] = f.type === 'number' && val ? parseInt(val) : val;
-    });
-    const { error } = await supabase.from(tableName as any).insert(row as any);
-    if (error) { toast.error('Failed to add entry'); setSaving(false); return; }
-    await supabase.from('audit_log').insert({ user_id: userId, action: `add_${tableName}`, target_table: tableName, details: row });
-    toast.success('Entry added');
-    setForm({});
-    setAddOpen(false);
-    setSaving(false);
-    queryClient.invalidateQueries({ queryKey: [queryKey] });
-  };
-
-  const handleDelete = async (row: any) => {
-    if (!confirm('Delete this entry?')) return;
-    const { error } = await supabase.from(tableName as any).delete().eq('id', row.id);
-    if (error) { toast.error('Delete failed'); return; }
-    toast.success('Entry deleted');
-    queryClient.invalidateQueries({ queryKey: [queryKey] });
-  };
-
-  return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-md bg-muted text-primary"><Icon className="h-5 w-5" /></div>
-            <CardTitle className="font-serif text-base">{title}</CardTitle>
-          </div>
-          <Button size="sm" variant="outline" onClick={() => setAddOpen(true)}>
-            <Plus className="h-4 w-4 mr-1" /> Add
-          </Button>
-        </div>
-      </CardHeader>
-      <CardContent className="p-0">
-        {rows.length === 0 ? (
-          <div className="text-center py-8">
-            <p className="text-sm text-muted-foreground">{emptyText}</p>
-          </div>
-        ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                {columns.map(c => <TableHead key={c}>{c}</TableHead>)}
-                {PROOF_TABLES.has(tableName) && <TableHead>Proof</TableHead>}
-                <TableHead className="w-12"></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {rows.map((row, i) => {
-                const cells = renderRow(row);
-                return (
-                  <TableRow key={row.id || i}>
-                    {cells.map((cell, j) => <TableCell key={j} className="text-sm">{cell}</TableCell>)}
-                    {PROOF_TABLES.has(tableName) && (
-                      <TableCell>
-                        <ProofUploadCell
-                          tableName={tableName as any}
-                          rowId={row.id}
-                          facultyId={facultyId}
-                          proofStatus={row.proof_status}
-                          proofFilePath={row.proof_file_path}
-                          proofReviewComment={row.proof_review_comment}
-                          queryKey={queryKey}
-                        />
-                      </TableCell>
-                    )}
-                    <TableCell>
-                      <Button variant="ghost" size="sm" onClick={() => handleDelete(row)} className="text-destructive hover:text-destructive">
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        )}
-      </CardContent>
-
-      <Dialog open={addOpen} onOpenChange={setAddOpen}>
-        <DialogContent>
-          <DialogHeader><DialogTitle className="font-serif">Add Entry</DialogTitle></DialogHeader>
-          <div className="space-y-4">
-            {formFields.map(f => (
-              <div key={f.name} className="space-y-2">
-                <Label>{f.label}{f.required ? ' *' : ''}</Label>
-                <Input
-                  type={f.type || 'text'}
-                  value={form[f.name] || ''}
-                  onChange={e => setForm(prev => ({ ...prev, [f.name]: e.target.value }))}
-                />
-              </div>
-            ))}
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setAddOpen(false)}>Cancel</Button>
-            <Button onClick={handleAdd} disabled={saving}>{saving ? 'Saving…' : 'Add'}</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </Card>
-  );
-};
 
 export default FacultyProfilePage;
