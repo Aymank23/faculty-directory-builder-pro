@@ -20,7 +20,9 @@ import { useAuth } from '@/contexts/AuthContext';
 const VALID_IC_TYPES = new Set(['PRJ', 'Book', 'Chapter']);
 
 const AdminFacultyProfilePage = () => {
+  const { user } = useAuth();
   const { id } = useParams<{ id: string }>();
+
 
   const { data: profile, isLoading } = useQuery({
     queryKey: ['admin-faculty-profile', id],
