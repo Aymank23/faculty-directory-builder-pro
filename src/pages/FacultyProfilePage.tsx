@@ -52,6 +52,15 @@ const FacultyProfilePage = () => {
     },
     enabled: !!facultyId,
   });
+  const { data: ics = [] } = useQuery({
+    queryKey: ['my-ics', facultyId],
+    queryFn: async () => {
+      const { data } = await supabase.from('intellectual_contributions').select('*').eq('faculty_id', facultyId!).order('year', { ascending: false });
+      return data || [];
+    },
+    enabled: !!facultyId,
+  });
+
   const { data: engagements = [] } = useQuery({
     queryKey: ['my-engagements', facultyId],
     queryFn: async () => {
