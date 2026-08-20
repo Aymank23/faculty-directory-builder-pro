@@ -305,12 +305,12 @@ const FacultyProfilePage = () => {
 
         {/* Section 2: Academic & Professional Qualifications */}
         {profile && (
-          <CvSection
+          <CvSectionCard
             title="2. Academic & Professional Qualifications"
             icon={GraduationCap}
             columns={['Degree / Certification', 'Institution', 'Year', 'Field / Area']}
             rows={qualifications}
-            renderRow={(q: any) => [q.degree_certification || '—', q.institution || '—', q.year || '—', q.field_area || '—']}
+            renderRow={(q: any) => [q.degree_certification, q.institution, q.year, q.field_area]}
             emptyText="No qualifications recorded."
             tableName="academic_qualifications"
             facultyId={facultyId!}
@@ -325,14 +325,44 @@ const FacultyProfilePage = () => {
           />
         )}
 
+        {/* Section 3: Intellectual Contributions */}
+        {profile && (
+          <CvSectionCard
+            title="3. Intellectual Contributions"
+            icon={BookOpen}
+            columns={['Title', 'Authors', 'Year', 'Journal / Outlet', 'Type', 'Quartile']}
+            rows={ics}
+            renderRow={(ic: any) => [ic.title, ic.authors, ic.year, ic.journal_outlet, ic.ic_type, ic.quartile]}
+            emptyText="No intellectual contributions recorded."
+            tableName="intellectual_contributions"
+            facultyId={facultyId!}
+            userId={user!.id}
+            queryKey="my-ics"
+            pkField="ic_id"
+            formFields={[
+              { name: 'title', label: 'Title', required: true },
+              { name: 'authors', label: 'Authors' },
+              { name: 'year', label: 'Year', type: 'number' },
+              { name: 'journal_outlet', label: 'Journal / Outlet' },
+              { name: 'ic_type', label: 'IC Type (PRJ, Book, Chapter, …)' },
+              { name: 'ic_category', label: 'IC Category' },
+              { name: 'indexing_database', label: 'Indexing Database' },
+              { name: 'quartile', label: 'Quartile (Q1–Q4)' },
+              { name: 'abdc_rank', label: 'ABDC Rank' },
+              { name: 'doi', label: 'DOI' },
+              { name: 'apa_citation', label: 'APA Citation', type: 'textarea' },
+            ]}
+          />
+        )}
+
         {/* Section 4: Professional Engagement Activities */}
         {profile && (
-          <CvSection
+          <CvSectionCard
             title="4. Professional Engagement Activities"
             icon={Briefcase}
             columns={['From-To', 'Activity', 'Details']}
             rows={engagements}
-            renderRow={(e: any) => [e.from_to || '—', e.activity, e.details || '—']}
+            renderRow={(e: any) => [e.from_to, e.activity, e.details]}
             emptyText="No professional engagements recorded."
             tableName="professional_engagements"
             facultyId={facultyId!}
@@ -341,41 +371,20 @@ const FacultyProfilePage = () => {
             formFields={[
               { name: 'from_to', label: 'From-To (e.g. 2022–2024)' },
               { name: 'activity', label: 'Activity', required: true },
-              { name: 'details', label: 'Details' },
-            ]}
-          />
-        )}
-
-        {/* Section 3: Professional Experience */}
-        {profile && (
-          <CvSection
-            title="3. Professional Experience"
-            icon={Briefcase}
-            columns={['Period', 'Position', 'Organization', 'Key Responsibilities']}
-            rows={experience}
-            renderRow={(x: any) => [x.period || '—', x.position_title || '—', x.organization || '—', x.key_responsibilities || '—']}
-            emptyText="No professional experience recorded."
-            tableName="professional_experience"
-            facultyId={facultyId!}
-            userId={user!.id}
-            queryKey="my-experience"
-            formFields={[
-              { name: 'period', label: 'Period (e.g. 2018–2022)' },
-              { name: 'position_title', label: 'Position Title', required: true },
-              { name: 'organization', label: 'Organization' },
-              { name: 'key_responsibilities', label: 'Key Responsibilities' },
+              { name: 'engagement_type', label: 'Engagement Type' },
+              { name: 'details', label: 'Details', type: 'textarea' },
             ]}
           />
         )}
 
         {/* Section 5: Service Contributions */}
         {profile && (
-          <CvSection
+          <CvSectionCard
             title="5. Service Contributions"
             icon={Heart}
             columns={['From-To', 'Level', 'Committee / Role']}
             rows={services}
-            renderRow={(s: any) => [s.from_to || '—', s.level || '—', s.committee_role]}
+            renderRow={(s: any) => [s.from_to, s.level, s.committee_role]}
             emptyText="No service contributions recorded."
             tableName="service_contributions"
             facultyId={facultyId!}
@@ -385,18 +394,20 @@ const FacultyProfilePage = () => {
               { name: 'from_to', label: 'From-To (e.g. 2021–Present)' },
               { name: 'level', label: 'Level (e.g. Department, School, University)' },
               { name: 'committee_role', label: 'Committee / Role', required: true },
+              { name: 'contribution_type', label: 'Contribution Type' },
+              { name: 'description', label: 'Description', type: 'textarea' },
             ]}
           />
         )}
 
         {/* Section 6: Awards & Recognition */}
         {profile && (
-          <CvSection
+          <CvSectionCard
             title="6. Awards & Recognition"
             icon={Award}
             columns={['Year', 'Award / Recognition', 'Institution / Organization']}
             rows={awards}
-            renderRow={(a: any) => [a.year || '—', a.award, a.institution_organization || '—']}
+            renderRow={(a: any) => [a.year, a.award, a.institution_organization]}
             emptyText="No awards recorded."
             tableName="awards_recognition"
             facultyId={facultyId!}
@@ -409,6 +420,29 @@ const FacultyProfilePage = () => {
             ]}
           />
         )}
+
+        {/* Additional: Professional Experience */}
+        {profile && (
+          <CvSectionCard
+            title="Professional Experience"
+            icon={Briefcase}
+            columns={['Period', 'Position', 'Organization', 'Key Responsibilities']}
+            rows={experience}
+            renderRow={(x: any) => [x.period, x.position_title, x.organization, x.key_responsibilities]}
+            emptyText="No professional experience recorded."
+            tableName="professional_experience"
+            facultyId={facultyId!}
+            userId={user!.id}
+            queryKey="my-experience"
+            formFields={[
+              { name: 'period', label: 'Period (e.g. 2018–2022)' },
+              { name: 'position_title', label: 'Position Title', required: true },
+              { name: 'organization', label: 'Organization' },
+              { name: 'key_responsibilities', label: 'Key Responsibilities', type: 'textarea' },
+            ]}
+          />
+        )}
+
       </div>
     </AppLayout>
   );
