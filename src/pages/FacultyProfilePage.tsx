@@ -12,7 +12,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Badge } from '@/components/ui/badge';
-import { User, GraduationCap, Briefcase, Heart, Award, Plus, Trash2, Upload, Pencil } from 'lucide-react';
+import { User, GraduationCap, Briefcase, Heart, Award, Upload, Pencil, BookOpen } from 'lucide-react';
 import { toast } from 'sonner';
 import { departments, campuses, academicRanks, ftPtStatuses, highestDegrees, tenureStatuses } from '@/lib/constants';
 import { normalizeDepartment } from '@/lib/normalize';
@@ -20,9 +20,8 @@ import { repairQualification } from '@/lib/qualifications';
 import { repairService } from '@/lib/services';
 import { repairEngagement } from '@/lib/engagements';
 import { cleanCvValue } from '@/lib/cvNoise';
-import ProofUploadCell from '@/components/ProofUploadCell';
+import CvSectionCard from '@/components/CvSectionCard';
 
-const PROOF_TABLES = new Set(['professional_engagements', 'service_contributions', 'professional_experience']);
 
 const FacultyProfilePage = () => {
   const { user } = useAuth();
