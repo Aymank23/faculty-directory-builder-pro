@@ -13,6 +13,9 @@ import { repairQualification } from '@/lib/qualifications';
 import { repairService } from '@/lib/services';
 import { repairEngagement } from '@/lib/engagements';
 import { cleanCvValue } from '@/lib/cvNoise';
+import CvSectionCard from '@/components/CvSectionCard';
+import { useAuth } from '@/contexts/AuthContext';
+
 
 const VALID_IC_TYPES = new Set(['PRJ', 'Book', 'Chapter']);
 
