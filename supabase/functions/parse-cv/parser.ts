@@ -763,13 +763,14 @@ function extractPrjEntries(lines: string[]) {
         quartile: scopusRank,
         ic_category: icCategory,
         ic_type: "PRJ",
+        original_cv_item_type: "Peer-Reviewed Journals",
         source_section: "PRJs",
       }), "PRJ");
     },
   );
 }
 
-function extractBookLikeEntries(lines: string[], icType: string, sourceSection: string) {
+function extractBookLikeEntries(lines: string[], icType: string, sourceSection: string, originalType: string) {
   return reviewStrictTableSection(
     lines,
     sourceSection,
@@ -790,6 +791,7 @@ function extractBookLikeEntries(lines: string[], icType: string, sourceSection: 
       return createRow(sourceSection, raw, "ready", [], buildIcEntry({
         raw_text: citation,
         ic_type: icType,
+        original_cv_item_type: originalType,
         ic_category: icCategory,
         source_section: sourceSection,
         journal_outlet: publisher,
@@ -824,6 +826,7 @@ function extractOtherIcEntries(lines: string[], sourceSection: string) {
         raw_text: details,
         year: normalizeYear(yearCell || "") ?? null,
         ic_type: type,
+        original_cv_item_type: type,
         ic_category: icCategory,
         source_section: sourceSection,
       }), "Other IC");
@@ -835,8 +838,8 @@ function extractIntellectualContributionReview(lines: string[]) {
   const sections = splitIcSections(lines);
 
   const prjs = sections.prjs ? extractPrjEntries(sections.prjs) : [];
-  const books = sections.books ? extractBookLikeEntries(sections.books, "Book", "Books") : [];
-  const chapters = sections.chapters ? extractBookLikeEntries(sections.chapters, "Chapter", "Chapters") : [];
+  const books = sections.books ? extractBookLikeEntries(sections.books, "Book", "Books", "Books") : [];
+  const chapters = sections.chapters ? extractBookLikeEntries(sections.chapters, "Chapter", "Chapters", "Chapters in Edited Books") : [];
   const otherIcs = sections.other_ics ? extractOtherIcEntries(sections.other_ics, "Other Intellectual Contributions") : [];
   const academicEngagement = sections.academic_engagement ? extractOtherIcEntries(sections.academic_engagement, "Academic Engagement Activities") : [];
 
@@ -869,7 +872,12 @@ export function parseCvText(cvText: string, enableAiParsing = false): ParseCvRes
   const readyEngagements = engagementReview.filter((row) => row.status === "ready" && row.data).map((row) => row.data);
   const readyServices = serviceReview.filter((row) => row.status === "ready" && row.data).map((row) => row.data);
   const readyProfessionalExperience = professionalExperienceReview.filter((row) => row.status === "ready" && row.data).map((row) => row.data);
-  const readyIcs = [...icReview.prjs, ...icReview.books, ...icReview.chapters, ...icReview.otherIcs, ...icReview.academicEngagement]
+  const readyIcs = [...icReview.prjs, ...icReview.books, ...icReview.chapters, ...icReview.otherIcs]
+    .filter((row) => row.status === "ready" && row.data)
+    .map((row) => row.data);
+  // Requirement 8: Academic Engagement Activities are a separate section and must
+  // never contribute to Intellectual Contribution totals.
+  const readyAcademicEngagement = icReview.academicEngagement
     .filter((row) => row.status === "ready" && row.data)
     .map((row) => row.data);
 
@@ -925,7 +933,7 @@ export function parseCvText(cvText: string, enableAiParsing = false): ParseCvRes
   return {
     ok: true,
     data: {
-      cv_type: /practitioner/i.test(cvText) ? "practitioner" : "academic",
+      cv_type: /faculty cv\s*[–—-]\s*practitioner|practitioner/i.test(cvText) ? "practitioner" : "academic",
       personal_info: personalInfo,
       qualifications: readyQualifications,
       intellectual_contributions: readyIcs,
@@ -933,6 +941,7 @@ export function parseCvText(cvText: string, enableAiParsing = false): ParseCvRes
       services: readyServices,
       awards: readyAwards,
       professional_experience: readyProfessionalExperience,
+      academic_engagement: readyAcademicEngagement,
     },
     warnings,
     diagnostics: {
