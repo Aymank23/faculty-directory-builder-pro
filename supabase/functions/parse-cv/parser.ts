@@ -98,7 +98,7 @@ const TABLE_HEADER_PATTERNS = {
   prj: /^citation\s*\|\s*scopus\s+rank\s*\|\s*ic\s+category$/i,
   bookLike: /^citation\s*\|\s*(?:publisher(?:\s+name)?|scopus\s+rank)\s*\|\s*ic\s+category$/i,
   otherIc: [
-    /^year\s*\|\s*(?:type(?:\s+of\s+contributions?)?|type|category)\s*\|\s*(?:ic\s+category|\[___\]|action)\s*\|\s*(?:details|description)$/i,
+    /^year\s*\|\s*(?:type(?:\s+of\s+contributions?)?|type|category)\s*\|\s*(?:ic\s+category|category|\[___\]|action)\s*\|\s*(?:details|description)$/i,
     /^year\s*\|\s*category\s*\|\s*\[___\]\s*\|\s*description$/i,
   ] satisfies RegExp[],
 };
@@ -268,9 +268,15 @@ function summarizeReviewedSection<T>(lines: string[], rows: ReviewedRow<T>[], he
   };
 }
 
+const MONTH_RE = "(jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*";
+
 function looksLikeYearOrRange(value: string | null | undefined) {
   if (!value) return false;
   const normalized = normalizeBrokenNumericTokens(value);
+  const endpoint = `(?:${MONTH_RE}\\s*[-\\/\\s]\\s*)?(19|20)\\d{2}`;
+  const rangeRe = new RegExp(`^${endpoint}\\s*(?:[-–—\\/]|to)\\s*(?:${endpoint}|present|current|now|date|to date)$`, "i");
+  if (rangeRe.test(normalized)) return true;
+  if (new RegExp(`^${endpoint}$`, "i").test(normalized)) return true;
   return /^(19|20)\d{2}$/.test(normalized)
     || /^(19|20)\d{2}\s*[-–—\/]\s*((19|20)\d{2}|present|current|now)$/i.test(normalized)
     || /^(spring|summer|fall|winter)\s+(19|20)\d{2}$/i.test(normalized)
@@ -521,7 +527,9 @@ function extractAwards(lines: string[]) {
       const institution = cleanValue(cells[2]);
       const issues: string[] = [];
 
-      if (yearCell && !looksLikeYearOrRange(yearCell)) issues.push("Year column is not numeric or date-like.");
+      if (yearCell && !looksLikeYearOrRange(yearCell) && !/(19|20)\d{2}/.test(yearCell)) {
+        issues.push("Year column is not numeric or date-like.");
+      }
       if (!award) issues.push("Missing award name.");
       if ([award, institution].some((value) => HEADER_BLOB_RE.test(value || ""))) issues.push("Header text leaked into award row.");
 
@@ -549,9 +557,8 @@ function extractEngagements(lines: string[]) {
       const details = cleanValue(cells[2]);
       const issues: string[] = [];
 
-      if (fromTo && !looksLikePeriod(fromTo)) issues.push("From-To column is not period-like.");
-      if (!activity) issues.push("Missing activity.");
-      const firstCellLooksLikePeriod = looksLikePeriod(fromTo);
+      if (!activity && !details) issues.push("Missing activity and details.");
+      const firstCellLooksLikePeriod = looksLikePeriod(fromTo) || /(19|20)\d{2}/.test(fromTo || "");
       if (!firstCellLooksLikePeriod && (looksLikeCitation(activity) || looksLikeCitation(details))) {
         issues.push("Row looks like an intellectual contribution, not an engagement.");
       }
@@ -561,7 +568,8 @@ function extractEngagements(lines: string[]) {
 
       return createRow("Professional Engagement Activities", raw, "ready", [], {
         from_to: fromTo,
-        activity,
+        activity: activity || details,
+        original_cv_item_type: activity,
         details,
         source_section: "Professional Engagement Activities",
       });
@@ -581,15 +589,15 @@ function extractServices(lines: string[]) {
       const committeeRole = cleanValue(cells[2]);
       const issues: string[] = [];
 
-      if (fromTo && !looksLikePeriod(fromTo)) issues.push("From-To column is not period-like.");
       if (level && !looksLikeServiceLevel(level)) issues.push("Level is not a recognized service scope.");
       if (!committeeRole) issues.push("Missing committee / role.");
-      if (looksLikeCitation(committeeRole) || hasMultiRecordPattern(committeeRole)) issues.push("Row appears to contain mixed or concatenated content.");
+      if (committeeRole && committeeRole.includes(" | ")) issues.push("Row appears to contain concatenated rows.");
 
       if (issues.length > 0) return createRow("Service Contributions", raw, "needs_review", issues, null);
 
       return createRow("Service Contributions", raw, "ready", [], {
         from_to: fromTo,
+        original_cv_item_type: level,
         level,
         committee_role: committeeRole,
         source_section: "Service Contributions",
@@ -611,7 +619,6 @@ function extractProfessionalExperience(lines: string[]) {
       const responsibilities = cleanValue(cells[3]);
       const issues: string[] = [];
 
-      if (period && !looksLikePeriod(period)) issues.push("Period column is not date-like.");
       if (!organization && !positionTitle) issues.push("Missing organization and position.");
       if (hasMultiRecordPattern(responsibilities)) issues.push("Responsibilities appear to contain multiple merged rows.");
 
@@ -813,8 +820,9 @@ function extractOtherIcEntries(lines: string[], sourceSection: string) {
       const details = cleanValue(cells[3]);
       const issues: string[] = [];
 
-      if (yearCell && !looksLikeYearOrRange(yearCell)) issues.push("Year column is not numeric or date-like.");
-      if (!type) issues.push("Missing contribution type.");
+      if (yearCell && !looksLikeYearOrRange(yearCell) && !/(19|20)\d{2}/.test(yearCell)) {
+        issues.push("Year column is not numeric or date-like.");
+      }
       if (icCategory && !looksLikeIcCategory(icCategory)) issues.push("IC category is not recognized.");
       if (!details) issues.push("Missing details.");
       if (hasMultiRecordPattern(details)) issues.push("Details appear to contain multiple merged rows.");
