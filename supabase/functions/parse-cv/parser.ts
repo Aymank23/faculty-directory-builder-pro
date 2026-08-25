@@ -60,10 +60,12 @@ const NOISE_PATTERNS: RegExp[] = [
   /^[—\-–\s]+$/,
 ];
 
+// Heading-driven section detection. Numbers differ between the Academic and the
+// Practitioner AACSB templates, so section numbers are optional everywhere.
 const MAIN_SECTION_MATCHERS: Array<{ key: string; pattern: RegExp }> = [
-  { key: "personal_info", pattern: /^#*\s*1\.?\s*personal/i },
-  { key: "qualifications", pattern: /^#*\s*2\.?\s*.*academic.*professional\s+qualifications/i },
-  { key: "professional_experience", pattern: /^#*\s*3\.?\s*professional experience/i },
+  { key: "personal_info", pattern: /^#*\s*\d*\.?\s*personal\s*&?\s*(and\s+)?academic information|^#*\s*1\.?\s*personal/i },
+  { key: "qualifications", pattern: /academic\s*&?\s*(and\s+)?(\w+\s+)?professional\s+qualifications/i },
+  { key: "professional_experience", pattern: /^#*\s*\d*\.?\s*professional experience\b/i },
   { key: "intellectual_contributions", pattern: /intellectual contributions/i },
   { key: "professional_engagement", pattern: /professional engagement activities/i },
   { key: "service", pattern: /service contributions/i },
@@ -72,11 +74,12 @@ const MAIN_SECTION_MATCHERS: Array<{ key: string; pattern: RegExp }> = [
 
 const IC_SECTION_MATCHERS: Array<{ key: string; label: string; pattern: RegExp; icType?: string }> = [
   { key: "prjs", label: "PRJs", pattern: /peer-?reviewed journal articles|\bprjs?\b/i, icType: "PRJ" },
-  { key: "books", label: "Books", pattern: /^#*\s*3\.?\s*2\.?\s*books?\b/i, icType: "Book" },
+  { key: "books", label: "Books", pattern: /^#*\s*\d+\.?\s*\d*\.?\s*books?\b/i, icType: "Book" },
   { key: "chapters", label: "Chapters", pattern: /chapters? in edited books/i, icType: "Chapter" },
   { key: "other_ics", label: "Other ICs", pattern: /other intellectual contributions/i },
   { key: "academic_engagement", label: "Academic Engagement Activities", pattern: /academic engagement activities/i },
 ];
+
 
 const SERVICE_LEVEL_RE = /^(department|school|college|university|community|professional|industry|national|international)$/i;
 const QUARTILE_RE = /^(Q[1-4]|A\*|A|B|C|NA|N\/A)$/i;
