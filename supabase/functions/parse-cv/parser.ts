@@ -527,6 +527,11 @@ function extractAwards(lines: string[]) {
       const institution = cleanValue(cells[2]);
       const issues: string[] = [];
 
+      // Empty template row: only the type dropdown survived the placeholder filter.
+      if (!details && !yearCell) {
+        return createRow(sourceSection, raw, "ignored_placeholder", [], null, "Other IC");
+      }
+
       if (yearCell && !looksLikeYearOrRange(yearCell) && !/(19|20)\d{2}/.test(yearCell)) {
         issues.push("Year column is not numeric or date-like.");
       }
@@ -817,6 +822,11 @@ function extractOtherIcEntries(lines: string[], sourceSection: string) {
       const icCategory = cleanValue(cells[2]);
       const details = cleanValue(cells[3]);
       const issues: string[] = [];
+
+      // Empty template row: only the type dropdown survived the placeholder filter.
+      if (!details && !yearCell) {
+        return createRow(sourceSection, raw, "ignored_placeholder", [], null, "Other IC");
+      }
 
       if (yearCell && !looksLikeYearOrRange(yearCell) && !/(19|20)\d{2}/.test(yearCell)) {
         issues.push("Year column is not numeric or date-like.");
