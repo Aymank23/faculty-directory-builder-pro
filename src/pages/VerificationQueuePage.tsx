@@ -51,7 +51,7 @@ const VerificationQueuePage = () => {
     queryKey: ['pending-ics', facultyIds],
     queryFn: async () => {
       if (facultyIds.length === 0) return [];
-      const { data } = await supabase.from('intellectual_contributions').select('*').in('faculty_id', facultyIds).eq('status', 'under_review').order('created_at', { ascending: true });
+      const { data } = await supabase.from('intellectual_contributions').select('*').in('faculty_id', facultyIds).eq('verification_status', 'under_review').order('created_at', { ascending: true });
       return data || [];
     },
     enabled: facultyIds.length > 0,
@@ -63,8 +63,9 @@ const VerificationQueuePage = () => {
       return;
     }
     const { error } = await supabase.from('intellectual_contributions').update({
-      status: 'verified', verification_date: new Date().toISOString(), verified_by: user!.id,
-    }).eq('ic_id', ic.ic_id);
+      status: 'verified', verification_status: 'verified',
+      verification_date: new Date().toISOString(), verified_by: user!.id,
+    } as any).eq('ic_id', ic.ic_id);
     if (error) { toast.error('Verification failed'); return; }
     await supabase.from('audit_log').insert({
       user_id: user!.id, action: 'ic_verified', target_record: ic.ic_id, target_table: 'intellectual_contributions',
@@ -77,8 +78,8 @@ const VerificationQueuePage = () => {
   const handleReject = async () => {
     if (!selectedIc) return;
     const { error } = await supabase.from('intellectual_contributions').update({
-      status: 'rejected', rejection_reason: rejectReason || null,
-    }).eq('ic_id', selectedIc.ic_id);
+      status: 'rejected', verification_status: 'excluded', rejection_reason: rejectReason || null,
+    } as any).eq('ic_id', selectedIc.ic_id);
     if (error) { toast.error('Rejection failed'); return; }
     await supabase.from('audit_log').insert({
       user_id: user!.id, action: 'ic_rejected', target_record: selectedIc.ic_id, target_table: 'intellectual_contributions',
