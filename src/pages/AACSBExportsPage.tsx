@@ -26,14 +26,20 @@ const AACSBExportsPage = () => {
   const { data: ics = [] } = useQuery({
     queryKey: ['export-ics'],
     queryFn: async () => {
-      const { data } = await supabase.from('intellectual_contributions').select('*').eq('status', 'verified');
+      const { data } = await supabase.from('intellectual_contributions').select('*');
       return data || [];
     },
   });
 
   const facultyMap = Object.fromEntries(faculty.map(f => [f.faculty_id, f]));
 
-  const exportRows = ics.filter(ic => {
+  // Requirement 14: export verified ICs only, with the source classification and
+  // the AACSB reporting type side by side. Academic Engagement is exported separately.
+  const reportableIcs = ics.filter((ic: any) =>
+    (ic.record_class || 'ic') === 'ic' && (ic.verification_status || ic.status) === 'verified'
+  );
+
+  const exportRows = reportableIcs.filter(ic => {
     const fac = facultyMap[ic.faculty_id];
     if (deptFilter !== 'all' && normalizeDepartment(fac?.department) !== deptFilter) return false;
     if (disciplineFilter !== 'all' && normalizeDiscipline(fac?.discipline) !== disciplineFilter) return false;
@@ -46,6 +52,8 @@ const AACSBExportsPage = () => {
       'Discipline': fac?.discipline ? normalizeDiscipline(fac.discipline) : '',
       'Campus': fac?.campus || '',
       'Academic Rank': fac?.academic_rank || '',
+      'Original CV Item Type': (ic as any).original_cv_item_type || '',
+      'IC Reporting Type': (ic as any).ic_reporting_type || 'Needs Review',
       'IC Category': ic.ic_category || '',
       'IC Type': ic.ic_type || '',
       'Year': ic.year || '',
@@ -55,13 +63,30 @@ const AACSBExportsPage = () => {
       'DOI': ic.doi || '',
       'Evidence': ic.evidence_file_url ? 'Yes' : 'No',
       'Verification Date': ic.verification_date ? new Date(ic.verification_date).toLocaleDateString() : '',
+      'Canonical Key': (ic as any).canonical_key || '',
     };
   });
+
+  const engagementRows = ics
+    .filter((ic: any) => ic.record_class === 'academic_engagement')
+    .map((ic: any) => {
+      const fac = facultyMap[ic.faculty_id];
+      return {
+        'Faculty Name': fac ? `${fac.first_name} ${fac.last_name}` : 'Unknown',
+        'Department': fac?.department ? normalizeDepartment(fac.department) : '',
+        'Discipline': fac?.discipline ? normalizeDiscipline(fac.discipline) : '',
+        'Original CV Item Type': ic.original_cv_item_type || '',
+        'Year': ic.year || '',
+        'Activity': ic.title || '',
+        'Verification Status': ic.verification_status || ic.status || '',
+      };
+    });
 
   const handleExport = () => {
     const ws = XLSX.utils.json_to_sheet(exportRows);
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'AACSB Export');
+    XLSX.utils.book_append_sheet(wb, ws, 'Intellectual Contributions');
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(engagementRows), 'Academic Engagement');
     XLSX.writeFile(wb, `AACSB_Export_${new Date().toISOString().slice(0, 10)}.xlsx`);
   };
 
