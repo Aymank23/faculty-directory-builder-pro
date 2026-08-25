@@ -62,7 +62,9 @@ const MasterDashboardPage = () => {
 
   const fromYear = parseInt(yearFrom) || 2020;
   const toYear = parseInt(yearTo) || new Date().getFullYear();
-  const ics = allIcs.filter(ic => {
+  // Requirement 11: Academic Engagement records live in the same table but must
+  // never be counted as Intellectual Contributions.
+  const ics = allIcs.filter(ic => (ic.record_class || 'ic') === 'ic').filter(ic => {
     const fac = facultyMap[ic.faculty_id];
     if (deptFilter !== 'all' && normalizeDepartment(fac?.department) !== deptFilter) return false;
     if (disciplineFilter !== 'all' && normalizeDiscipline(fac?.discipline) !== disciplineFilter) return false;
@@ -82,9 +84,13 @@ const MasterDashboardPage = () => {
     return true;
   });
 
-  const verified = ics.filter(ic => ic.status === 'verified');
-  const underReview = ics.filter(ic => ic.status === 'under_review');
-  const rejected = ics.filter(ic => ic.status === 'rejected');
+  const academicEngagement = allIcs.filter(ic => ic.record_class === 'academic_engagement');
+  const verified = ics.filter(ic => (ic.verification_status || ic.status) === 'verified');
+  const underReview = ics.filter(ic => (ic.verification_status || ic.status) === 'under_review');
+  const rejected = ics.filter(ic => ['excluded', 'rejected'].includes(ic.verification_status || ic.status));
+  const needsReviewType = ics.filter(ic => (ic.ic_reporting_type || 'Needs Review') === 'Needs Review');
+  // School-level total: shared publications count once.
+  const schoolUniqueIcs = countCanonicalIcs(ics);
   const prjs = ics.filter(ic => ic.ic_type === 'PRJ');
   const q1 = ics.filter(ic => ic.quartile === 'Q1');
 
@@ -253,8 +259,13 @@ const MasterDashboardPage = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <KpiCard title="Total PRJs" value={prjs.length} icon={FileText} />
           <KpiCard title="Under Review" value={underReview.length} icon={Clock} variant="warning" />
-          <KpiCard title="Rejected" value={rejected.length} icon={XCircle} variant="destructive" />
+          <KpiCard title="Excluded" value={rejected.length} icon={XCircle} variant="destructive" />
           <KpiCard title="Avg ICs/Faculty" value={filteredFaculty.length ? (ics.length / filteredFaculty.length).toFixed(1) : '0'} icon={BookOpen} />
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <KpiCard title="Unique School ICs" value={schoolUniqueIcs} icon={BookOpen} />
+          <KpiCard title="Academic Engagement" value={academicEngagement.length} icon={Users} />
+          <KpiCard title="IC Type Needs Review" value={needsReviewType.length} icon={Clock} variant="warning" />
         </div>
 
         {/* AACSB Classification & Participation Statistics */}
