@@ -24,6 +24,7 @@ import { repairQualification, validateQualification } from '@/lib/qualifications
 import { getServiceUniqueKey, repairService } from '@/lib/services';
 import { getEngagementUniqueKey, repairEngagement } from '@/lib/engagements';
 import { cleanCvValue } from '@/lib/cvNoise';
+import { buildCanonicalKey, classifyRecordClass, mapOriginalToReportingType } from '@/lib/icTaxonomy';
 import * as XLSX from 'xlsx';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -40,6 +41,7 @@ interface ExtractedIC {
   apa_citation?: string;
   confidence?: string;
   source_section?: string;
+  original_cv_item_type?: string;
   raw_text?: string;
   // UI state
   _selected?: boolean;
@@ -107,6 +109,7 @@ interface ExtractedData {
   services: Service[];
   awards: AwardEntry[];
   professional_experience?: ProfessionalExp[];
+  academic_engagement?: ExtractedIC[];
 }
 
 interface ParseCvResponse {
@@ -487,8 +490,20 @@ const UploadCvPage = () => {
           console.log('[Save CV] profile updated fields:', Object.keys(updates));
         }
       }
-      const selectedIcs = extracted.intellectual_contributions.filter(ic => ic._selected);
+      // Requirement 8: Academic Engagement rows from the CV are stored in the same
+      // table but flagged record_class='academic_engagement' so IC totals stay clean.
+      const selectedIcs = [
+        ...extracted.intellectual_contributions.filter(ic => ic._selected),
+        ...(extracted.academic_engagement || []),
+      ];
       console.log('[Save CV] processing', selectedIcs.length, 'selected ICs');
+      const { data: existingCanonical } = await supabase
+        .from('intellectual_contributions')
+        .select('canonical_key')
+        .eq('faculty_id', facultyId);
+      const seenCanonicalKeys = new Set(
+        ((existingCanonical || []) as any[]).map(r => r.canonical_key).filter(Boolean) as string[]
+      );
       for (const ic of selectedIcs) {
         const icData = {
           faculty_id: facultyId,
@@ -502,6 +517,17 @@ const UploadCvPage = () => {
           doi: ic.doi || null,
           apa_citation: ic.apa_citation || null,
           status: ic.confidence === 'low' ? 'draft' : 'under_review',
+          // Requirement 5-7: preserve the source classification, derive the AACSB
+          // reporting bucket from it, and keep records unverified until an admin acts.
+          original_cv_item_type: ic.original_cv_item_type || ic.ic_type || null,
+          ic_reporting_type: mapOriginalToReportingType(ic.original_cv_item_type || ic.ic_type),
+          record_class: classifyRecordClass({
+            originalType: ic.original_cv_item_type || ic.ic_type,
+            sourceSection: ic.source_section,
+            details: ic.title,
+          }),
+          verification_status: 'under_review',
+          canonical_key: buildCanonicalKey(ic),
           updated_at: new Date().toISOString(),
         };
         if (ic._matchedIcId && (ic._status === 'matched' || ic._status === 'updated' || ic._status === 'needs_review')) {
@@ -518,9 +544,19 @@ const UploadCvPage = () => {
           } else {
             result.icsSkipped++;
           }
-        } else if (ic._status === 'new') {
-          const { error: e } = await supabase.from('intellectual_contributions').insert(icData);
-          if (e) { console.error('[Save CV] IC insert error', e, icData); throw new Error(`IC insert failed: ${e.message}`); }
+        } else {
+          // Requirement 10: the same publication must never be duplicated for a faculty.
+          if (icData.canonical_key && seenCanonicalKeys.has(icData.canonical_key)) {
+            result.icsSkipped++;
+            continue;
+          }
+          const { error: e } = await supabase.from('intellectual_contributions').insert(icData as any);
+          if (e) {
+            if (/canonical_key/i.test(e.message)) { result.icsSkipped++; continue; }
+            console.error('[Save CV] IC insert error', e, icData);
+            throw new Error(`IC insert failed: ${e.message}`);
+          }
+          if (icData.canonical_key) seenCanonicalKeys.add(icData.canonical_key);
           result.icsInserted++;
         }
       }

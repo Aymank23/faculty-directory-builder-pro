@@ -35,6 +35,8 @@ export type ParseCvResponse = {
     services: Array<Record<string, unknown>>;
     awards: Array<Record<string, unknown>>;
     professional_experience: Array<Record<string, unknown>>;
+    academic_engagement: Array<Record<string, unknown>>;
+
   };
   warnings?: string[];
   error?: string;
@@ -60,10 +62,12 @@ const NOISE_PATTERNS: RegExp[] = [
   /^[—\-–\s]+$/,
 ];
 
+// Heading-driven section detection. Numbers differ between the Academic and the
+// Practitioner AACSB templates, so section numbers are optional everywhere.
 const MAIN_SECTION_MATCHERS: Array<{ key: string; pattern: RegExp }> = [
-  { key: "personal_info", pattern: /^#*\s*1\.?\s*personal/i },
-  { key: "qualifications", pattern: /^#*\s*2\.?\s*.*academic.*professional\s+qualifications/i },
-  { key: "professional_experience", pattern: /^#*\s*3\.?\s*professional experience/i },
+  { key: "personal_info", pattern: /^#*\s*\d*\.?\s*personal\s*&?\s*(and\s+)?academic information|^#*\s*1\.?\s*personal/i },
+  { key: "qualifications", pattern: /academic\s*&?\s*(and\s+)?(\w+\s+)?professional\s+qualifications/i },
+  { key: "professional_experience", pattern: /^#*\s*\d*\.?\s*professional experience\b/i },
   { key: "intellectual_contributions", pattern: /intellectual contributions/i },
   { key: "professional_engagement", pattern: /professional engagement activities/i },
   { key: "service", pattern: /service contributions/i },
@@ -72,11 +76,12 @@ const MAIN_SECTION_MATCHERS: Array<{ key: string; pattern: RegExp }> = [
 
 const IC_SECTION_MATCHERS: Array<{ key: string; label: string; pattern: RegExp; icType?: string }> = [
   { key: "prjs", label: "PRJs", pattern: /peer-?reviewed journal articles|\bprjs?\b/i, icType: "PRJ" },
-  { key: "books", label: "Books", pattern: /^#*\s*3\.?\s*2\.?\s*books?\b/i, icType: "Book" },
+  { key: "books", label: "Books", pattern: /^#*\s*\d+\.?\s*\d*\.?\s*books?\b/i, icType: "Book" },
   { key: "chapters", label: "Chapters", pattern: /chapters? in edited books/i, icType: "Chapter" },
   { key: "other_ics", label: "Other ICs", pattern: /other intellectual contributions/i },
   { key: "academic_engagement", label: "Academic Engagement Activities", pattern: /academic engagement activities/i },
 ];
+
 
 const SERVICE_LEVEL_RE = /^(department|school|college|university|community|professional|industry|national|international)$/i;
 const QUARTILE_RE = /^(Q[1-4]|A\*|A|B|C|NA|N\/A)$/i;
@@ -93,7 +98,7 @@ const TABLE_HEADER_PATTERNS = {
   prj: /^citation\s*\|\s*scopus\s+rank\s*\|\s*ic\s+category$/i,
   bookLike: /^citation\s*\|\s*(?:publisher(?:\s+name)?|scopus\s+rank)\s*\|\s*ic\s+category$/i,
   otherIc: [
-    /^year\s*\|\s*(?:type(?:\s+of\s+contributions?)?|type|category)\s*\|\s*(?:ic\s+category|\[___\]|action)\s*\|\s*(?:details|description)$/i,
+    /^year\s*\|\s*(?:type(?:\s+of\s+contributions?)?|type|category)\s*\|\s*(?:ic\s+category|category|\[___\]|action)\s*\|\s*(?:details|description)$/i,
     /^year\s*\|\s*category\s*\|\s*\[___\]\s*\|\s*description$/i,
   ] satisfies RegExp[],
 };
@@ -263,9 +268,15 @@ function summarizeReviewedSection<T>(lines: string[], rows: ReviewedRow<T>[], he
   };
 }
 
+const MONTH_RE = "(jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*";
+
 function looksLikeYearOrRange(value: string | null | undefined) {
   if (!value) return false;
   const normalized = normalizeBrokenNumericTokens(value);
+  const endpoint = `(?:${MONTH_RE}\\s*[-\\/\\s]\\s*)?(19|20)\\d{2}`;
+  const rangeRe = new RegExp(`^${endpoint}\\s*(?:[-–—\\/]|to)\\s*(?:${endpoint}|present|current|now|date|to date)$`, "i");
+  if (rangeRe.test(normalized)) return true;
+  if (new RegExp(`^${endpoint}$`, "i").test(normalized)) return true;
   return /^(19|20)\d{2}$/.test(normalized)
     || /^(19|20)\d{2}\s*[-–—\/]\s*((19|20)\d{2}|present|current|now)$/i.test(normalized)
     || /^(spring|summer|fall|winter)\s+(19|20)\d{2}$/i.test(normalized)
@@ -516,7 +527,15 @@ function extractAwards(lines: string[]) {
       const institution = cleanValue(cells[2]);
       const issues: string[] = [];
 
-      if (yearCell && !looksLikeYearOrRange(yearCell)) issues.push("Year column is not numeric or date-like.");
+      // Empty template row: nothing survived the placeholder filter.
+      if (!award && !yearCell && !institution) {
+        return createRow("Awards & Recognition", raw, "ignored_placeholder", [], null);
+      }
+
+
+      if (yearCell && !looksLikeYearOrRange(yearCell) && !/(19|20)\d{2}/.test(yearCell)) {
+        issues.push("Year column is not numeric or date-like.");
+      }
       if (!award) issues.push("Missing award name.");
       if ([award, institution].some((value) => HEADER_BLOB_RE.test(value || ""))) issues.push("Header text leaked into award row.");
 
@@ -544,9 +563,8 @@ function extractEngagements(lines: string[]) {
       const details = cleanValue(cells[2]);
       const issues: string[] = [];
 
-      if (fromTo && !looksLikePeriod(fromTo)) issues.push("From-To column is not period-like.");
-      if (!activity) issues.push("Missing activity.");
-      const firstCellLooksLikePeriod = looksLikePeriod(fromTo);
+      if (!activity && !details) issues.push("Missing activity and details.");
+      const firstCellLooksLikePeriod = looksLikePeriod(fromTo) || /(19|20)\d{2}/.test(fromTo || "");
       if (!firstCellLooksLikePeriod && (looksLikeCitation(activity) || looksLikeCitation(details))) {
         issues.push("Row looks like an intellectual contribution, not an engagement.");
       }
@@ -556,8 +574,8 @@ function extractEngagements(lines: string[]) {
 
       return createRow("Professional Engagement Activities", raw, "ready", [], {
         from_to: fromTo,
-        activity,
-        details,
+        activity: activity || details,
+        details: activity ? details : null,
         source_section: "Professional Engagement Activities",
       });
     },
@@ -576,10 +594,9 @@ function extractServices(lines: string[]) {
       const committeeRole = cleanValue(cells[2]);
       const issues: string[] = [];
 
-      if (fromTo && !looksLikePeriod(fromTo)) issues.push("From-To column is not period-like.");
       if (level && !looksLikeServiceLevel(level)) issues.push("Level is not a recognized service scope.");
       if (!committeeRole) issues.push("Missing committee / role.");
-      if (looksLikeCitation(committeeRole) || hasMultiRecordPattern(committeeRole)) issues.push("Row appears to contain mixed or concatenated content.");
+      if (committeeRole && committeeRole.includes(" | ")) issues.push("Row appears to contain concatenated rows.");
 
       if (issues.length > 0) return createRow("Service Contributions", raw, "needs_review", issues, null);
 
@@ -606,7 +623,6 @@ function extractProfessionalExperience(lines: string[]) {
       const responsibilities = cleanValue(cells[3]);
       const issues: string[] = [];
 
-      if (period && !looksLikePeriod(period)) issues.push("Period column is not date-like.");
       if (!organization && !positionTitle) issues.push("Missing organization and position.");
       if (hasMultiRecordPattern(responsibilities)) issues.push("Responsibilities appear to contain multiple merged rows.");
 
@@ -721,6 +737,9 @@ function buildIcEntry(base: Record<string, unknown>) {
     year: year ?? null,
     journal_outlet: journal,
     ic_type: base.ic_type || null,
+    // Requirement 5: the classification written in the source CV, preserved verbatim.
+    original_cv_item_type: (base.original_cv_item_type as string | null) || (base.ic_type as string | null) || null,
+
     ic_category: category,
     quartile,
     doi,
@@ -755,13 +774,14 @@ function extractPrjEntries(lines: string[]) {
         quartile: scopusRank,
         ic_category: icCategory,
         ic_type: "PRJ",
+        original_cv_item_type: "Peer-Reviewed Journals",
         source_section: "PRJs",
       }), "PRJ");
     },
   );
 }
 
-function extractBookLikeEntries(lines: string[], icType: string, sourceSection: string) {
+function extractBookLikeEntries(lines: string[], icType: string, sourceSection: string, originalType: string) {
   return reviewStrictTableSection(
     lines,
     sourceSection,
@@ -782,6 +802,7 @@ function extractBookLikeEntries(lines: string[], icType: string, sourceSection: 
       return createRow(sourceSection, raw, "ready", [], buildIcEntry({
         raw_text: citation,
         ic_type: icType,
+        original_cv_item_type: originalType,
         ic_category: icCategory,
         source_section: sourceSection,
         journal_outlet: publisher,
@@ -803,8 +824,14 @@ function extractOtherIcEntries(lines: string[], sourceSection: string) {
       const details = cleanValue(cells[3]);
       const issues: string[] = [];
 
-      if (yearCell && !looksLikeYearOrRange(yearCell)) issues.push("Year column is not numeric or date-like.");
-      if (!type) issues.push("Missing contribution type.");
+      // Empty template row: only the type dropdown survived the placeholder filter.
+      if (!details && !yearCell) {
+        return createRow(sourceSection, raw, "ignored_placeholder", [], null, "Other IC");
+      }
+
+      if (yearCell && !looksLikeYearOrRange(yearCell) && !/(19|20)\d{2}/.test(yearCell)) {
+        issues.push("Year column is not numeric or date-like.");
+      }
       if (icCategory && !looksLikeIcCategory(icCategory)) issues.push("IC category is not recognized.");
       if (!details) issues.push("Missing details.");
       if (hasMultiRecordPattern(details)) issues.push("Details appear to contain multiple merged rows.");
@@ -816,6 +843,7 @@ function extractOtherIcEntries(lines: string[], sourceSection: string) {
         raw_text: details,
         year: normalizeYear(yearCell || "") ?? null,
         ic_type: type,
+        original_cv_item_type: type,
         ic_category: icCategory,
         source_section: sourceSection,
       }), "Other IC");
@@ -827,8 +855,8 @@ function extractIntellectualContributionReview(lines: string[]) {
   const sections = splitIcSections(lines);
 
   const prjs = sections.prjs ? extractPrjEntries(sections.prjs) : [];
-  const books = sections.books ? extractBookLikeEntries(sections.books, "Book", "Books") : [];
-  const chapters = sections.chapters ? extractBookLikeEntries(sections.chapters, "Chapter", "Chapters") : [];
+  const books = sections.books ? extractBookLikeEntries(sections.books, "Book", "Books", "Books") : [];
+  const chapters = sections.chapters ? extractBookLikeEntries(sections.chapters, "Chapter", "Chapters", "Chapters in Edited Books") : [];
   const otherIcs = sections.other_ics ? extractOtherIcEntries(sections.other_ics, "Other Intellectual Contributions") : [];
   const academicEngagement = sections.academic_engagement ? extractOtherIcEntries(sections.academic_engagement, "Academic Engagement Activities") : [];
 
@@ -861,7 +889,12 @@ export function parseCvText(cvText: string, enableAiParsing = false): ParseCvRes
   const readyEngagements = engagementReview.filter((row) => row.status === "ready" && row.data).map((row) => row.data);
   const readyServices = serviceReview.filter((row) => row.status === "ready" && row.data).map((row) => row.data);
   const readyProfessionalExperience = professionalExperienceReview.filter((row) => row.status === "ready" && row.data).map((row) => row.data);
-  const readyIcs = [...icReview.prjs, ...icReview.books, ...icReview.chapters, ...icReview.otherIcs, ...icReview.academicEngagement]
+  const readyIcs = [...icReview.prjs, ...icReview.books, ...icReview.chapters, ...icReview.otherIcs]
+    .filter((row) => row.status === "ready" && row.data)
+    .map((row) => row.data);
+  // Requirement 8: Academic Engagement Activities are a separate section and must
+  // never contribute to Intellectual Contribution totals.
+  const readyAcademicEngagement = icReview.academicEngagement
     .filter((row) => row.status === "ready" && row.data)
     .map((row) => row.data);
 
@@ -917,7 +950,7 @@ export function parseCvText(cvText: string, enableAiParsing = false): ParseCvRes
   return {
     ok: true,
     data: {
-      cv_type: /practitioner/i.test(cvText) ? "practitioner" : "academic",
+      cv_type: /faculty cv\s*[–—-]\s*practitioner|practitioner/i.test(cvText) ? "practitioner" : "academic",
       personal_info: personalInfo,
       qualifications: readyQualifications,
       intellectual_contributions: readyIcs,
@@ -925,6 +958,7 @@ export function parseCvText(cvText: string, enableAiParsing = false): ParseCvRes
       services: readyServices,
       awards: readyAwards,
       professional_experience: readyProfessionalExperience,
+      academic_engagement: readyAcademicEngagement,
     },
     warnings,
     diagnostics: {

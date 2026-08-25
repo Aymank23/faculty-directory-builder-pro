@@ -66,9 +66,12 @@ describe('AACSB CV parser', () => {
     expect(result.data?.engagements).toHaveLength(2);
     expect(result.data?.services).toHaveLength(2);
     expect(result.data?.awards).toHaveLength(1);
-    expect(result.data?.intellectual_contributions).toHaveLength(4);
+    // Academic Engagement Activities are reported separately and must not inflate IC totals.
+    expect(result.data?.intellectual_contributions).toHaveLength(3);
+    expect(result.data?.academic_engagement).toHaveLength(1);
     expect(result.diagnostics?.section_summary?.other_ics.ready).toBe(1);
     expect(result.diagnostics?.section_summary?.academic_engagement.ready).toBe(1);
+
     expect(result.diagnostics?.section_summary?.books.ignored_placeholder).toBeGreaterThan(0);
     expect(result.diagnostics?.section_summary?.professional_engagement.ready).toBe(2);
   });

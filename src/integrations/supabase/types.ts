@@ -138,6 +138,7 @@ export type Database = {
           faculty_id: string | null
           id: string
           institution_organization: string | null
+          original_cv_item_type: string | null
           year: number | null
         }
         Insert: {
@@ -147,6 +148,7 @@ export type Database = {
           faculty_id?: string | null
           id?: string
           institution_organization?: string | null
+          original_cv_item_type?: string | null
           year?: number | null
         }
         Update: {
@@ -156,6 +158,7 @@ export type Database = {
           faculty_id?: string | null
           id?: string
           institution_organization?: string | null
+          original_cv_item_type?: string | null
           year?: number | null
         }
         Relationships: [
@@ -317,8 +320,10 @@ export type Database = {
       intellectual_contributions: {
         Row: {
           abdc_rank: string | null
+          admin_notes: string | null
           apa_citation: string | null
           authors: string | null
+          canonical_key: string | null
           created_at: string
           doi: string | null
           evidence_file_url: string | null
@@ -326,23 +331,31 @@ export type Database = {
           faculty_id: string | null
           ic_category: string | null
           ic_id: string
+          ic_reporting_type: string | null
           ic_type: string | null
           impact_factor: string | null
           indexing_database: string | null
           journal_outlet: string | null
+          original_cv_item_type: string | null
           quartile: string | null
+          reclassified_at: string | null
+          reclassified_by: string | null
+          record_class: string
           rejection_reason: string | null
           status: string | null
           title: string | null
           updated_at: string
           verification_date: string | null
+          verification_status: string
           verified_by: string | null
           year: number | null
         }
         Insert: {
           abdc_rank?: string | null
+          admin_notes?: string | null
           apa_citation?: string | null
           authors?: string | null
+          canonical_key?: string | null
           created_at?: string
           doi?: string | null
           evidence_file_url?: string | null
@@ -350,23 +363,31 @@ export type Database = {
           faculty_id?: string | null
           ic_category?: string | null
           ic_id?: string
+          ic_reporting_type?: string | null
           ic_type?: string | null
           impact_factor?: string | null
           indexing_database?: string | null
           journal_outlet?: string | null
+          original_cv_item_type?: string | null
           quartile?: string | null
+          reclassified_at?: string | null
+          reclassified_by?: string | null
+          record_class?: string
           rejection_reason?: string | null
           status?: string | null
           title?: string | null
           updated_at?: string
           verification_date?: string | null
+          verification_status?: string
           verified_by?: string | null
           year?: number | null
         }
         Update: {
           abdc_rank?: string | null
+          admin_notes?: string | null
           apa_citation?: string | null
           authors?: string | null
+          canonical_key?: string | null
           created_at?: string
           doi?: string | null
           evidence_file_url?: string | null
@@ -374,16 +395,22 @@ export type Database = {
           faculty_id?: string | null
           ic_category?: string | null
           ic_id?: string
+          ic_reporting_type?: string | null
           ic_type?: string | null
           impact_factor?: string | null
           indexing_database?: string | null
           journal_outlet?: string | null
+          original_cv_item_type?: string | null
           quartile?: string | null
+          reclassified_at?: string | null
+          reclassified_by?: string | null
+          record_class?: string
           rejection_reason?: string | null
           status?: string | null
           title?: string | null
           updated_at?: string
           verification_date?: string | null
+          verification_status?: string
           verified_by?: string | null
           year?: number | null
         }
@@ -414,6 +441,7 @@ export type Database = {
           faculty_id: string | null
           from_to: string | null
           id: string
+          original_cv_item_type: string | null
           proof_file_path: string | null
           proof_review_comment: string | null
           proof_reviewed_at: string | null
@@ -430,6 +458,7 @@ export type Database = {
           faculty_id?: string | null
           from_to?: string | null
           id?: string
+          original_cv_item_type?: string | null
           proof_file_path?: string | null
           proof_review_comment?: string | null
           proof_reviewed_at?: string | null
@@ -446,6 +475,7 @@ export type Database = {
           faculty_id?: string | null
           from_to?: string | null
           id?: string
+          original_cv_item_type?: string | null
           proof_file_path?: string | null
           proof_review_comment?: string | null
           proof_reviewed_at?: string | null
@@ -470,6 +500,7 @@ export type Database = {
           id: string
           key_responsibilities: string | null
           organization: string | null
+          original_cv_item_type: string | null
           period: string | null
           position_title: string | null
           proof_file_path: string | null
@@ -484,6 +515,7 @@ export type Database = {
           id?: string
           key_responsibilities?: string | null
           organization?: string | null
+          original_cv_item_type?: string | null
           period?: string | null
           position_title?: string | null
           proof_file_path?: string | null
@@ -498,6 +530,7 @@ export type Database = {
           id?: string
           key_responsibilities?: string | null
           organization?: string | null
+          original_cv_item_type?: string | null
           period?: string | null
           position_title?: string | null
           proof_file_path?: string | null
@@ -518,6 +551,7 @@ export type Database = {
           from_to: string | null
           id: string
           level: string | null
+          original_cv_item_type: string | null
           proof_file_path: string | null
           proof_review_comment: string | null
           proof_reviewed_at: string | null
@@ -534,6 +568,7 @@ export type Database = {
           from_to?: string | null
           id?: string
           level?: string | null
+          original_cv_item_type?: string | null
           proof_file_path?: string | null
           proof_review_comment?: string | null
           proof_reviewed_at?: string | null
@@ -550,6 +585,7 @@ export type Database = {
           from_to?: string | null
           id?: string
           level?: string | null
+          original_cv_item_type?: string | null
           proof_file_path?: string | null
           proof_review_comment?: string | null
           proof_reviewed_at?: string | null
