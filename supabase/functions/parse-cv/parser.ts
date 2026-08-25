@@ -569,8 +569,7 @@ function extractEngagements(lines: string[]) {
       return createRow("Professional Engagement Activities", raw, "ready", [], {
         from_to: fromTo,
         activity: activity || details,
-        original_cv_item_type: activity,
-        details,
+        details: activity ? details : null,
         source_section: "Professional Engagement Activities",
       });
     },
@@ -597,7 +596,6 @@ function extractServices(lines: string[]) {
 
       return createRow("Service Contributions", raw, "ready", [], {
         from_to: fromTo,
-        original_cv_item_type: level,
         level,
         committee_role: committeeRole,
         source_section: "Service Contributions",
