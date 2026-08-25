@@ -15,6 +15,8 @@ import { BarChart3, BookOpen, FileText, Clock, CheckCircle, XCircle, TrendingUp,
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend, LineChart, Line } from 'recharts';
 import { CHART_COLORS, departments, campuses, icCategories, icTypes, quartiles, icStatuses, facultyQualifications, disciplines } from '@/lib/constants';
 import { normalizeNA, isNA, normalizeDepartment, normalizeDiscipline } from '@/lib/normalize';
+import { countCanonicalIcs } from '@/lib/icTaxonomy';
+
 
 const CLASSIFICATION_COLORS: Record<string, string> = {
   SA: 'hsl(var(--chart-1))',
