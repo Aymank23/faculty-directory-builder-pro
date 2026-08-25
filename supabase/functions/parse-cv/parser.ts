@@ -527,10 +527,11 @@ function extractAwards(lines: string[]) {
       const institution = cleanValue(cells[2]);
       const issues: string[] = [];
 
-      // Empty template row: only the type dropdown survived the placeholder filter.
-      if (!details && !yearCell) {
-        return createRow(sourceSection, raw, "ignored_placeholder", [], null, "Other IC");
+      // Empty template row: nothing survived the placeholder filter.
+      if (!award && !yearCell && !institution) {
+        return createRow("Awards & Recognition", raw, "ignored_placeholder", [], null);
       }
+
 
       if (yearCell && !looksLikeYearOrRange(yearCell) && !/(19|20)\d{2}/.test(yearCell)) {
         issues.push("Year column is not numeric or date-like.");
