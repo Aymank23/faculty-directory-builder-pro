@@ -35,6 +35,8 @@ export type ParseCvResponse = {
     services: Array<Record<string, unknown>>;
     awards: Array<Record<string, unknown>>;
     professional_experience: Array<Record<string, unknown>>;
+    academic_engagement: Array<Record<string, unknown>>;
+
   };
   warnings?: string[];
   error?: string;
@@ -724,6 +726,9 @@ function buildIcEntry(base: Record<string, unknown>) {
     year: year ?? null,
     journal_outlet: journal,
     ic_type: base.ic_type || null,
+    // Requirement 5: the classification written in the source CV, preserved verbatim.
+    original_cv_item_type: (base.original_cv_item_type as string | null) || (base.ic_type as string | null) || null,
+
     ic_category: category,
     quartile,
     doi,
