@@ -497,6 +497,13 @@ const UploadCvPage = () => {
         ...(extracted.academic_engagement || []),
       ];
       console.log('[Save CV] processing', selectedIcs.length, 'selected ICs');
+      const { data: existingCanonical } = await supabase
+        .from('intellectual_contributions')
+        .select('canonical_key')
+        .eq('faculty_id', facultyId);
+      const seenCanonicalKeys = new Set(
+        ((existingCanonical || []) as any[]).map(r => r.canonical_key).filter(Boolean) as string[]
+      );
       for (const ic of selectedIcs) {
         const icData = {
           faculty_id: facultyId,
@@ -537,9 +544,19 @@ const UploadCvPage = () => {
           } else {
             result.icsSkipped++;
           }
-        } else if (ic._status === 'new') {
-          const { error: e } = await supabase.from('intellectual_contributions').insert(icData);
-          if (e) { console.error('[Save CV] IC insert error', e, icData); throw new Error(`IC insert failed: ${e.message}`); }
+        } else {
+          // Requirement 10: the same publication must never be duplicated for a faculty.
+          if (icData.canonical_key && seenCanonicalKeys.has(icData.canonical_key)) {
+            result.icsSkipped++;
+            continue;
+          }
+          const { error: e } = await supabase.from('intellectual_contributions').insert(icData as any);
+          if (e) {
+            if (/canonical_key/i.test(e.message)) { result.icsSkipped++; continue; }
+            console.error('[Save CV] IC insert error', e, icData);
+            throw new Error(`IC insert failed: ${e.message}`);
+          }
+          if (icData.canonical_key) seenCanonicalKeys.add(icData.canonical_key);
           result.icsInserted++;
         }
       }
