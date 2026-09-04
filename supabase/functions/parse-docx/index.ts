@@ -48,10 +48,16 @@ function parseWordXml(xml: string): string {
       for (const row of rows) {
         const cells = row.match(/<w:tc[ >][\s\S]*?<\/w:tc>/g) || [];
         const cellTexts = cells.map(cell => {
-          const tMatches = cell.match(/<w:t(?:\s[^>]*)?>([\s\S]*?)<\/w:t>/g) || [];
-          return tMatches.map(m => {
-            const match = m.match(/<w:t(?:\s[^>]*)?>([\s\S]*?)<\/w:t>/);
-            return match ? match[1] : '';
+          // Split the cell into paragraphs: runs inside a paragraph must be
+          // concatenated with NO separator (Word splits words across runs),
+          // while separate paragraphs are joined with a space.
+          const paras = cell.match(/<w:p(?:\s[^>]*)?>[\s\S]*?<\/w:p>/g) || [cell];
+          return paras.map(para => {
+            const tMatches = para.match(/<w:t(?:\s[^>]*)?>([\s\S]*?)<\/w:t>/g) || [];
+            return tMatches.map(m => {
+              const match = m.match(/<w:t(?:\s[^>]*)?>([\s\S]*?)<\/w:t>/);
+              return match ? match[1] : '';
+            }).join('');
           }).join(' ').replace(/\s+/g, ' ').trim();
         });
 
