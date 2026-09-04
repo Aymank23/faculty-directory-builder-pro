@@ -670,7 +670,12 @@ function parseApaCitation(citation: string): {
   // Strip DOI + any other URLs from working copy so they can't leak into journal
   let stripped = working;
   if (result.doi) stripped = stripped.split(result.doi).join(" ");
-  stripped = stripped.replace(URL_RE, " ").replace(/\s+/g, " ").trim();
+  stripped = stripped.replace(URL_RE, " ")
+    // remove leftover "doi:" / "DOI" labels so they cannot become the journal
+    .replace(/\bdoi\s*:?\s*/gi, " ")
+    .replace(/\s+/g, " ")
+    .replace(/[\s.,;:]+$/, "")
+    .trim();
 
   // 2) Year inside (YYYY)
   const yearMatch = stripped.match(/\((19|20)\d{2}[a-z]?\)/i);
