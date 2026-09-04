@@ -710,9 +710,9 @@ function parseApaCitation(citation: string): {
     let journal = sentences[1];
     // Cut at first comma followed by digits (volume marker) or "Vol." / "vol "
     journal = journal.split(/,\s*(?=\d)|\s+vol\.?\s+\d|\s+\d+\s*\(\d+\)/i)[0];
-    journal = journal.replace(/[\s.,;:]+$/, "").trim();
-    // Reject if it looks like a DOI/URL fragment or pure numbers
-    if (journal && !/^https?:|^10\.\d/i.test(journal) && !/^\d+$/.test(journal) && journal.length <= 200) {
+    journal = journal.replace(/^[\s,;:.\-–—]+/, "").replace(/[\s.,;:]+$/, "").trim();
+    // Reject if it looks like a DOI/URL fragment, a bare "doi" label, or pure numbers
+    if (journal && !/^https?:|^10\.\d/i.test(journal) && !/^doi$/i.test(journal) && !/^\d+$/.test(journal) && journal.length <= 200) {
       result.journal = journal;
     }
   }
