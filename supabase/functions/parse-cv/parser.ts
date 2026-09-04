@@ -691,7 +691,7 @@ function parseApaCitation(citation: string): {
 
   // 4) After-year remainder → title + journal
   const afterYear = yearMatch
-    ? stripped.slice(stripped.indexOf(yearMatch[0]) + yearMatch[0].length).replace(/^[\s.\-–—:]+/, "")
+    ? stripped.slice(stripped.indexOf(yearMatch[0]) + yearMatch[0].length).replace(/^[\s.,;:\-–—]+/, "")
     : stripped;
 
   // Quoted-title style: “Title”, Journal, 41(12), 2965-2976
