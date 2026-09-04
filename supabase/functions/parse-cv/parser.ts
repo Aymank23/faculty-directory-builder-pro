@@ -670,7 +670,12 @@ function parseApaCitation(citation: string): {
   // Strip DOI + any other URLs from working copy so they can't leak into journal
   let stripped = working;
   if (result.doi) stripped = stripped.split(result.doi).join(" ");
-  stripped = stripped.replace(URL_RE, " ").replace(/\s+/g, " ").trim();
+  stripped = stripped.replace(URL_RE, " ")
+    // remove leftover "doi:" / "DOI" labels so they cannot become the journal
+    .replace(/\bdoi\s*:?\s*/gi, " ")
+    .replace(/\s+/g, " ")
+    .replace(/[\s.,;:]+$/, "")
+    .trim();
 
   // 2) Year inside (YYYY)
   const yearMatch = stripped.match(/\((19|20)\d{2}[a-z]?\)/i);
@@ -686,14 +691,22 @@ function parseApaCitation(citation: string): {
 
   // 4) After-year remainder → title + journal
   const afterYear = yearMatch
-    ? stripped.slice(stripped.indexOf(yearMatch[0]) + yearMatch[0].length).replace(/^[\s.\-–—:]+/, "")
+    ? stripped.slice(stripped.indexOf(yearMatch[0]) + yearMatch[0].length).replace(/^[\s.,;:\-–—]+/, "")
     : stripped;
 
-  // Split into sentences by ". " - keep abbreviations safe enough for APA
-  const sentences = afterYear.split(/\.\s+(?=[A-Z“"])/).map((s) => s.replace(/\.\s*$/, "").trim()).filter(Boolean);
+  // Quoted-title style: “Title”, Journal, 41(12), 2965-2976
+  const quoted = afterYear.match(/^[“"]?([^“”"]+)[”"]\s*,\s*(.+)$/);
+  const sentences = quoted
+    ? [quoted[1].trim(), quoted[2].trim()]
+    // Split into sentences by ". " - keep abbreviations safe enough for APA
+    : afterYear.split(/\.\s+(?=[A-Z“"])/).map((s) => s.replace(/\.\s*$/, "").trim()).filter(Boolean);
 
   if (sentences.length > 0) {
-    result.title = sentences[0].replace(/^["“]|["”]$/g, "").trim() || null;
+    result.title = sentences[0]
+      .replace(/^[\s,;:.\-–—]+/, "")
+      .replace(/^["“]|["”]$/g, "")
+      .replace(/[\s,;:]+$/, "")
+      .trim() || null;
   }
 
   if (sentences.length > 1) {
@@ -701,9 +714,9 @@ function parseApaCitation(citation: string): {
     let journal = sentences[1];
     // Cut at first comma followed by digits (volume marker) or "Vol." / "vol "
     journal = journal.split(/,\s*(?=\d)|\s+vol\.?\s+\d|\s+\d+\s*\(\d+\)/i)[0];
-    journal = journal.replace(/[\s.,;:]+$/, "").trim();
-    // Reject if it looks like a DOI/URL fragment or pure numbers
-    if (journal && !/^https?:|^10\.\d/i.test(journal) && !/^\d+$/.test(journal) && journal.length <= 200) {
+    journal = journal.replace(/^[\s,;:.\-–—]+/, "").replace(/[\s.,;:]+$/, "").trim();
+    // Reject if it looks like a DOI/URL fragment, a bare "doi" label, or pure numbers
+    if (journal && !/^https?:|^10\.\d/i.test(journal) && !/^doi$/i.test(journal) && !/^\d+$/.test(journal) && journal.length <= 200) {
       result.journal = journal;
     }
   }
