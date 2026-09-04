@@ -681,6 +681,43 @@ export type Database = {
       canonical_department: { Args: { v: string }; Returns: string }
       canonical_discipline: { Args: { v: string }; Returns: string }
       canonical_ft_pt: { Args: { v: string }; Returns: string }
+      claim_my_faculty_profile: {
+        Args: { _employee_id?: string }
+        Returns: {
+          academic_rank: string | null
+          admin_title: string | null
+          campus: string | null
+          created_at: string
+          date_joining_aksob: string | null
+          degree_country: string | null
+          degree_institution: string | null
+          degree_major: string | null
+          department: string | null
+          discipline: string | null
+          discipline_program: string | null
+          email: string | null
+          employee_id: string | null
+          faculty_id: string
+          faculty_qualification: string | null
+          faculty_sufficiency: string | null
+          first_name: string | null
+          ft_pt_status: string | null
+          highest_degree: string | null
+          highest_degree_date: string | null
+          last_name: string | null
+          middle_names: string | null
+          tenure_status: string | null
+          title: string | null
+          updated_at: string
+          user_id: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "faculty_profiles"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       clean_cv: { Args: { v: string }; Returns: string }
       current_app_user_id: { Args: never; Returns: string }
       current_department: { Args: never; Returns: string }
