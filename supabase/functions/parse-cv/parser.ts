@@ -698,7 +698,11 @@ function parseApaCitation(citation: string): {
   const sentences = afterYear.split(/\.\s+(?=[A-Z“"])/).map((s) => s.replace(/\.\s*$/, "").trim()).filter(Boolean);
 
   if (sentences.length > 0) {
-    result.title = sentences[0].replace(/^["“]|["”]$/g, "").trim() || null;
+    result.title = sentences[0]
+      .replace(/^[\s,;:.\-–—]+/, "")
+      .replace(/^["“]|["”]$/g, "")
+      .replace(/[\s,;:]+$/, "")
+      .trim() || null;
   }
 
   if (sentences.length > 1) {
