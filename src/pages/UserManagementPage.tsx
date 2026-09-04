@@ -38,26 +38,30 @@ const UserManagementPage = () => {
       toast.error('Username, password, and full name are required');
       return;
     }
-
-    const canonDept = form.department ? normalizeDepartment(form.department) : '';
-    const { error } = await supabase.from('app_users').insert({
-      username: form.username,
-      password_hash: form.password,
-      full_name: form.full_name,
-      role: form.role,
-      // Store canonical department label so dashboard scoping matches faculty_profiles.
-      department: canonDept && canonDept !== 'N/A' ? canonDept : null,
-      campus: form.campus || null,
-    });
-
-    if (error) {
-      toast.error(error.message || 'Failed to create user');
+    if (form.password.length < 8) {
+      toast.error('Password must be at least 8 characters');
       return;
     }
 
-    await supabase.from('audit_log').insert({
-      user_id: user!.id, action: 'user_created', target_table: 'app_users', details: { username: form.username, role: form.role },
+    const canonDept = form.department ? normalizeDepartment(form.department) : '';
+    // User accounts are created server-side so credentials never pass through the browser database layer.
+    const { data, error } = await supabase.functions.invoke('admin-users', {
+      body: {
+        action: 'create',
+        username: form.username,
+        password: form.password,
+        full_name: form.full_name,
+        role: form.role,
+        // Store canonical department label so dashboard scoping matches faculty_profiles.
+        department: canonDept && canonDept !== 'N/A' ? canonDept : null,
+        campus: form.campus || null,
+      },
     });
+
+    if (error || !data?.ok) {
+      toast.error(data?.error || error?.message || 'Failed to create user');
+      return;
+    }
 
     toast.success('User created');
     setDialogOpen(false);
@@ -70,12 +74,14 @@ const UserManagementPage = () => {
     setDeleting(true);
     // Unlink any faculty_profiles tied to this app_user (don't cascade-delete their data)
     await supabase.from('faculty_profiles').update({ user_id: null }).eq('user_id', deleteTarget.user_id);
-    const { error } = await supabase.from('app_users').delete().eq('user_id', deleteTarget.user_id);
-    if (error) { toast.error(error.message || 'Delete failed'); setDeleting(false); return; }
-    await supabase.from('audit_log').insert({
-      user_id: user!.id, action: 'user_deleted', target_table: 'app_users', target_record: deleteTarget.user_id,
-      details: { username: deleteTarget.username, role: deleteTarget.role },
+    const { data, error } = await supabase.functions.invoke('admin-users', {
+      body: { action: 'delete', user_id: deleteTarget.user_id },
     });
+    if (error || !data?.ok) {
+      toast.error(data?.error || error?.message || 'Delete failed');
+      setDeleting(false);
+      return;
+    }
     toast.success(`User ${deleteTarget.username} deleted`);
     setDeleteTarget(null);
     setDeleting(false);

@@ -371,35 +371,15 @@ const UploadCvPage = () => {
       // Match by email or employee_id, then claim it by setting user_id, to avoid unique-constraint collisions.
       if (!workingProfile) {
         const pi = profileEdits || {};
-        const candidateEmail = (user as any).username || null;
-        const candidateEmpId = pi.employee_id || null;
-        const orParts: string[] = [];
-        if (candidateEmail) orParts.push(`email.eq.${candidateEmail}`);
-        if (candidateEmpId) orParts.push(`employee_id.eq.${candidateEmpId}`);
-        if (orParts.length > 0) {
-          const { data: orphan, error: orphanErr } = await supabase
-            .from('faculty_profiles')
-            .select('*')
-            .or(orParts.join(','))
-            .is('user_id', null)
-            .order('created_at', { ascending: true })
-            .limit(1)
-            .maybeSingle();
-          if (orphanErr) console.warn('[Save CV] orphan lookup error', orphanErr);
-          if (orphan) {
-            console.log('[Save CV] linking existing unclaimed profile', orphan.faculty_id);
-            const { data: claimed, error: claimErr } = await supabase
-              .from('faculty_profiles')
-              .update({ user_id: user.id })
-              .eq('faculty_id', orphan.faculty_id)
-              .select()
-              .single();
-            if (claimErr) {
-              console.error('[Save CV] failed to claim profile', claimErr);
-              throw new Error(`Could not link existing faculty profile: ${claimErr.message}`);
-            }
-            workingProfile = claimed;
-          }
+        // Server-side claim: matches only on this user's own login email or the CV employee ID.
+        const { data: claimedRows, error: claimErr } = await supabase.rpc('claim_my_faculty_profile', {
+          _employee_id: pi.employee_id || null,
+        });
+        if (claimErr) {
+          console.error('[Save CV] failed to claim profile', claimErr);
+        } else if (Array.isArray(claimedRows) && claimedRows.length > 0) {
+          console.log('[Save CV] linked existing unclaimed profile', claimedRows[0].faculty_id);
+          workingProfile = claimedRows[0];
         }
       }
 

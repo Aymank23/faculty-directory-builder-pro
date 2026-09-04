@@ -33,42 +33,65 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const stored = localStorage.getItem('aacsb_user');
-    if (stored) {
-      try {
-        setUser(JSON.parse(stored));
-      } catch {
+    let cancelled = false;
+
+    // Only trust the cached profile when a valid backend session still exists.
+    const restore = async () => {
+      const stored = localStorage.getItem('aacsb_user');
+      const { data } = await supabase.auth.getSession();
+      if (cancelled) return;
+      if (data.session && stored) {
+        try {
+          setUser(JSON.parse(stored));
+        } catch {
+          localStorage.removeItem('aacsb_user');
+        }
+      } else {
         localStorage.removeItem('aacsb_user');
+        setUser(null);
       }
-    }
-    setLoading(false);
+      setLoading(false);
+    };
+
+    restore();
+
+    const { data: sub } = supabase.auth.onAuthStateChange((event: string) => {
+      if (event === 'SIGNED_OUT') {
+        localStorage.removeItem('aacsb_user');
+        setUser(null);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+      sub.subscription.unsubscribe();
+    };
   }, []);
 
   const login = async (username: string, password: string): Promise<{ error?: string }> => {
     try {
-      const { data, error } = await supabase
-        .from('app_users')
-        .select('*')
-        .eq('username', username)
-        .eq('status', 'active')
-        .single();
+      const { data, error } = await supabase.functions.invoke('app-login', {
+        body: { username, password },
+      });
 
-      if (error || !data) {
-        return { error: 'Invalid username or password' };
+      if (error || !data?.session || !data?.user) {
+        return { error: data?.error || 'Invalid username or password' };
       }
 
-      if (data.password_hash !== password) {
-        return { error: 'Invalid username or password' };
-      }
+      const { error: sessionError } = await supabase.auth.setSession({
+        access_token: data.session.access_token,
+        refresh_token: data.session.refresh_token,
+      });
+      if (sessionError) return { error: 'Login failed. Please try again.' };
 
       const authUser: AuthUser = {
-        id: data.user_id,
-        username: data.username,
-        full_name: data.full_name,
-        role: data.role as UserRole,
-        department: data.department,
-        campus: data.campus ?? null,
-        must_change_password: data.must_change_password,
+        id: data.user.id,
+        username: data.user.username,
+        full_name: data.user.full_name,
+        role: data.user.role as UserRole,
+        department: data.user.department,
+        campus: data.user.campus ?? null,
+        must_change_password: !!data.user.must_change_password,
       };
 
       setUser(authUser);
@@ -82,6 +105,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const logout = async () => {
     setUser(null);
     localStorage.removeItem('aacsb_user');
+    await supabase.auth.signOut();
   };
 
   return (
