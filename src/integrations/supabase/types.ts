@@ -60,12 +60,13 @@ export type Database = {
       }
       app_users: {
         Row: {
+          auth_user_id: string | null
           campus: string | null
           created_at: string
           department: string | null
           full_name: string
           must_change_password: boolean
-          password_hash: string
+          password_hash: string | null
           role: string
           status: string
           updated_at: string
@@ -73,12 +74,13 @@ export type Database = {
           username: string
         }
         Insert: {
+          auth_user_id?: string | null
           campus?: string | null
           created_at?: string
           department?: string | null
           full_name: string
           must_change_password?: boolean
-          password_hash: string
+          password_hash?: string | null
           role?: string
           status?: string
           updated_at?: string
@@ -86,12 +88,13 @@ export type Database = {
           username: string
         }
         Update: {
+          auth_user_id?: string | null
           campus?: string | null
           created_at?: string
           department?: string | null
           full_name?: string
           must_change_password?: boolean
-          password_hash?: string
+          password_hash?: string | null
           role?: string
           status?: string
           updated_at?: string
@@ -647,21 +650,55 @@ export type Database = {
           },
         ]
       }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
+      can_edit_faculty: { Args: { _faculty_id: string }; Returns: boolean }
+      can_view_faculty: { Args: { _faculty_id: string }; Returns: boolean }
       canonical_department: { Args: { v: string }; Returns: string }
       canonical_discipline: { Args: { v: string }; Returns: string }
       canonical_ft_pt: { Args: { v: string }; Returns: string }
       clean_cv: { Args: { v: string }; Returns: string }
+      current_app_user_id: { Args: never; Returns: string }
+      current_department: { Args: never; Returns: string }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
+      is_admin: { Args: never; Returns: boolean }
       is_cv_noise: { Args: { v: string }; Returns: boolean }
+      is_hod: { Args: never; Returns: boolean }
       norm_doi: { Args: { v: string }; Returns: string }
       norm_text: { Args: { v: string }; Returns: string }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "hod" | "faculty"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -788,6 +825,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "hod", "faculty"],
+    },
   },
 } as const
