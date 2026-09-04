@@ -66,7 +66,7 @@ export type Database = {
           department: string | null
           full_name: string
           must_change_password: boolean
-          password_hash: string
+          password_hash: string | null
           role: string
           status: string
           updated_at: string
@@ -80,7 +80,7 @@ export type Database = {
           department?: string | null
           full_name: string
           must_change_password?: boolean
-          password_hash: string
+          password_hash?: string | null
           role?: string
           status?: string
           updated_at?: string
@@ -94,7 +94,7 @@ export type Database = {
           department?: string | null
           full_name?: string
           must_change_password?: boolean
-          password_hash?: string
+          password_hash?: string | null
           role?: string
           status?: string
           updated_at?: string
