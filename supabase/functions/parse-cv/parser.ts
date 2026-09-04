@@ -694,8 +694,12 @@ function parseApaCitation(citation: string): {
     ? stripped.slice(stripped.indexOf(yearMatch[0]) + yearMatch[0].length).replace(/^[\s.\-–—:]+/, "")
     : stripped;
 
-  // Split into sentences by ". " - keep abbreviations safe enough for APA
-  const sentences = afterYear.split(/\.\s+(?=[A-Z“"])/).map((s) => s.replace(/\.\s*$/, "").trim()).filter(Boolean);
+  // Quoted-title style: “Title”, Journal, 41(12), 2965-2976
+  const quoted = afterYear.match(/^[“"]?([^“”"]+)[”"]\s*,\s*(.+)$/);
+  const sentences = quoted
+    ? [quoted[1].trim(), quoted[2].trim()]
+    // Split into sentences by ". " - keep abbreviations safe enough for APA
+    : afterYear.split(/\.\s+(?=[A-Z“"])/).map((s) => s.replace(/\.\s*$/, "").trim()).filter(Boolean);
 
   if (sentences.length > 0) {
     result.title = sentences[0]
