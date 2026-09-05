@@ -97,11 +97,12 @@ The same corrections applied to the rest of the records, plus consistent normali
 
 
 
-**Phase 3 — Admin review screen**
+**Phase 4 — Admin review screen**
 Add: change reporting type, change Basic/Applied/Pedagogical, move between publication and Academic Engagement, view/upload evidence, Verify, return to Under Review, Exclude — all recorded in the audit log.
 
-**Phase 4 — Practitioner fields**
-Add "Not Applicable" to Rank and Tenure, "Adjunct" to staffing, and normalise equivalents in profile, directory filters and exports.
+**Phase 5 — Practitioner / staffing fields**
+Add "Not Applicable" to Academic Rank and Tenure Status, "Adjunct" to FT/PT Status, and normalise equivalent existing values consistently. Adjunct is a faculty status only — no new account type or login role is created. If none of the four pilot profiles is Adjunct, this option is tested separately later on an appropriate existing profile.
+
 
 **Phase 5 — Excel export rebuild**
 Sheet 1 Summary (totals by reporting type, category, department, discipline, year, quartile). Sheet 2 Supporting Records with the exact agreed columns including Employee ID and the shared-record marker. Totals must equal the dashboard.
