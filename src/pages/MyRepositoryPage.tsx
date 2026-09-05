@@ -19,12 +19,10 @@ import { toast } from 'sonner';
 import { getEvidenceUrl } from '@/lib/evidence';
 import * as XLSX from 'xlsx';
 
-const statusVariant = (s: string) => {
-  if (s === 'verified') return 'default' as const;
-  if (s === 'under_review') return 'secondary' as const;
-  if (s === 'rejected') return 'destructive' as const;
-  return 'outline' as const;
-};
+import { verificationStatusOf, verificationVariant, verificationLabel, VERIFICATION_STATUSES, VERIFICATION_STATUS_LABELS } from '@/lib/icMetrics';
+
+const statusVariant = (ic: any) => verificationVariant(ic);
+
 
 const MyRepositoryPage = () => {
   const { user } = useAuth();
