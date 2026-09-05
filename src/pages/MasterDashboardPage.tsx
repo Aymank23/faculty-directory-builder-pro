@@ -15,7 +15,7 @@ import { BarChart3, BookOpen, FileText, Clock, CheckCircle, XCircle, TrendingUp,
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend, LineChart, Line } from 'recharts';
 import { CHART_COLORS, departments, campuses, icCategories, icTypes, quartiles, icStatuses, facultyQualifications, disciplines } from '@/lib/constants';
 import { normalizeNA, isNA, normalizeDepartment, normalizeDiscipline } from '@/lib/normalize';
-import { icStats, countSchoolIcs, verificationStatusOf, onlyIcs, onlyAcademicEngagement } from '@/lib/icMetrics';
+import { VERIFICATION_STATUSES, VERIFICATION_STATUS_LABELS, icStats, countSchoolIcs, verificationStatusOf, onlyIcs, onlyAcademicEngagement } from '@/lib/icMetrics';
 
 
 const CLASSIFICATION_COLORS: Record<string, string> = {
@@ -235,7 +235,7 @@ const MasterDashboardPage = () => {
             <SelectTrigger className="w-36"><SelectValue placeholder="Status" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Statuses</SelectItem>
-              {icStatuses.map(s => <SelectItem key={s} value={s} className="capitalize">{s.replace('_', ' ')}</SelectItem>)}
+              {VERIFICATION_STATUSES.map(s => <SelectItem key={s} value={s}>{VERIFICATION_STATUS_LABELS[s]}</SelectItem>)}
             </SelectContent>
           </Select>
           <div className="flex items-center gap-2">
