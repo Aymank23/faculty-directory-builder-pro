@@ -22,11 +22,27 @@ The uploaded CV files for all four faculty are available locally, so re-reading 
 
 ## Approach
 
-### Step 1 — Extract ground truth from each source CV
-For each of the four CVs, produce a complete machine-readable inventory of every table row in every section: Qualifications, Professional Experience, Intellectual Contributions (all sub-tables: PRJ, books, chapters, proceedings, presentations, grants, cases, other), Academic Engagement, Professional Engagement, Service, Awards. Placeholder/empty template rows are counted as invalid and listed separately, so "valid rows" is an auditable number.
+The reconciliation chain is explicit and has five stages, each compared against the next:
 
-### Step 2 — Match source rows to stored rows
-Match by normalized DOI, then normalized title+year, then normalized activity/role+period. Every source row is labelled: matched, matched-but-misfiled (right data, wrong section), missing (never extracted), or duplicate. Every stored row with no source match is labelled extra (kept and flagged, never silently deleted — it may be a manual addition).
+```text
+Source DOCX content
+  -> independent source inventory (built without the production parser)
+  -> production parser output
+  -> stored database records
+  -> records displayed on the dashboards
+```
+
+### Step 1 — Independent source inventory (no production parser)
+Read each DOCX package directly and walk tables and paragraphs in true document order, capturing every heading, table, row and cell verbatim. From that raw dump, build a section-by-section inventory by hand-verified rules — section headings as they literally appear in the AACSB template, one entry per source table row. Placeholder/empty template rows are listed separately so "valid rows" is an auditable number. Each inventory row keeps its section, row index and raw cell text so any later claim can be traced back to a specific cell.
+
+This inventory is the ground truth. The production parser is not used to build it, because the point of the exercise is to catch what the parser missed.
+
+### Step 2 — Run the production parser and diff it against the inventory
+Run `parse-cv` locally over the same four files and compare row-for-row with the inventory. Every difference (missing row, merged rows, wrong section, wrong column) is recorded as a **parser defect**, with the source cell that proves it. Defects are fixed in the parser and the diff is re-run until the parser reproduces the inventory, before any data is written.
+
+### Step 3 — Diff inventory against the stored database, then against the dashboards
+Match by normalized DOI, then normalized title+year, then normalized activity/role+period. Every source row is labelled: matched, matched-but-misfiled (right data, wrong section), missing (never extracted), or duplicate. Every stored row with no source match is labelled extra and kept with a flag — never silently deleted, since it may be a manual addition. Finally, the corrected records are read back through the actual dashboard pages (Faculty Overview, My Repository, My Analytics, Admin Faculty Profile, Master Dashboard, Export) to confirm what is displayed matches what is stored.
+
 
 ### Step 3 — Correct the four profiles only
 - Insert missing valid rows into the correct section.
