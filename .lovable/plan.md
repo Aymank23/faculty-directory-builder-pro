@@ -104,16 +104,16 @@ Add: change reporting type, change Basic/Applied/Pedagogical, move between publi
 Add "Not Applicable" to Academic Rank and Tenure Status, "Adjunct" to FT/PT Status, and normalise equivalent existing values consistently. Adjunct is a faculty status only — no new account type or login role is created. If none of the four pilot profiles is Adjunct, this option is tested separately later on an appropriate existing profile.
 
 
-**Phase 5 — Excel export rebuild**
+**Phase 6 — Excel export rebuild**
 Sheet 1 Summary (totals by reporting type, category, department, discipline, year, quartile). Sheet 2 Supporting Records with the exact agreed columns including Employee ID and the shared-record marker. Totals must equal the dashboard.
 
-**Phase 6 — Faculty-facing reporting type**
+**Phase 7 — Faculty-facing reporting fields**
 Show reporting type and record class (publication vs Academic Engagement) read-only in the faculty repository and profile.
 
 ## Regression testing plan
 
 End-to-end per test faculty (stored CV → stored records → profile → classification → verification → faculty dashboard → admin dashboard → master dashboard → export), checking values against the source CV, not just "it loaded":
-- one academic full-time CV, one practitioner/part-time CV, one adjunct
+- academic full-time CV, practitioner/part-time CV, and an adjunct profile (tested separately if no pilot profile is adjunct)
 - a publication shared by two AKSOB faculty (visible on both profiles, counted once at school level)
 - a re-processed CV (must create no duplicates)
 - one record in each of Verified / Under Review / Excluded, confirming only Verified reaches totals and that dashboard totals equal export totals
@@ -121,4 +121,5 @@ End-to-end per test faculty (stored CV → stored records → profile → classi
 
 ## Note
 
-No project migration, rebuild, new backend or account removal is involved. All work is in place on the existing application, and Phase 1 only fills blank or demonstrably wrong values — manually corrected entries are left untouched.
+No project migration, rebuild, new backend, new login system, account removal or CV re-upload is involved. All work is in place on the existing application; corrections only fill blank or demonstrably wrong values, and manually corrected entries, accounts and uploaded proofs are left untouched.
+
