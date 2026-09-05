@@ -15,7 +15,7 @@ import { BarChart3, BookOpen, FileText, Clock, CheckCircle, XCircle, TrendingUp,
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend, LineChart, Line } from 'recharts';
 import { CHART_COLORS, departments, campuses, icCategories, icTypes, quartiles, icStatuses, facultyQualifications, disciplines } from '@/lib/constants';
 import { normalizeNA, isNA, normalizeDepartment, normalizeDiscipline } from '@/lib/normalize';
-import { countCanonicalIcs } from '@/lib/icTaxonomy';
+import { icStats, countSchoolIcs, verificationStatusOf, onlyIcs, onlyAcademicEngagement } from '@/lib/icMetrics';
 
 
 const CLASSIFICATION_COLORS: Record<string, string> = {
@@ -63,7 +63,7 @@ const MasterDashboardPage = () => {
   const toYear = parseInt(yearTo) || new Date().getFullYear();
   // Requirement 11: Academic Engagement records live in the same table but must
   // never be counted as Intellectual Contributions.
-  const ics = allIcs.filter(ic => (ic.record_class || 'ic') === 'ic').filter(ic => {
+  const ics = onlyIcs(allIcs).filter(ic => {
     const fac = facultyMap[ic.faculty_id];
     if (deptFilter !== 'all' && normalizeDepartment(fac?.department) !== deptFilter) return false;
     if (disciplineFilter !== 'all' && normalizeDiscipline(fac?.discipline) !== disciplineFilter) return false;
@@ -72,7 +72,7 @@ const MasterDashboardPage = () => {
     if (categoryFilter !== 'all' && ic.ic_category !== categoryFilter) return false;
     if (typeFilter !== 'all' && ic.ic_type !== typeFilter) return false;
     if (quartileFilter !== 'all' && ic.quartile !== quartileFilter) return false;
-    if (statusFilter !== 'all' && ic.status !== statusFilter) return false;
+    if (statusFilter !== 'all' && verificationStatusOf(ic) !== statusFilter) return false;
     return true;
   });
 
@@ -83,13 +83,14 @@ const MasterDashboardPage = () => {
     return true;
   });
 
-  const academicEngagement = allIcs.filter(ic => ic.record_class === 'academic_engagement');
-  const verified = ics.filter(ic => (ic.verification_status || ic.status) === 'verified');
-  const underReview = ics.filter(ic => (ic.verification_status || ic.status) === 'under_review');
-  const rejected = ics.filter(ic => ['excluded', 'rejected'].includes(ic.verification_status || ic.status));
-  const needsReviewType = ics.filter(ic => (ic.ic_reporting_type || 'Needs Review') === 'Needs Review');
-  // School-level total: shared publications count once.
-  const schoolUniqueIcs = countCanonicalIcs(ics);
+  const stats = icStats(ics);
+  const academicEngagement = onlyAcademicEngagement(allIcs);
+  const verified = stats.verified;
+  const underReview = stats.underReview;
+  const rejected = stats.excluded;
+  const needsReviewType = stats.needsReportingType;
+  // School-level total: eligible ICs only, shared publications counted once.
+  const schoolUniqueIcs = countSchoolIcs(ics);
   const prjs = ics.filter(ic => ic.ic_type === 'PRJ');
   const q1 = ics.filter(ic => ic.quartile === 'Q1');
 
