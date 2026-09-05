@@ -17,7 +17,7 @@ import CvSectionCard from '@/components/CvSectionCard';
 import { useAuth } from '@/contexts/AuthContext';
 
 
-const VALID_IC_TYPES = new Set(['PRJ', 'Book', 'Chapter']);
+import { icStats, verificationLabel } from '@/lib/icMetrics';
 
 const AdminFacultyProfilePage = () => {
   const { user } = useAuth();
@@ -80,9 +80,11 @@ const AdminFacultyProfilePage = () => {
     enabled: !!id,
   });
 
-  const validIcs = ics.filter(ic => VALID_IC_TYPES.has(ic.ic_type || ''));
+  const stats = icStats(ics);
+  const validIcs = stats.allIcRecords;
   const prjs = validIcs.filter(ic => ic.ic_type === 'PRJ');
   const q1 = validIcs.filter(ic => ic.quartile === 'Q1');
+
 
   if (isLoading) {
     return <AppLayout><p className="text-sm text-muted-foreground">Loading…</p></AppLayout>;

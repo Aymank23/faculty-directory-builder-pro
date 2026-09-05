@@ -12,12 +12,10 @@ import { supabase } from '@/lib/supabase';
 import { useQuery } from '@tanstack/react-query';
 import { FileText, BookOpen, BarChart3, TrendingUp, Award, Upload, Trophy, Info } from 'lucide-react';
 
-const statusVariant = (s: string) => {
-  if (s === 'verified') return 'default' as const;
-  if (s === 'under_review') return 'secondary' as const;
-  if (s === 'rejected') return 'destructive' as const;
-  return 'outline' as const;
-};
+import { icStats, verificationVariant, verificationLabel } from '@/lib/icMetrics';
+
+const statusVariant = (ic: any) => verificationVariant(ic);
+
 
 const FacultyOverviewPage = () => {
   const { user } = useAuth();

@@ -7,6 +7,8 @@ import { supabase } from '@/lib/supabase';
 import { useQuery } from '@tanstack/react-query';
 import { Building2, Users, FileText, CheckCircle, Clock } from 'lucide-react';
 import { normalizeDepartment } from '@/lib/normalize';
+import { icStats } from '@/lib/icMetrics';
+
 
 const DepartmentOverviewPage = () => {
   const { user } = useAuth();
@@ -35,8 +37,10 @@ const DepartmentOverviewPage = () => {
     enabled: facultyIds.length > 0,
   });
 
-  const verified = ics.filter(ic => ic.status === 'verified').length;
-  const pending = ics.filter(ic => ic.status === 'under_review').length;
+  const stats = icStats(ics);
+  const verified = stats.verified.length;
+  const pending = stats.underReview.length;
+
 
   return (
     <AppLayout>
