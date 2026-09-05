@@ -43,8 +43,7 @@ Run `parse-cv` locally over the same four files and compare row-for-row with the
 ### Step 3 — Diff inventory against the stored database, then against the dashboards
 Match by normalized DOI, then normalized title+year, then normalized activity/role+period. Every source row is labelled: matched, matched-but-misfiled (right data, wrong section), missing (never extracted), or duplicate. Every stored row with no source match is labelled extra and kept with a flag — never silently deleted, since it may be a manual addition. Finally, the corrected records are read back through the actual dashboard pages (Faculty Overview, My Repository, My Analytics, Admin Faculty Profile, Master Dashboard, Export) to confirm what is displayed matches what is stored.
 
-
-### Step 3 — Correct the four profiles only
+### Step 4 — Correct the four profiles only
 - Insert missing valid rows into the correct section.
 - Move misfiled rows to their correct section (Samar Aad's publications out of Engagement/Service; Academic vs Professional Engagement separation).
 - Merge remaining duplicates by canonical key.
@@ -53,11 +52,14 @@ Match by normalized DOI, then normalized title+year, then normalized activity/ro
 - All newly recovered or reclassified records stay **Under Review**. Nothing is auto-verified.
 - Discipline is never inferred.
 
-### Step 4 — Corrected reconciliation report
-One table per faculty, one row per CV section, with the requested columns: Source CV valid rows | Stored rows | Missing rows recovered | Duplicates merged | Final section/classification | Remaining discrepancy. Contribution rows always show total / IC / Academic Engagement separately so the two classes are never double-counted. A separate list records every parser defect found and fixed. Any row that cannot be resolved is listed explicitly as a remaining discrepancy with the reason, rather than being hidden.
+### Step 5 — Corrected reconciliation report
+One table per faculty, one row per CV section, with the requested columns: Source CV valid rows | Stored rows | Missing rows recovered | Duplicates merged | Final section/classification | Remaining discrepancy. Contribution rows always show total / IC / Academic Engagement separately so the two classes are never double-counted. A separate list records every parser defect found and fixed.
 
-### Step 5 — Stop
+**Full accounting rule:** every valid source-CV row lands in exactly one final category — Intellectual Contribution, Academic Engagement, Professional Engagement, Professional Experience, Qualification, Service, Award, merged duplicate, excluded, or Needs Review — or it is listed by name in an "Unresolved" list with the reason. Per faculty, the section totals plus the unresolved list must add up to the source valid-row count, and the report prints that arithmetic check so no row can disappear silently.
+
+### Step 6 — Stop
 Deliver the corrected report and wait for approval. No backfill of the remaining ~192 faculty.
+
 
 ## Technical notes
 
