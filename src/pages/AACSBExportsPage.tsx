@@ -10,6 +10,7 @@ import { FileSpreadsheet } from 'lucide-react';
 import { departments, disciplines } from '@/lib/constants';
 import { normalizeDepartment, normalizeDiscipline } from '@/lib/normalize';
 import * as XLSX from 'xlsx';
+import { eligibleIcs, onlyAcademicEngagement, verificationLabel } from '@/lib/icMetrics';
 
 const AACSBExportsPage = () => {
   const [deptFilter, setDeptFilter] = useState('all');
@@ -35,9 +36,7 @@ const AACSBExportsPage = () => {
 
   // Requirement 14: export verified ICs only, with the source classification and
   // the AACSB reporting type side by side. Academic Engagement is exported separately.
-  const reportableIcs = ics.filter((ic: any) =>
-    (ic.record_class || 'ic') === 'ic' && (ic.verification_status || ic.status) === 'verified'
-  );
+  const reportableIcs = eligibleIcs(ics);
 
   const exportRows = reportableIcs.filter(ic => {
     const fac = facultyMap[ic.faculty_id];
@@ -67,8 +66,7 @@ const AACSBExportsPage = () => {
     };
   });
 
-  const engagementRows = ics
-    .filter((ic: any) => ic.record_class === 'academic_engagement')
+  const engagementRows = onlyAcademicEngagement(ics)
     .map((ic: any) => {
       const fac = facultyMap[ic.faculty_id];
       return {
@@ -78,7 +76,7 @@ const AACSBExportsPage = () => {
         'Original CV Item Type': ic.original_cv_item_type || '',
         'Year': ic.year || '',
         'Activity': ic.title || '',
-        'Verification Status': ic.verification_status || ic.status || '',
+        'Verification Status': verificationLabel(ic),
       };
     });
 

@@ -80,7 +80,7 @@ function norm(v: unknown): string {
 
 // Explicit initial mapping (requirement 7).
 const REPORTING_MAP: Array<[RegExp, IcReportingType]> = [
-  [/^peer reviewed journals?$|^prj s?$|peer reviewed journal articles?/, 'Peer-Reviewed Journals'],
+  [/^peer reviewed journals?$|^prjs?$|peer reviewed journal articles?/, 'Peer-Reviewed Journals'],
   [/academic conference proceeding|conference proceedings?/, 'Peer-Reviewed Academic/Professional Meeting Proceedings'],
   [/academic conference paper presentation|paper presentation/, 'Academic/Professional Meeting Presentations'],
   [/keynote speaker/, 'Academic/Professional Meeting Presentations'],
@@ -92,7 +92,7 @@ const REPORTING_MAP: Array<[RegExp, IcReportingType]> = [
   [/^case stud(y|ies)$/, 'Case Studies'],
   [/^books?$/, 'Other IC Type Selected by the School'],
   [/scholarly book(?!s, annals)/, 'Other IC Type Selected by the School'],
-  [/chapters? in edited books?/, 'Other IC Type Selected by the School'],
+  [/^chapters?$|chapters? in edited books?/, 'Other IC Type Selected by the School'],
   [/chapter in scholarly books/, 'Other IC Type Selected by the School'],
   [/editorial position/, 'Other IC Type Selected by the School'],
   [/working paper/, 'Other IC Type Selected by the School'],
@@ -112,6 +112,7 @@ const NEEDS_REVIEW_MAP: RegExp[] = [
  */
 const ACADEMIC_ENGAGEMENT_TYPE_PATTERNS: RegExp[] = [
   /journal reviewer/,
+  /developing accreditation standards|curriculum guidelines|academic frameworks/,
   /guest lectures? or workshops?/,
   /reviewer for/,
 ];

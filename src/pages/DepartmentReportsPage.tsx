@@ -10,6 +10,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Users, FileText, CheckCircle, TrendingUp, BookOpen, BarChart3 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 import { CHART_COLORS, disciplines } from '@/lib/constants';
+import { icStats, verificationStatusOf } from '@/lib/icMetrics';
 import { normalizeNA, normalizeDepartment, normalizeDiscipline } from '@/lib/normalize';
 
 const DepartmentReportsPage = () => {
@@ -35,7 +36,7 @@ const DepartmentReportsPage = () => {
   const facultyIds = filteredFaculty.map((f: any) => f.faculty_id);
   const facultyMap = Object.fromEntries(filteredFaculty.map((f: any) => [f.faculty_id, f]));
 
-  const { data: ics = [] } = useQuery({
+  const { data: icsRaw = [] } = useQuery({
     queryKey: ['dept-report-ics', facultyIds],
     queryFn: async () => {
       if (facultyIds.length === 0) return [];
@@ -45,7 +46,9 @@ const DepartmentReportsPage = () => {
     enabled: facultyIds.length > 0,
   });
 
-  const verified = ics.filter(ic => ic.status === 'verified');
+  const stats = icStats(icsRaw);
+  const ics = stats.allIcRecords;
+  const verified = stats.verified;
   const prjs = ics.filter(ic => ic.ic_type === 'PRJ');
   const q1 = ics.filter(ic => ic.quartile === 'Q1');
 
@@ -57,7 +60,7 @@ const DepartmentReportsPage = () => {
   ics.forEach(ic => {
     if (!perFaculty[ic.faculty_id]) return;
     perFaculty[ic.faculty_id].total++;
-    if (ic.status === 'verified') perFaculty[ic.faculty_id].verified++;
+    if (verificationStatusOf(ic) === 'verified') perFaculty[ic.faculty_id].verified++;
     if (ic.ic_type === 'PRJ') perFaculty[ic.faculty_id].prjs++;
   });
   const perFacultyData = Object.values(perFaculty).sort((a, b) => b.total - a.total);

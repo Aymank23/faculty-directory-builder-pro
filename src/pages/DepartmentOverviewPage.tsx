@@ -7,6 +7,8 @@ import { supabase } from '@/lib/supabase';
 import { useQuery } from '@tanstack/react-query';
 import { Building2, Users, FileText, CheckCircle, Clock } from 'lucide-react';
 import { normalizeDepartment } from '@/lib/normalize';
+import { icStats } from '@/lib/icMetrics';
+
 
 const DepartmentOverviewPage = () => {
   const { user } = useAuth();
@@ -35,8 +37,10 @@ const DepartmentOverviewPage = () => {
     enabled: facultyIds.length > 0,
   });
 
-  const verified = ics.filter(ic => ic.status === 'verified').length;
-  const pending = ics.filter(ic => ic.status === 'under_review').length;
+  const stats = icStats(ics);
+  const verified = stats.verified.length;
+  const pending = stats.underReview.length;
+
 
   return (
     <AppLayout>
@@ -56,7 +60,7 @@ const DepartmentOverviewPage = () => {
 
         <div data-tour="kpi-row" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <KpiCard title="Faculty Members" value={deptFaculty.length} icon={Users} />
-          <KpiCard title="Total ICs" value={ics.length} icon={FileText} />
+          <KpiCard title="Total ICs" value={stats.allIcRecords.length} icon={FileText} />
           <KpiCard title="Verified" value={verified} icon={CheckCircle} variant="success" />
           <KpiCard title="Pending Review" value={pending} icon={Clock} variant="warning" />
         </div>

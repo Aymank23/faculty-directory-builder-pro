@@ -12,12 +12,10 @@ import { supabase } from '@/lib/supabase';
 import { useQuery } from '@tanstack/react-query';
 import { FileText, BookOpen, BarChart3, TrendingUp, Award, Upload, Trophy, Info } from 'lucide-react';
 
-const statusVariant = (s: string) => {
-  if (s === 'verified') return 'default' as const;
-  if (s === 'under_review') return 'secondary' as const;
-  if (s === 'rejected') return 'destructive' as const;
-  return 'outline' as const;
-};
+import { icStats, verificationVariant, verificationLabel } from '@/lib/icMetrics';
+
+const statusVariant = (ic: any) => verificationVariant(ic);
+
 
 const FacultyOverviewPage = () => {
   const { user } = useAuth();
@@ -59,7 +57,9 @@ const FacultyOverviewPage = () => {
     enabled: !!profile,
   });
 
+  const stats = icStats(ics);
   const prjs = ics.filter(ic => ic.ic_type === 'PRJ').length;
+
   const q1 = ics.filter(ic => ic.quartile === 'Q1').length;
   const q2 = ics.filter(ic => ic.quartile === 'Q2').length;
   const q3 = ics.filter(ic => ic.quartile === 'Q3').length;
@@ -162,8 +162,9 @@ const FacultyOverviewPage = () => {
 
         {/* Primary KPIs — hover info icon to preview details */}
         <div data-tour="kpi-row" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <KpiWithHover title="Total ICs" value={ics.length} icon={FileText}
+          <KpiWithHover title="Total ICs" value={stats.allIcRecords.length} icon={FileText}
             tooltipTitle="Recent contributions" tooltipLines={allSample} />
+
           <KpiWithHover title="Total PRJs" value={prjs} icon={BookOpen}
             tooltipTitle="Peer-Reviewed Journals" tooltipLines={prjSample} />
           <KpiWithHover title="Q1 Publications" value={q1} icon={TrendingUp} variant="success"
@@ -214,9 +215,10 @@ const FacultyOverviewPage = () => {
                       <TableCell>{ic.year || '—'}</TableCell>
                       <TableCell>{ic.quartile || '—'}</TableCell>
                       <TableCell>
-                        <Badge variant={statusVariant(ic.status)} className="capitalize text-xs">
-                          {ic.status.replace('_', ' ')}
+                        <Badge variant={statusVariant(ic)} className="capitalize text-xs">
+                          {verificationLabel(ic)}
                         </Badge>
+
                       </TableCell>
                     </TableRow>
                   ))}
