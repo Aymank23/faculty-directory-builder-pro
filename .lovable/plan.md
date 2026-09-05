@@ -4,12 +4,15 @@ The previous pilot only cleaned rows that were already in the database. This pla
 
 ## What the current data shows (verified now)
 
-| Faculty | ICs | Academic Engagement | Qualifications | Prof. Experience | Prof. Engagement | Service | Awards |
-|---|---|---|---|---|---|---|---|
-| Annelie Moukaddem Baalbaki | 18 | 15 | 2 | 0 | 11 | 7 | 0 |
-| Anne-Marie Boustani | 0 | 0 | 2 | 4 | 4 | 0 | 0 |
-| Maya Farah Jibai | 46 | 0 | 4 | 0 | 4 | 7 | 2 |
-| Samar Aad | 9 | 0 | 5 | 0 | 48 | 54 | 0 |
+| Faculty | Contribution rows (total) | of which ICs | of which Academic Engagement | Qualifications | Prof. Experience | Prof. Engagement | Service | Awards |
+|---|---|---|---|---|---|---|---|---|
+| Annelie Moukaddem Baalbaki | 18 | 3 | 15 | 2 | 0 | 11 | 7 | 0 |
+| Anne-Marie Boustani | 0 | 0 | 0 | 2 | 4 | 4 | 0 | 0 |
+| Maya Farah Jibai | 46 | 46 | 0 | 4 | 0 | 4 | 7 | 2 |
+| Samar Aad | 9 | 9 | 0 | 5 | 0 | 48 | 54 | 0 |
+
+The two classes are mutually exclusive: Annelie's 18 rows are 3 research contributions **plus** 15 Academic Engagement entries, not 18 in addition to 15. The corrected report will always show total / IC / Academic Engagement side by side so this cannot be misread.
+
 
 Two red flags confirm the user's findings:
 - Samar Aad has only 9 contributions but 48 Professional Engagement and 54 Service rows — publications were almost certainly filed into the wrong sections by an older import.
