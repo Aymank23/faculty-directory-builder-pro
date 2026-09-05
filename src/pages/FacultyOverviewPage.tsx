@@ -57,7 +57,9 @@ const FacultyOverviewPage = () => {
     enabled: !!profile,
   });
 
+  const stats = icStats(ics);
   const prjs = ics.filter(ic => ic.ic_type === 'PRJ').length;
+
   const q1 = ics.filter(ic => ic.quartile === 'Q1').length;
   const q2 = ics.filter(ic => ic.quartile === 'Q2').length;
   const q3 = ics.filter(ic => ic.quartile === 'Q3').length;
