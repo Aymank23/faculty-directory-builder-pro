@@ -53,18 +53,37 @@ Accounts in the system: Admin (1), Faculty (188), Head of Department (role exist
 4. **Review screen predates the rules,** so admins have no way to reclassify or reopen a record.
 5. **Head-of-Department view is effectively dead** — no account holds that role, so nothing there has ever been exercised.
 
+## Mandatory safeguards (agreed)
+
+1. Take a full backup of the database (all tables exported and stored) before any correction runs. Nothing is changed until the backup is confirmed.
+2. Phase 1 runs on **four test profiles only** first: Annelie Baalbaki, Anne-Marie Boustani, Maya Farah, Samar Aad — using their already stored CVs. No re-upload.
+3. Backfilled records stay **Under Review**. Nothing is auto-verified; an existing verified decision is kept as-is.
+4. One shared counting/classification service used by every dashboard. No page keeps its own counting rules.
+5. The three-state verification field becomes the single authoritative status; the old status field is retired from all reads and kept only as a legacy copy so nothing breaks mid-migration.
+6. After the four-profile run, a reconciliation report (source CV record vs stored record vs what each view displays, plus every remaining discrepancy) is delivered and **work stops for your approval** before touching the other faculty.
+7. Manually corrected values are never overwritten — corrections only fill blank or demonstrably wrong fields, and any row that was edited by a person is left untouched.
+
 ## Implementation plan (in order)
 
-**Phase 1 — Repair stored data (no re-upload, no overwriting of manual corrections)**
-1. Re-derive Authors / Title / Year / Outlet / DOI for the 525 malformed records and the outlet/author-fragment cases, only where the field is blank or clearly wrong.
-2. Assign the AACSB reporting type to all 1,520 records from their Original CV Item Type, leaving genuinely ambiguous ones at Needs Review.
+**Phase 0 — Backup**
+Export every table to a downloadable file set and confirm row counts against the live database.
+
+**Phase 1a — Pilot on the four test profiles (then STOP)**
+1. Re-derive Authors / Title / Year / Outlet / DOI / Quartile from the stored citation text where a field is blank or clearly wrong (title holding the whole citation, outlet showing "DOI" or an author fragment).
+2. Assign the AACSB reporting type from the Original CV Item Type; genuinely ambiguous items stay Needs Review.
 3. Move reviewing, guest lectures/workshops, conference chairing, online-course design/training and accreditation items to Academic Engagement.
 4. Fill the shared-publication matching key (identifier, else title + year).
-5. Fill Basic/Applied/Pedagogical where the item type makes it unambiguous.
-6. Normalise staffing values ("Part timer" → Part-Time) and fill Discipline where the department implies it; report the rest for your decision.
+5. Fill Basic/Applied/Pedagogical only where the item type makes it unambiguous.
+6. Confirm practitioner Professional Experience rows are populated for Baalbaki and Boustani.
+7. Walk each of the four end to end: stored CV → fields → profile sections → item type → reporting type → engagement split → verification state → Faculty dashboard → Admin dashboard → Master dashboard → export, checking values against the source CV.
+8. Deliver the reconciliation report and stop for approval.
+
+**Phase 1b — Remaining faculty (only after approval)**
+Same six corrections applied to the other records, plus normalising staffing values ("Part timer" → Part-Time) and filling Discipline where the department implies it; anything ambiguous is listed for your decision rather than guessed.
 
 **Phase 2 — One counting rule everywhere**
-Route faculty overview, my repository, my analytics, department overview, department reports, admin faculty profile, master dashboard and export through the single shared rule (eligible = publication-class + Verified + a real reporting type; school totals de-duplicated by the shared key).
+Route faculty overview, my repository, my analytics, department overview, department reports, admin faculty profile, master dashboard and export through the single shared service (eligible = publication-class + Verified + a real reporting type; school totals de-duplicated by the shared key), and switch every screen off the old status field.
+
 
 **Phase 3 — Admin review screen**
 Add: change reporting type, change Basic/Applied/Pedagogical, move between publication and Academic Engagement, view/upload evidence, Verify, return to Under Review, Exclude — all recorded in the audit log.
