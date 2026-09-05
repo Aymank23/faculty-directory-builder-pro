@@ -148,7 +148,7 @@ const MyRepositoryPage = () => {
 
   const filtered = ics.filter(ic => {
     const matchSearch = !search || (ic.title || '').toLowerCase().includes(search.toLowerCase()) || (ic.authors || '').toLowerCase().includes(search.toLowerCase());
-    const matchStatus = statusFilter === 'all' || ic.status === statusFilter;
+    const matchStatus = statusFilter === 'all' || verificationStatusOf(ic) === statusFilter;
     const matchType = typeFilter === 'all' || ic.ic_type === typeFilter;
     const matchQuartile = quartileFilter === 'all' || ic.quartile === quartileFilter;
     const matchCategory = categoryFilter === 'all' || (ic.ic_category || '').includes(categoryFilter);
@@ -156,14 +156,14 @@ const MyRepositoryPage = () => {
     return matchSearch && matchStatus && matchType && matchQuartile && matchCategory && matchYear;
   });
 
-  const canEdit = (ic: any) => ic.status === 'draft' || ic.status === 'rejected' || ic.status === 'under_review';
+  const canEdit = (ic: any) => verificationStatusOf(ic) !== 'verified';
 
   const handleExport = () => {
     const rows = filtered.map(ic => ({
       Title: ic.title, Type: ic.ic_type || '', Category: ic.ic_category || '',
       Quartile: ic.quartile || '', Year: ic.year || '',
       'Journal/Outlet': ic.journal_outlet || '', Authors: ic.authors || '',
-      DOI: ic.doi || '', Status: ic.status,
+      DOI: ic.doi || '', 'Verification Status': verificationLabel(ic), 'IC Reporting Type': ic.ic_reporting_type || '', 'Original CV Item Type': ic.original_cv_item_type || '',
     }));
     const ws = XLSX.utils.json_to_sheet(rows);
     const wb = XLSX.utils.book_new();
@@ -193,7 +193,7 @@ const MyRepositoryPage = () => {
             <SelectTrigger className="w-36"><SelectValue placeholder="Status" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Statuses</SelectItem>
-              {icStatuses.map(s => <SelectItem key={s} value={s} className="capitalize">{s.replace('_', ' ')}</SelectItem>)}
+              {VERIFICATION_STATUSES.map(s => <SelectItem key={s} value={s}>{VERIFICATION_STATUS_LABELS[s]}</SelectItem>)}
             </SelectContent>
           </Select>
           <Select value={typeFilter} onValueChange={setTypeFilter}>
@@ -268,8 +268,8 @@ const MyRepositoryPage = () => {
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        <Badge variant={statusVariant(ic.status)} className="capitalize text-xs">
-                          {ic.status.replace('_', ' ')}
+                        <Badge variant={statusVariant(ic)} className="text-xs">
+                          {verificationLabel(ic)}
                         </Badge>
                       </TableCell>
                       <TableCell className="text-right whitespace-nowrap">
