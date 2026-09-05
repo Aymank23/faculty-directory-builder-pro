@@ -7,6 +7,7 @@ import { BarChart3 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 import { CHART_COLORS } from '@/lib/constants';
 import { normalizeNA } from '@/lib/normalize';
+import { onlyIcs } from '@/lib/icMetrics';
 
 const MyAnalyticsPage = () => {
   const { user } = useAuth();
@@ -22,7 +23,7 @@ const MyAnalyticsPage = () => {
     enabled: !!user,
   });
 
-  const { data: ics = [] } = useQuery({
+  const { data: icsRaw = [] } = useQuery({
     queryKey: ['my-ics', profile?.faculty_id],
     queryFn: async () => {
       const { data } = await supabase.from('intellectual_contributions').select('*').eq('faculty_id', profile!.faculty_id);
@@ -30,6 +31,9 @@ const MyAnalyticsPage = () => {
     },
     enabled: !!profile,
   });
+
+  // Only true Intellectual Contributions — Academic Engagement never counts here.
+  const ics = onlyIcs(icsRaw);
 
   const yearCounts: Record<number, number> = {};
   ics.forEach(ic => { if (ic.year) yearCounts[ic.year] = (yearCounts[ic.year] || 0) + 1; });
