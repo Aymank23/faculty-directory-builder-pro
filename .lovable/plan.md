@@ -63,44 +63,57 @@ Accounts in the system: Admin (1), Faculty (188), Head of Department (role exist
 6. After the four-profile run, a reconciliation report (source CV record vs stored record vs what each view displays, plus every remaining discrepancy) is delivered and **work stops for your approval** before touching the other faculty.
 7. Manually corrected values are never overwritten — corrections only fill blank or demonstrably wrong fields, and any row that was edited by a person is left untouched.
 
+## IC eligibility — the single agreed rule
+
+A record enters final IC totals only when all of these hold:
+- Record Class = Intellectual Contribution
+- Verification Status = Verified
+- IC Reporting Type is an eligible AACSB category, and is neither "Needs Review" nor "Not Applicable"
+
+Academic Engagement, Professional Engagement, Service and Professional Experience never enter IC totals. A publication shared by several faculty stays visible on every relevant profile but counts once at school level via the shared-publication key.
+
 ## Implementation plan (in order)
 
 **Phase 0 — Backup**
-Export every table to a downloadable file set and confirm row counts against the live database.
+Export every table to a downloadable file set and confirm row counts against the live database before anything changes.
 
-**Phase 1a — Pilot on the four test profiles (then STOP)**
-1. Re-derive Authors / Title / Year / Outlet / DOI / Quartile from the stored citation text where a field is blank or clearly wrong (title holding the whole citation, outlet showing "DOI" or an author fragment).
-2. Assign the AACSB reporting type from the Original CV Item Type; genuinely ambiguous items stay Needs Review.
-3. Move reviewing, guest lectures/workshops, conference chairing, online-course design/training and accreditation items to Academic Engagement.
-4. Fill the shared-publication matching key (identifier, else title + year).
-5. Fill Basic/Applied/Pedagogical only where the item type makes it unambiguous.
-6. Confirm practitioner Professional Experience rows are populated for Baalbaki and Boustani.
-7. Walk each of the four end to end: stored CV → fields → profile sections → item type → reporting type → engagement split → verification state → Faculty dashboard → Admin dashboard → Master dashboard → export, checking values against the source CV.
-8. Deliver the reconciliation report and stop for approval.
+**Phase 1 — Shared logic first (before the pilot can be judged)**
+Build one central counting/classification/status service and route these through it: Faculty Overview, My Repository, My Analytics, Admin Faculty Profile, Master AACSB Dashboard, Export. The three-state Verification Status becomes authoritative and the old status field is dropped from every read (kept in the database only as a legacy copy). Department Overview and Department Reports follow in the same pass so no screen is left on old rules.
 
-**Phase 1b — Remaining faculty (only after approval)**
-Same six corrections applied to the other records, plus normalising staffing values ("Part timer" → Part-Time) and filling Discipline where the department implies it; anything ambiguous is listed for your decision rather than guessed.
+**Phase 2 — Pilot on the four profiles only (then STOP)**
+Annelie Baalbaki, Anne-Marie Boustani, Maya Farah, Samar Aad, from their already stored CVs — no re-upload.
+1. Correct Title / Authors / Year / Journal-Outlet / DOI / Quartile only where blank or demonstrably wrong; all manual corrections preserved; Original CV Item Type untouched.
+2. Populate IC Reporting Type using the agreed mapping; ambiguous items stay Needs Review.
+3. Separate Academic Engagement (reviewing, guest lectures/workshops, conference chairing, online-course design/training, accreditation work) from ICs.
+4. Populate practitioner Professional Experience for the practitioner profiles.
+5. Populate Basic/Applied/Pedagogical only where the item type supports it.
+6. Generate shared-publication keys.
+7. Records stay Under Review unless already legitimately Verified.
+8. Validate record by record against each source CV across the whole chain: stored CV → structured fields → database → profile sections → Original CV Item Type → IC Reporting Type → Academic Engagement separation → Verification → Faculty Dashboard → Admin Dashboard → Master Dashboard → Export.
+9. Deliver a per-faculty reconciliation report listing source CV records, correctly stored/displayed records, IC records, Academic Engagement records, Professional Experience, Needs Review records, shared/duplicate publications, missing or unresolved fields, remaining discrepancies, and Faculty/Admin/Master/Export consistency — then **stop for your approval**.
 
-**Phase 2 — One counting rule everywhere**
-Route faculty overview, my repository, my analytics, department overview, department reports, admin faculty profile, master dashboard and export through the single shared service (eligible = publication-class + Verified + a real reporting type; school totals de-duplicated by the shared key), and switch every screen off the old status field.
+**Phase 3 — Remaining faculty (only after approval)**
+The same corrections applied to the rest of the records, plus consistent normalisation of equivalent staffing values. Discipline is **not** inferred from Department: it is filled only from an approved mapping or a reliable existing source, and everything else is reported as unresolved for your review.
 
 
-**Phase 3 — Admin review screen**
+
+**Phase 4 — Admin review screen**
 Add: change reporting type, change Basic/Applied/Pedagogical, move between publication and Academic Engagement, view/upload evidence, Verify, return to Under Review, Exclude — all recorded in the audit log.
 
-**Phase 4 — Practitioner fields**
-Add "Not Applicable" to Rank and Tenure, "Adjunct" to staffing, and normalise equivalents in profile, directory filters and exports.
+**Phase 5 — Practitioner / staffing fields**
+Add "Not Applicable" to Academic Rank and Tenure Status, "Adjunct" to FT/PT Status, and normalise equivalent existing values consistently. Adjunct is a faculty status only — no new account type or login role is created. If none of the four pilot profiles is Adjunct, this option is tested separately later on an appropriate existing profile.
 
-**Phase 5 — Excel export rebuild**
+
+**Phase 6 — Excel export rebuild**
 Sheet 1 Summary (totals by reporting type, category, department, discipline, year, quartile). Sheet 2 Supporting Records with the exact agreed columns including Employee ID and the shared-record marker. Totals must equal the dashboard.
 
-**Phase 6 — Faculty-facing reporting type**
+**Phase 7 — Faculty-facing reporting fields**
 Show reporting type and record class (publication vs Academic Engagement) read-only in the faculty repository and profile.
 
 ## Regression testing plan
 
 End-to-end per test faculty (stored CV → stored records → profile → classification → verification → faculty dashboard → admin dashboard → master dashboard → export), checking values against the source CV, not just "it loaded":
-- one academic full-time CV, one practitioner/part-time CV, one adjunct
+- academic full-time CV, practitioner/part-time CV, and an adjunct profile (tested separately if no pilot profile is adjunct)
 - a publication shared by two AKSOB faculty (visible on both profiles, counted once at school level)
 - a re-processed CV (must create no duplicates)
 - one record in each of Verified / Under Review / Excluded, confirming only Verified reaches totals and that dashboard totals equal export totals
@@ -108,4 +121,5 @@ End-to-end per test faculty (stored CV → stored records → profile → classi
 
 ## Note
 
-No project migration, rebuild, new backend or account removal is involved. All work is in place on the existing application, and Phase 1 only fills blank or demonstrably wrong values — manually corrected entries are left untouched.
+No project migration, rebuild, new backend, new login system, account removal or CV re-upload is involved. All work is in place on the existing application; corrections only fill blank or demonstrably wrong values, and manually corrected entries, accounts and uploaded proofs are left untouched.
+
