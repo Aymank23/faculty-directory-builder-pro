@@ -38,11 +38,7 @@ const MasterDashboardPage = () => {
   const [quartileFilter, setQuartileFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
 
-  // Only PRJ / Book / Chapter count as real Intellectual Contributions for AACSB.
-  // Conference proceedings, editorial work, online-course delivery, etc. live in
-  // professional_engagements / service_contributions and must NOT inflate IC counts.
-  const VALID_IC_TYPES = new Set(['PRJ', 'Book', 'Chapter']);
-
+  // Eligibility is decided centrally in src/lib/icMetrics.ts — never by ic_type here.
   const { data: allIcsRaw = [] } = useQuery({
     queryKey: ['admin-ics'],
     queryFn: async () => {
@@ -50,7 +46,8 @@ const MasterDashboardPage = () => {
       return data || [];
     },
   });
-  const allIcs = allIcsRaw.filter(ic => VALID_IC_TYPES.has(ic.ic_type || ''));
+  const allIcs = allIcsRaw;
+
 
   const { data: faculty = [] } = useQuery({
     queryKey: ['admin-faculty'],
