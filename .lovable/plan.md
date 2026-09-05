@@ -54,14 +54,16 @@ Match by normalized DOI, then normalized title+year, then normalized activity/ro
 - Discipline is never inferred.
 
 ### Step 4 — Corrected reconciliation report
-One table per faculty, one row per CV section, with the requested columns: Source CV valid rows | Stored rows | Missing rows recovered | Duplicates merged | Final section/classification | Remaining discrepancy. Any row that cannot be resolved is listed explicitly as a remaining discrepancy with the reason, rather than being hidden.
+One table per faculty, one row per CV section, with the requested columns: Source CV valid rows | Stored rows | Missing rows recovered | Duplicates merged | Final section/classification | Remaining discrepancy. Contribution rows always show total / IC / Academic Engagement separately so the two classes are never double-counted. A separate list records every parser defect found and fixed. Any row that cannot be resolved is listed explicitly as a remaining discrepancy with the reason, rather than being hidden.
 
 ### Step 5 — Stop
 Deliver the corrected report and wait for approval. No backfill of the remaining ~192 faculty.
 
 ## Technical notes
 
-- Source extraction reuses `supabase/functions/parse-cv/parser.ts` (and the DOCX order-preserving extraction in `parse-docx`) run locally over the four files, so the audit uses the same logic as production rather than a parallel implementation.
+- The independent inventory is produced by unpacking each DOCX and reading `word/document.xml` in document order (tables and paragraphs interleaved), so nothing depends on `parse-cv`. Output is a per-faculty inventory file plus a raw section dump for spot-checking.
+- Production parser output comes from `supabase/functions/parse-cv/parser.ts` and the order-preserving DOCX extraction in `parse-docx`, run locally over the same files, and is treated as a subject under test, not as ground truth.
+
 - Classification and label mapping come only from `src/lib/icTaxonomy.ts`; the reporting-type label list there is the single source of allowed labels, so a mismatched label is a code fix in that file, not an ad-hoc string in SQL.
 - Corrections are staged in `audit_log` first (as with the previous pilot), diffed, then applied in one faculty-scoped transaction with explicit `faculty_id IN (...)` guards on every statement.
 - The 2026-09-05 backup in `/mnt/documents/db-backup-2026-09-05` remains the rollback point; a fresh snapshot of the four profiles' rows is taken immediately before applying changes.
