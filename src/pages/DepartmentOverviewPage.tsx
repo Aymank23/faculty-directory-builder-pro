@@ -60,7 +60,7 @@ const DepartmentOverviewPage = () => {
 
         <div data-tour="kpi-row" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <KpiCard title="Faculty Members" value={deptFaculty.length} icon={Users} />
-          <KpiCard title="Total ICs" value={ics.length} icon={FileText} />
+          <KpiCard title="Total ICs" value={stats.allIcRecords.length} icon={FileText} />
           <KpiCard title="Verified" value={verified} icon={CheckCircle} variant="success" />
           <KpiCard title="Pending Review" value={pending} icon={Clock} variant="warning" />
         </div>

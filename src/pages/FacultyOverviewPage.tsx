@@ -160,8 +160,9 @@ const FacultyOverviewPage = () => {
 
         {/* Primary KPIs — hover info icon to preview details */}
         <div data-tour="kpi-row" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <KpiWithHover title="Total ICs" value={ics.length} icon={FileText}
+          <KpiWithHover title="Total ICs" value={stats.allIcRecords.length} icon={FileText}
             tooltipTitle="Recent contributions" tooltipLines={allSample} />
+
           <KpiWithHover title="Total PRJs" value={prjs} icon={BookOpen}
             tooltipTitle="Peer-Reviewed Journals" tooltipLines={prjSample} />
           <KpiWithHover title="Q1 Publications" value={q1} icon={TrendingUp} variant="success"
@@ -212,9 +213,10 @@ const FacultyOverviewPage = () => {
                       <TableCell>{ic.year || '—'}</TableCell>
                       <TableCell>{ic.quartile || '—'}</TableCell>
                       <TableCell>
-                        <Badge variant={statusVariant(ic.status)} className="capitalize text-xs">
-                          {ic.status.replace('_', ' ')}
+                        <Badge variant={statusVariant(ic)} className="capitalize text-xs">
+                          {verificationLabel(ic)}
                         </Badge>
+
                       </TableCell>
                     </TableRow>
                   ))}
