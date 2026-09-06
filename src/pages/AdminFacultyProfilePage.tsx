@@ -14,6 +14,8 @@ import { repairService } from '@/lib/services';
 import { repairEngagement } from '@/lib/engagements';
 import { cleanCvValue } from '@/lib/cvNoise';
 import CvSectionCard from '@/components/CvSectionCard';
+import CvArchiveCard from '@/components/CvArchiveCard';
+
 import { useAuth } from '@/contexts/AuthContext';
 
 
