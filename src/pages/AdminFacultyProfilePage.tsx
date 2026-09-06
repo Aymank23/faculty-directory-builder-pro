@@ -230,7 +230,10 @@ const AdminFacultyProfilePage = () => {
             { name: 'institution_organization', label: 'Institution / Organization' },
           ]}
         />
+
+        <CvArchiveCard facultyId={profile.faculty_id} />
       </div>
+
     </AppLayout>
   );
 };
