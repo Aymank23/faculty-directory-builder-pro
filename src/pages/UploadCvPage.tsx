@@ -25,6 +25,8 @@ import { getServiceUniqueKey, repairService } from '@/lib/services';
 import { getEngagementUniqueKey, repairEngagement } from '@/lib/engagements';
 import { cleanCvValue } from '@/lib/cvNoise';
 import { buildCanonicalKey, classifyRecordClass, mapOriginalToReportingType } from '@/lib/icTaxonomy';
+import { archiveOriginalCv } from '@/lib/cvArchive';
+
 import * as XLSX from 'xlsx';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
