@@ -21,6 +21,8 @@ import { repairService } from '@/lib/services';
 import { repairEngagement } from '@/lib/engagements';
 import { cleanCvValue } from '@/lib/cvNoise';
 import CvSectionCard from '@/components/CvSectionCard';
+import CvArchiveCard from '@/components/CvArchiveCard';
+
 
 
 const FacultyProfilePage = () => {
@@ -451,7 +453,10 @@ const FacultyProfilePage = () => {
           />
         )}
 
+        {facultyId && <CvArchiveCard facultyId={facultyId} title="My Uploaded CVs" />}
+
       </div>
+
     </AppLayout>
   );
 };
