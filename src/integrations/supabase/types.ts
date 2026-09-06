@@ -176,52 +176,70 @@ export type Database = {
       }
       cv_uploads: {
         Row: {
+          archived_at: string | null
           changes_summary: Json | null
+          content_hash: string | null
           created_at: string
           faculty_id: string
           file_name: string
+          file_size: number | null
           ics_added: number | null
           ics_skipped: number | null
           ics_updated: number | null
           id: string
+          mime_type: string | null
           parsing_quality_score: number | null
           parsing_timestamp: string | null
           profile_fields_updated: number | null
           status: string
+          storage_path: string | null
           upload_timestamp: string
           user_id: string | null
+          version: number
         }
         Insert: {
+          archived_at?: string | null
           changes_summary?: Json | null
+          content_hash?: string | null
           created_at?: string
           faculty_id: string
           file_name: string
+          file_size?: number | null
           ics_added?: number | null
           ics_skipped?: number | null
           ics_updated?: number | null
           id?: string
+          mime_type?: string | null
           parsing_quality_score?: number | null
           parsing_timestamp?: string | null
           profile_fields_updated?: number | null
           status?: string
+          storage_path?: string | null
           upload_timestamp?: string
           user_id?: string | null
+          version?: number
         }
         Update: {
+          archived_at?: string | null
           changes_summary?: Json | null
+          content_hash?: string | null
           created_at?: string
           faculty_id?: string
           file_name?: string
+          file_size?: number | null
           ics_added?: number | null
           ics_skipped?: number | null
           ics_updated?: number | null
           id?: string
+          mime_type?: string | null
           parsing_quality_score?: number | null
           parsing_timestamp?: string | null
           profile_fields_updated?: number | null
           status?: string
+          storage_path?: string | null
           upload_timestamp?: string
           user_id?: string | null
+          version?: number
         }
         Relationships: []
       }
