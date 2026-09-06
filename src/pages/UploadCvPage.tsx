@@ -696,6 +696,8 @@ const UploadCvPage = () => {
         if (e) { console.error('[Save CV] prof exp error', e); throw new Error(`Professional experience insert failed: ${e.message}`); }
         result.profExpAdded = extracted.professional_experience.length;
       }
+      // Permanently archive the original document (private bucket, versioned).
+      const archive = file ? await archiveOriginalCv(facultyId, file) : null;
       const { error: cvErr } = await supabase.from('cv_uploads').insert({
         faculty_id: facultyId,
         user_id: user!.id,
@@ -707,8 +709,20 @@ const UploadCvPage = () => {
         ics_skipped: result.icsSkipped,
         profile_fields_updated: result.profileUpdated,
         changes_summary: result,
+        ...(archive
+          ? {
+              storage_path: archive.storage_path,
+              version: archive.version,
+              file_size: archive.file_size,
+              mime_type: archive.mime_type,
+              content_hash: archive.content_hash,
+              archived_at: new Date().toISOString(),
+            }
+          : {}),
       });
       if (cvErr) console.warn('[Save CV] cv_uploads log failed (non-fatal)', cvErr);
+      if (file && !archive) toast.warning('CV data saved, but the original file could not be archived.');
+
       console.log('[Save CV] complete', result);
       setSaveResult(result);
       setStep('done');
