@@ -451,7 +451,10 @@ const FacultyProfilePage = () => {
           />
         )}
 
+        {facultyId && <CvArchiveCard facultyId={facultyId} title="My Uploaded CVs" />}
+
       </div>
+
     </AppLayout>
   );
 };
