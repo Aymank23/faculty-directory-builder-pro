@@ -10,14 +10,16 @@
 - [ ] Retire old `status` field from all reads; verification_status authoritative
 
 ## Phase 2 — Pilot on four profiles only (then STOP for approval)
-- [ ] Baalbaki, Boustani, Farah, Aad — correct Title/Authors/Year/Outlet/DOI/Quartile where blank or wrong
-- [ ] IC Reporting Type via agreed mapping; ambiguous stay Needs Review
-- [ ] Academic Engagement separation
-- [ ] Practitioner Professional Experience populated
-- [ ] Basic/Applied/Pedagogical only where supported
-- [ ] Shared-publication keys
-- [ ] Keep Under Review unless already verified
-- [ ] Per-faculty reconciliation report
+- [x] Cleaning pass on existing stored rows (done 2026-09-05)
+- [ ] BLOCKED: source-CV reconciliation — the four filled CVs are not stored anywhere
+      (cv_uploads keeps only file names; evidence bucket has no .docx). The files in
+      user-uploads are blank AACSB templates. Need the four filled DOCX files from the user.
+- [ ] Independent DOCX inventory (no production parser) per section, in document order
+- [ ] Diff inventory vs production parser output → fix parser defects
+- [ ] Diff inventory vs stored DB rows vs dashboard display
+- [ ] Apply corrections to the four profiles only; keep Under Review
+- [ ] Full-accounting reconciliation report (every source row in exactly one category or Unresolved)
+
 
 ## Phase 3+ (after approval)
 - [ ] Remaining faculty backfill (no Discipline inference)
