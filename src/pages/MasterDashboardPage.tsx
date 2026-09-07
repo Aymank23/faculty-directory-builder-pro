@@ -116,22 +116,30 @@ const MasterDashboardPage = () => {
   const participatingCount = filteredFaculty.filter(f => (f as any).faculty_sufficiency === 'Participating').length;
   const participatingPct = filteredFaculty.length ? ((participatingCount / filteredFaculty.length) * 100).toFixed(1) : '0';
 
-  // Category distribution (verified only)
+  // Category distribution (final totals: verified, deduplicated)
   const catCounts: Record<string, number> = {};
-  verified.forEach(ic => {
+  countedIcs.forEach(ic => {
     const cat = ic.ic_category ? ic.ic_category.split('/')[0].trim() : 'Uncategorized';
     catCounts[cat] = (catCounts[cat] || 0) + 1;
   });
   const catData = Object.entries(catCounts).map(([name, value]) => ({ name, value }));
 
+  // IC Reporting Type breakdown (final totals)
+  const reportingTypeCounts: Record<string, number> = {};
+  countedIcs.forEach(ic => {
+    const t = ic.ic_reporting_type || 'Needs Review';
+    reportingTypeCounts[t] = (reportingTypeCounts[t] || 0) + 1;
+  });
+  const reportingTypeData = Object.entries(reportingTypeCounts).sort((a, b) => b[1] - a[1]);
+
   // Year trend
   const yearCounts: Record<number, number> = {};
-  ics.forEach(ic => { if (ic.year) yearCounts[ic.year] = (yearCounts[ic.year] || 0) + 1; });
+  countedIcs.forEach(ic => { if (ic.year) yearCounts[ic.year] = (yearCounts[ic.year] || 0) + 1; });
   const yearData = Object.entries(yearCounts).sort().map(([year, count]) => ({ year, count }));
 
   // Department breakdown — collapse aliases (MKT→Marketing, MGT→Management, …)
   const deptCounts: Record<string, number> = {};
-  ics.forEach(ic => {
+  countedIcs.forEach(ic => {
     const fac = facultyMap[ic.faculty_id];
     const dept = fac?.department ? normalizeDepartment(fac.department) : 'Unknown';
     deptCounts[dept] = (deptCounts[dept] || 0) + 1;
