@@ -1,13 +1,12 @@
 import { useParams, Link } from 'react-router-dom';
 import AppLayout from '@/components/AppLayout';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import KpiCard from '@/components/KpiCard';
 import { supabase } from '@/lib/supabase';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowLeft, FileText, BookOpen, GraduationCap, Heart, Briefcase, Award } from 'lucide-react';
+import { ArrowLeft, FileText, BookOpen, GraduationCap, Heart, Briefcase, Award, User, Users } from 'lucide-react';
 import { normalizeDepartment } from '@/lib/normalize';
 import { repairQualification } from '@/lib/qualifications';
 import { repairService } from '@/lib/services';
@@ -15,16 +14,12 @@ import { repairEngagement } from '@/lib/engagements';
 import { cleanCvValue } from '@/lib/cvNoise';
 import CvSectionCard from '@/components/CvSectionCard';
 import CvArchiveCard from '@/components/CvArchiveCard';
-
 import { useAuth } from '@/contexts/AuthContext';
-
-
-import { icStats, verificationLabel } from '@/lib/icMetrics';
+import { icStats, verificationLabel, onlyIcs, onlyAcademicEngagement } from '@/lib/icMetrics';
 
 const AdminFacultyProfilePage = () => {
   const { user } = useAuth();
   const { id } = useParams<{ id: string }>();
-
 
   const { data: profile, isLoading } = useQuery({
     queryKey: ['admin-faculty-profile', id],
@@ -60,6 +55,20 @@ const AdminFacultyProfilePage = () => {
     },
     enabled: !!id,
   });
+  const { data: experience = [] } = useQuery({
+    queryKey: ['admin-faculty-exp', id],
+    queryFn: async () => {
+      const { data } = await supabase.from('professional_experience').select('*').eq('faculty_id', id!);
+      return (data || []).map((row: any) => ({
+        ...row,
+        position_title: cleanCvValue(row.position_title),
+        organization: cleanCvValue(row.organization),
+        period: cleanCvValue(row.period),
+        key_responsibilities: cleanCvValue(row.key_responsibilities),
+      }));
+    },
+    enabled: !!id,
+  });
   const { data: services = [] } = useQuery({
     queryKey: ['admin-faculty-svc', id],
     queryFn: async () => {
@@ -83,10 +92,10 @@ const AdminFacultyProfilePage = () => {
   });
 
   const stats = icStats(ics);
-  const validIcs = stats.allIcRecords;
-  const prjs = validIcs.filter(ic => ic.ic_type === 'PRJ');
-  const q1 = validIcs.filter(ic => ic.quartile === 'Q1');
-
+  const icRecords = onlyIcs(ics);
+  const academicEngagementRecords = onlyAcademicEngagement(ics);
+  const prjs = icRecords.filter(ic => ic.ic_type === 'PRJ');
+  const q1 = icRecords.filter(ic => ic.quartile === 'Q1');
 
   if (isLoading) {
     return <AppLayout><p className="text-sm text-muted-foreground">Loading…</p></AppLayout>;
@@ -105,6 +114,25 @@ const AdminFacultyProfilePage = () => {
 
   const fullName = [profile.first_name, profile.middle_names, profile.last_name].filter(Boolean).join(' ');
 
+  const personalFields = [
+    { label: 'Full Name', value: fullName },
+    { label: 'Employee ID', value: profile.employee_id },
+    { label: 'Title', value: profile.title },
+    { label: 'Email', value: profile.email },
+    { label: 'FT/PT Status', value: profile.ft_pt_status },
+    { label: 'Academic Rank', value: profile.academic_rank },
+    { label: 'Tenure Status', value: profile.tenure_status },
+    { label: 'Highest Degree', value: profile.highest_degree },
+    { label: 'Degree Date', value: profile.highest_degree_date },
+    { label: 'Degree Major', value: profile.degree_major },
+    { label: 'Degree Institution', value: profile.degree_institution },
+    { label: 'Department', value: profile.department ? normalizeDepartment(profile.department) : '' },
+    { label: 'Discipline (AACSB)', value: profile.discipline },
+    { label: 'Campus', value: profile.campus },
+    { label: 'AACSB Qualification', value: profile.faculty_qualification },
+    { label: 'Date Joining AKSOB', value: profile.date_joining_aksob },
+  ];
+
   return (
     <AppLayout>
       <div className="space-y-6">
@@ -118,20 +146,45 @@ const AdminFacultyProfilePage = () => {
               {[profile.academic_rank, normalizeDepartment(profile.department), profile.discipline, profile.campus].filter(v => v && v !== 'N/A').join(' · ')}
             </p>
           </div>
-          <Button asChild variant="outline" size="sm">
-            <Link to={`/faculty-directory?id=${profile.faculty_id}`}>Open in directory</Link>
-          </Button>
+          <div className="flex gap-2">
+            <Button asChild variant="outline" size="sm">
+              <Link to="/verification-queue">Verification queue</Link>
+            </Button>
+            <Button asChild variant="outline" size="sm">
+              <Link to={`/faculty-directory?id=${profile.faculty_id}`}>Open in directory</Link>
+            </Button>
+          </div>
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <KpiCard title="Valid ICs" value={validIcs.length} icon={BookOpen} />
+          <KpiCard title="Intellectual Contributions" value={icRecords.length} icon={BookOpen} />
+          <KpiCard title="Eligible (Verified) ICs" value={stats.eligibleCount} icon={FileText} variant="success" />
           <KpiCard title="PRJs" value={prjs.length} icon={FileText} />
-          <KpiCard title="Q1 Pubs" value={q1.length} icon={FileText} variant="success" />
-          <KpiCard title="Verified" value={validIcs.filter(i => i.status === 'verified').length} icon={FileText} variant="success" />
+          <KpiCard title="Q1 Publications" value={q1.length} icon={FileText} variant="success" />
         </div>
 
+        {/* Section 1 */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-md bg-muted text-primary"><User className="h-5 w-5" /></div>
+              <CardTitle className="font-serif text-base">1. Personal and Academic Information</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {personalFields.map(f => (
+                <div key={f.label} className="space-y-1">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{f.label}</p>
+                  <p className="text-sm text-foreground">{f.value || <Badge variant="outline" className="text-xs">Not set</Badge>}</p>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
         <CvSectionCard
-          title="2. Academic & Professional Qualifications"
+          title="2. Academic and Professional Qualifications"
           icon={GraduationCap}
           columns={['Degree / Certification', 'Institution', 'Year', 'Field / Area']}
           rows={qualifications}
@@ -152,15 +205,21 @@ const AdminFacultyProfilePage = () => {
         <CvSectionCard
           title="3. Intellectual Contributions"
           icon={BookOpen}
-          columns={['Title', 'Authors', 'Year', 'Journal / Outlet', 'Type', 'Quartile', 'Status']}
-          rows={ics}
-          renderRow={(ic: any) => [ic.title, ic.authors, ic.year, ic.journal_outlet, ic.ic_type, ic.quartile, (ic.status || '').replace('_', ' ')]}
+          description="Research and scholarly output only. Academic Engagement is reported separately in section 4."
+          columns={['Title', 'Authors', 'Year', 'Journal / Outlet', 'Original CV Item Type', 'IC Reporting Type', 'Quartile', 'Status']}
+          rows={icRecords}
+          renderRow={(ic: any) => [
+            ic.title, ic.authors, ic.year, ic.journal_outlet,
+            ic.original_cv_item_type, ic.ic_reporting_type || 'Needs Review',
+            ic.quartile, verificationLabel(ic),
+          ]}
           emptyText="No intellectual contributions recorded."
           tableName="intellectual_contributions"
           facultyId={profile.faculty_id}
           userId={user?.id || ''}
           queryKey="admin-faculty-ics"
           pkField="ic_id"
+          defaultValues={{ record_class: 'ic', verification_status: 'under_review' }}
           formFields={[
             { name: 'title', label: 'Title', required: true },
             { name: 'authors', label: 'Authors' },
@@ -177,7 +236,30 @@ const AdminFacultyProfilePage = () => {
         />
 
         <CvSectionCard
-          title="4. Professional Engagement Activities"
+          title="4. Academic Engagement Activities"
+          icon={Users}
+          description="Excluded from Intellectual Contribution totals by design."
+          columns={['Year', 'Activity', 'Original CV Item Type', 'Details', 'Status']}
+          rows={academicEngagementRecords}
+          renderRow={(a: any) => [a.year, a.title, a.original_cv_item_type, a.journal_outlet || a.apa_citation, verificationLabel(a)]}
+          emptyText="No academic engagement activities recorded."
+          tableName="intellectual_contributions"
+          facultyId={profile.faculty_id}
+          userId={user?.id || ''}
+          queryKey="admin-faculty-ics"
+          pkField="ic_id"
+          defaultValues={{ record_class: 'academic_engagement', ic_reporting_type: 'Not Applicable', verification_status: 'under_review' }}
+          formFields={[
+            { name: 'title', label: 'Activity', required: true },
+            { name: 'year', label: 'Year', type: 'number' },
+            { name: 'original_cv_item_type', label: 'Original CV Item Type' },
+            { name: 'journal_outlet', label: 'Organisation / Outlet' },
+            { name: 'apa_citation', label: 'Details', type: 'textarea' },
+          ]}
+        />
+
+        <CvSectionCard
+          title="5. Professional Engagement Activities"
           icon={Briefcase}
           columns={['From-To', 'Activity', 'Details']}
           rows={engagements}
@@ -196,7 +278,7 @@ const AdminFacultyProfilePage = () => {
         />
 
         <CvSectionCard
-          title="5. Service Contributions"
+          title="6. Service Contributions"
           icon={Heart}
           columns={['From-To', 'Level', 'Committee / Role']}
           rows={services}
@@ -216,7 +298,7 @@ const AdminFacultyProfilePage = () => {
         />
 
         <CvSectionCard
-          title="6. Awards & Recognition"
+          title="7. Awards and Recognition"
           icon={Award}
           columns={['Year', 'Award / Recognition', 'Institution / Organization']}
           rows={awards}
@@ -233,13 +315,29 @@ const AdminFacultyProfilePage = () => {
           ]}
         />
 
+        <CvSectionCard
+          title="8. Professional Experience"
+          icon={Briefcase}
+          columns={['Period', 'Position', 'Organization', 'Key Responsibilities']}
+          rows={experience}
+          renderRow={(x: any) => [x.period, x.position_title, x.organization, x.key_responsibilities]}
+          emptyText="No professional experience recorded."
+          tableName="professional_experience"
+          facultyId={profile.faculty_id}
+          userId={user?.id || ''}
+          queryKey="admin-faculty-exp"
+          formFields={[
+            { name: 'period', label: 'Period (e.g. 2018–2022)' },
+            { name: 'position_title', label: 'Position Title', required: true },
+            { name: 'organization', label: 'Organization' },
+            { name: 'key_responsibilities', label: 'Key Responsibilities', type: 'textarea' },
+          ]}
+        />
+
         <CvArchiveCard facultyId={profile.faculty_id} />
       </div>
-
     </AppLayout>
   );
 };
-
-
 
 export default AdminFacultyProfilePage;

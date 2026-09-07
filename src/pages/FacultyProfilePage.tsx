@@ -182,7 +182,7 @@ const FacultyProfilePage = () => {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold font-serif text-foreground">My Profile</h1>
-            <p className="text-sm text-muted-foreground">Your academic and personal information (CV Sections 1–6)</p>
+            <p className="text-sm text-muted-foreground">Your AACSB CV record — sections 1 to 8</p>
           </div>
           {profile && (
             <Button asChild variant="outline">
