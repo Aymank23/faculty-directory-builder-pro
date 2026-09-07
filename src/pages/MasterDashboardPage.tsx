@@ -146,9 +146,10 @@ const MasterDashboardPage = () => {
   });
   const deptData = Object.entries(deptCounts).map(([name, value]) => ({ name, value }));
 
-  // Publications per faculty — keep faculty_id so we can drill-down to a profile view.
+  // Publications per faculty — shared publications stay visible for each faculty
+  // member here, even though the school-level totals count them once.
   const perFaculty: Record<string, { name: string; department: string; count: number; faculty_id: string }> = {};
-  ics.forEach(ic => {
+  eligible.forEach(ic => {
     const fac = facultyMap[ic.faculty_id];
     if (!fac) return;
     if (!perFaculty[fac.faculty_id]) {
@@ -172,7 +173,7 @@ const MasterDashboardPage = () => {
 
   // Q distribution (normalize NA / N/A variants to a single bucket)
   const qCounts: Record<string, number> = {};
-  ics.forEach(ic => { const q = normalizeNA(ic.quartile); qCounts[q] = (qCounts[q] || 0) + 1; });
+  countedIcs.forEach(ic => { const q = normalizeNA(ic.quartile); qCounts[q] = (qCounts[q] || 0) + 1; });
   const qData = Object.entries(qCounts).map(([name, value]) => ({ name, value }));
 
   const hasData = ics.length > 0 || filteredFaculty.length > 0;
@@ -181,6 +182,7 @@ const MasterDashboardPage = () => {
     setDeptFilter('all'); setCampusFilter('all'); setYearFrom('2020');
     setYearTo(new Date().getFullYear().toString()); setCategoryFilter('all');
     setTypeFilter('all'); setQuartileFilter('all'); setStatusFilter('all');
+    setDisciplineFilter('all'); setReportingTypeFilter('all');
   };
 
   return (
