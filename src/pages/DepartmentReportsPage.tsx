@@ -40,7 +40,7 @@ const DepartmentReportsPage = () => {
     queryKey: ['dept-report-ics', facultyIds],
     queryFn: async () => {
       if (facultyIds.length === 0) return [];
-      const { data } = await supabase.from('intellectual_contributions').select('*').in('faculty_id', facultyIds);
+      const { data } = await supabase.from('intellectual_contributions').select('*').in('faculty_id', facultyIds).eq('record_class', 'ic');
       return data || [];
     },
     enabled: facultyIds.length > 0,

@@ -26,7 +26,7 @@ const MyAnalyticsPage = () => {
   const { data: icsRaw = [] } = useQuery({
     queryKey: ['my-ics', profile?.faculty_id],
     queryFn: async () => {
-      const { data } = await supabase.from('intellectual_contributions').select('*').eq('faculty_id', profile!.faculty_id);
+      const { data } = await supabase.from('intellectual_contributions').select('*').eq('faculty_id', profile!.faculty_id).eq('record_class', 'ic');
       return data || [];
     },
     enabled: !!profile,
