@@ -75,6 +75,7 @@ const MasterDashboardPage = () => {
     if (typeFilter !== 'all' && ic.ic_type !== typeFilter) return false;
     if (quartileFilter !== 'all' && ic.quartile !== quartileFilter) return false;
     if (statusFilter !== 'all' && verificationStatusOf(ic) !== statusFilter) return false;
+    if (reportingTypeFilter !== 'all' && (ic.ic_reporting_type || 'Needs Review') !== reportingTypeFilter) return false;
     return true;
   });
 
