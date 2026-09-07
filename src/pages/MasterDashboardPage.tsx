@@ -15,7 +15,8 @@ import { BarChart3, BookOpen, FileText, Clock, CheckCircle, XCircle, TrendingUp,
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend, LineChart, Line } from 'recharts';
 import { CHART_COLORS, departments, campuses, icCategories, icTypes, quartiles, icStatuses, facultyQualifications, disciplines } from '@/lib/constants';
 import { normalizeNA, isNA, normalizeDepartment, normalizeDiscipline } from '@/lib/normalize';
-import { VERIFICATION_STATUSES, VERIFICATION_STATUS_LABELS, icStats, countSchoolIcs, verificationStatusOf, onlyIcs, onlyAcademicEngagement } from '@/lib/icMetrics';
+import { VERIFICATION_STATUSES, VERIFICATION_STATUS_LABELS, icStats, countSchoolIcs, verificationStatusOf, onlyIcs, onlyAcademicEngagement, eligibleIcs, dedupeSharedIcs } from '@/lib/icMetrics';
+import { IC_REPORTING_TYPES } from '@/lib/icTaxonomy';
 
 
 const CLASSIFICATION_COLORS: Record<string, string> = {
@@ -37,6 +38,7 @@ const MasterDashboardPage = () => {
   const [typeFilter, setTypeFilter] = useState('all');
   const [quartileFilter, setQuartileFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [reportingTypeFilter, setReportingTypeFilter] = useState('all');
 
   // Eligibility is decided centrally in src/lib/icMetrics.ts — never by ic_type here.
   const { data: allIcsRaw = [] } = useQuery({
