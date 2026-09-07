@@ -58,6 +58,8 @@ const CvSectionCard = ({
   formFields,
   pkField = 'id',
   showProof = true,
+  defaultValues,
+  description,
 }: CvSectionCardProps) => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingRow, setEditingRow] = useState<any>(null);
@@ -128,7 +130,9 @@ const CvSectionCard = ({
       });
       toast.success('Entry updated');
     } else {
-      const { error } = await supabase.from(tableName as any).insert({ faculty_id: facultyId, ...payload } as any);
+      const { error } = await supabase
+        .from(tableName as any)
+        .insert({ faculty_id: facultyId, ...(defaultValues || {}), ...payload } as any);
       if (error) {
         toast.error(`Failed to add entry: ${error.message}`);
         setSaving(false);
@@ -173,7 +177,10 @@ const CvSectionCard = ({
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-md bg-muted text-primary"><Icon className="h-5 w-5" /></div>
-            <CardTitle className="font-serif text-base">{title} ({rows.length})</CardTitle>
+            <div>
+              <CardTitle className="font-serif text-base">{title} ({rows.length})</CardTitle>
+              {description && <p className="text-xs text-muted-foreground mt-0.5">{description}</p>}
+            </div>
           </div>
           <Button size="sm" variant="outline" onClick={openAdd}>
             <Plus className="h-4 w-4 mr-1" /> Add
