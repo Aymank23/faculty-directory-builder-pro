@@ -255,6 +255,13 @@ const MasterDashboardPage = () => {
               {VERIFICATION_STATUSES.map(s => <SelectItem key={s} value={s}>{VERIFICATION_STATUS_LABELS[s]}</SelectItem>)}
             </SelectContent>
           </Select>
+          <Select value={reportingTypeFilter} onValueChange={setReportingTypeFilter}>
+            <SelectTrigger className="w-56"><SelectValue placeholder="IC Reporting Type" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All IC Reporting Types</SelectItem>
+              {IC_REPORTING_TYPES.map(t => <SelectItem key={t} value={t} className="text-xs">{t}</SelectItem>)}
+            </SelectContent>
+          </Select>
           <div className="flex items-center gap-2">
             <Label className="text-xs text-muted-foreground whitespace-nowrap">Year</Label>
             <Input type="number" value={yearFrom} onChange={e => setYearFrom(e.target.value)} className="w-24" placeholder="From" />
@@ -284,6 +291,33 @@ const MasterDashboardPage = () => {
           <KpiCard title="Academic Engagement" value={academicEngagement.length} icon={Users} />
           <KpiCard title="IC Type Needs Review" value={needsReviewType.length} icon={Clock} variant="warning" />
         </div>
+
+        {/* IC Reporting Type breakdown — Verified records, shared publications counted once */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="font-serif text-base">Totals by IC Reporting Type</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {reportingTypeData.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-6">
+                No verified intellectual contributions in the current filter.
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {reportingTypeData.map(([name, value]) => (
+                  <div key={name} className="flex items-center justify-between gap-3 rounded-md border border-border px-3 py-2 text-sm">
+                    <span className="min-w-0 truncate">{name}</span>
+                    <span className="shrink-0 font-medium">{value}</span>
+                  </div>
+                ))}
+                <div className="flex items-center justify-between gap-3 px-3 pt-1 text-sm font-medium">
+                  <span>School-level total (deduplicated)</span>
+                  <span>{countedIcs.length}</span>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         {/* AACSB Classification & Participation Statistics */}
         <div data-tour="aacsb-stats" className="grid grid-cols-1 lg:grid-cols-2 gap-6">
