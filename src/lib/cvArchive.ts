@@ -45,30 +45,50 @@ export const nextCvVersion = async (facultyId: string): Promise<number> => {
 
 /**
  * Uploads the original document to the private archive. Never overwrites an existing
- * version — each upload gets its own version number, so history is preserved.
+ * version — each new document gets its own version number, so history is preserved.
+ * Re-uploading a byte-identical document reuses the archived object and version
+ * instead of creating a duplicate copy.
  */
 export const archiveOriginalCv = async (
   facultyId: string,
   file: File,
 ): Promise<CvArchiveResult | null> => {
   try {
+    const mime = file.type || 'application/octet-stream';
+    const content_hash = await hashFile(file);
+
+    // Identical document already archived for this faculty member → reuse it.
+    const { data: existing } = await supabase
+      .from('cv_uploads')
+      .select('storage_path, version, file_size, mime_type, content_hash')
+      .eq('faculty_id', facultyId)
+      .eq('content_hash', content_hash)
+      .not('storage_path', 'is', null)
+      .order('version', { ascending: false })
+      .limit(1);
+
+    const prior = existing?.[0];
+    if (prior?.storage_path) {
+      return {
+        storage_path: prior.storage_path,
+        version: Number(prior.version) || 1,
+        file_size: Number(prior.file_size) || file.size,
+        mime_type: prior.mime_type || mime,
+        content_hash,
+      };
+    }
+
     const version = await nextCvVersion(facultyId);
     const path = `${facultyId}/v${version}-${safeName(file.name)}`;
     const { error } = await supabase.storage.from(BUCKET).upload(path, file, {
       upsert: false,
-      contentType: file.type || 'application/octet-stream',
+      contentType: mime,
     });
     if (error) {
       console.warn('[cvArchive] upload failed', error);
       return null;
     }
-    return {
-      storage_path: path,
-      version,
-      file_size: file.size,
-      mime_type: file.type || 'application/octet-stream',
-      content_hash: await hashFile(file),
-    };
+    return { storage_path: path, version, file_size: file.size, mime_type: mime, content_hash };
   } catch (e) {
     console.warn('[cvArchive] unexpected failure', e);
     return null;

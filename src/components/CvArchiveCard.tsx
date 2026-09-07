@@ -20,7 +20,7 @@ const CvArchiveCard = ({ facultyId, title = 'Original CV Archive' }: Props) => {
     queryFn: async () => {
       const { data } = await supabase
         .from('cv_uploads')
-        .select('id, file_name, upload_timestamp, storage_path, version, file_size, mime_type')
+        .select('id, file_name, upload_timestamp, archived_at, content_hash, storage_path, version, file_size, mime_type')
         .eq('faculty_id', facultyId)
         .order('upload_timestamp', { ascending: false });
       return data || [];
