@@ -317,7 +317,7 @@ const MyRepositoryPage = () => {
                   <div><span className="text-muted-foreground">Year:</span> {viewIc.year || '—'}</div>
                   <div><span className="text-muted-foreground">Quartile:</span> {viewIc.quartile || '—'}</div>
                   <div><span className="text-muted-foreground">ABDC:</span> {viewIc.abdc_rank || '—'}</div>
-                  <div><span className="text-muted-foreground">Status:</span> <Badge variant={statusVariant(viewIc.status)} className="capitalize text-xs">{viewIc.status.replace('_', ' ')}</Badge></div>
+                  <div><span className="text-muted-foreground">Status:</span> <Badge variant={verificationVariant(viewIc)} className="text-xs">{verificationLabel(viewIc)}</Badge></div>
                 </div>
                 {viewIc.authors && <div><span className="text-muted-foreground">Authors:</span> {viewIc.authors}</div>}
                 {viewIc.journal_outlet && <div><span className="text-muted-foreground">Journal:</span> {viewIc.journal_outlet}</div>}
