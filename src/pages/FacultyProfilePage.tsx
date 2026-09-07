@@ -318,7 +318,8 @@ const FacultyProfilePage = () => {
           </DialogContent>
         </Dialog>
 
-        {/* Section 2: Academic & Professional Qualifications */}
+        {/* Section 2: Academic and Professional Qualifications */}
+
         {profile && (
           <CvSectionCard
             title="2. Academic & Professional Qualifications"
