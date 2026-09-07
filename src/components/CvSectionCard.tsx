@@ -10,9 +10,9 @@ import { Plus, Trash2, Pencil } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
 import { useQueryClient } from '@tanstack/react-query';
-import ProofUploadCell from '@/components/ProofUploadCell';
+import ProofUploadCell, { PROOF_TABLE_CONFIG, type ProofTable } from '@/components/ProofUploadCell';
 
-const PROOF_TABLES = new Set(['professional_engagements', 'service_contributions', 'professional_experience']);
+const PROOF_TABLES = new Set(Object.keys(PROOF_TABLE_CONFIG));
 
 export interface CvFormField {
   name: string;
@@ -200,12 +200,9 @@ const CvSectionCard = ({
                     {withProof && (
                       <TableCell>
                         <ProofUploadCell
-                          tableName={tableName as any}
-                          rowId={row.id}
+                          tableName={tableName as ProofTable}
+                          row={row}
                           facultyId={facultyId}
-                          proofStatus={row.proof_status}
-                          proofFilePath={row.proof_file_path}
-                          proofReviewComment={row.proof_review_comment}
                           queryKey={queryKey}
                         />
                       </TableCell>
