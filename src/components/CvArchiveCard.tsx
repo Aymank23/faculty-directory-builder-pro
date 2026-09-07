@@ -20,7 +20,7 @@ const CvArchiveCard = ({ facultyId, title = 'Original CV Archive' }: Props) => {
     queryFn: async () => {
       const { data } = await supabase
         .from('cv_uploads')
-        .select('id, file_name, upload_timestamp, storage_path, version, file_size, mime_type')
+        .select('id, file_name, upload_timestamp, archived_at, content_hash, storage_path, version, file_size, mime_type')
         .eq('faculty_id', facultyId)
         .order('upload_timestamp', { ascending: false });
       return data || [];
@@ -59,7 +59,9 @@ const CvArchiveCard = ({ facultyId, title = 'Original CV Archive' }: Props) => {
                 <TableHead>Version</TableHead>
                 <TableHead>File name</TableHead>
                 <TableHead>Uploaded</TableHead>
+                <TableHead>Archived</TableHead>
                 <TableHead>Size</TableHead>
+                <TableHead>Fingerprint</TableHead>
                 <TableHead className="text-right">Original</TableHead>
               </TableRow>
             </TableHeader>
@@ -69,7 +71,11 @@ const CvArchiveCard = ({ facultyId, title = 'Original CV Archive' }: Props) => {
                   <TableCell>v{u.version ?? 1}</TableCell>
                   <TableCell className="max-w-[22rem] truncate">{u.file_name}</TableCell>
                   <TableCell>{u.upload_timestamp ? new Date(u.upload_timestamp).toLocaleString() : '—'}</TableCell>
+                  <TableCell>{u.archived_at ? new Date(u.archived_at).toLocaleString() : '—'}</TableCell>
                   <TableCell>{u.file_size ? `${Math.round(u.file_size / 1024)} KB` : '—'}</TableCell>
+                  <TableCell className="font-mono text-[10px]" title={u.content_hash || ''}>
+                    {u.content_hash ? u.content_hash.slice(0, 10) : '—'}
+                  </TableCell>
                   <TableCell className="text-right">
                     {u.storage_path ? (
                       <Button size="sm" variant="outline" onClick={() => open(u.storage_path)}>

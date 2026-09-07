@@ -12,7 +12,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Badge } from '@/components/ui/badge';
-import { User, GraduationCap, Briefcase, Heart, Award, Upload, Pencil, BookOpen } from 'lucide-react';
+import { User, GraduationCap, Briefcase, Heart, Award, Upload, Pencil, BookOpen, Users } from 'lucide-react';
+import { onlyIcs, onlyAcademicEngagement, verificationLabel } from '@/lib/icMetrics';
 import { toast } from 'sonner';
 import { departments, campuses, academicRanks, ftPtStatuses, highestDegrees, tenureStatuses } from '@/lib/constants';
 import { normalizeDepartment } from '@/lib/normalize';
@@ -107,6 +108,10 @@ const FacultyProfilePage = () => {
     enabled: !!facultyId,
   });
 
+  // Section 3 shows research contributions only; section 4 shows Academic Engagement.
+  const icRecords = onlyIcs(ics);
+  const academicEngagementRecords = onlyAcademicEngagement(ics);
+
   useEffect(() => {
     if (profile && editOpen) {
       setForm({
@@ -177,7 +182,7 @@ const FacultyProfilePage = () => {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold font-serif text-foreground">My Profile</h1>
-            <p className="text-sm text-muted-foreground">Your academic and personal information (CV Sections 1–6)</p>
+            <p className="text-sm text-muted-foreground">Your AACSB CV record — sections 1 to 8</p>
           </div>
           {profile && (
             <Button asChild variant="outline">
@@ -335,20 +340,26 @@ const FacultyProfilePage = () => {
           />
         )}
 
-        {/* Section 3: Intellectual Contributions */}
+        {/* Section 3: Intellectual Contributions — record_class = 'ic' only */}
         {profile && (
           <CvSectionCard
             title="3. Intellectual Contributions"
             icon={BookOpen}
-            columns={['Title', 'Authors', 'Year', 'Journal / Outlet', 'Type', 'Quartile']}
-            rows={ics}
-            renderRow={(ic: any) => [ic.title, ic.authors, ic.year, ic.journal_outlet, ic.ic_type, ic.quartile]}
+            description="Research and scholarly output only. Academic Engagement activities are listed separately in section 4 and never count as Intellectual Contributions."
+            columns={['Title', 'Authors', 'Year', 'Journal / Outlet', 'Original CV Item Type', 'IC Reporting Type', 'Quartile', 'Status']}
+            rows={icRecords}
+            renderRow={(ic: any) => [
+              ic.title, ic.authors, ic.year, ic.journal_outlet,
+              ic.original_cv_item_type, ic.ic_reporting_type || 'Needs Review',
+              ic.quartile, verificationLabel(ic),
+            ]}
             emptyText="No intellectual contributions recorded."
             tableName="intellectual_contributions"
             facultyId={facultyId!}
             userId={user!.id}
             queryKey="my-ics"
             pkField="ic_id"
+            defaultValues={{ record_class: 'ic', verification_status: 'under_review' }}
             formFields={[
               { name: 'title', label: 'Title', required: true },
               { name: 'authors', label: 'Authors' },
@@ -365,10 +376,38 @@ const FacultyProfilePage = () => {
           />
         )}
 
-        {/* Section 4: Professional Engagement Activities */}
+        {/* Section 4: Academic Engagement Activities — record_class = 'academic_engagement' */}
         {profile && (
           <CvSectionCard
-            title="4. Professional Engagement Activities"
+            title="4. Academic Engagement Activities"
+            icon={Users}
+            description="Reviewing, guest lectures, curriculum and accreditation work, conference organisation and similar activities. Reported separately and excluded from Intellectual Contribution totals."
+            columns={['Year', 'Activity', 'Original CV Item Type', 'Details', 'Status']}
+            rows={academicEngagementRecords}
+            renderRow={(a: any) => [
+              a.year, a.title, a.original_cv_item_type, a.journal_outlet || a.apa_citation, verificationLabel(a),
+            ]}
+            emptyText="No academic engagement activities recorded."
+            tableName="intellectual_contributions"
+            facultyId={facultyId!}
+            userId={user!.id}
+            queryKey="my-ics"
+            pkField="ic_id"
+            defaultValues={{ record_class: 'academic_engagement', ic_reporting_type: 'Not Applicable', verification_status: 'under_review' }}
+            formFields={[
+              { name: 'title', label: 'Activity', required: true },
+              { name: 'year', label: 'Year', type: 'number' },
+              { name: 'original_cv_item_type', label: 'Original CV Item Type' },
+              { name: 'journal_outlet', label: 'Organisation / Outlet' },
+              { name: 'apa_citation', label: 'Details', type: 'textarea' },
+            ]}
+          />
+        )}
+
+        {/* Section 5: Professional Engagement Activities */}
+        {profile && (
+          <CvSectionCard
+            title="5. Professional Engagement Activities"
             icon={Briefcase}
             columns={['From-To', 'Activity', 'Details']}
             rows={engagements}
@@ -387,10 +426,10 @@ const FacultyProfilePage = () => {
           />
         )}
 
-        {/* Section 5: Service Contributions */}
+        {/* Section 6: Service Contributions */}
         {profile && (
           <CvSectionCard
-            title="5. Service Contributions"
+            title="6. Service Contributions"
             icon={Heart}
             columns={['From-To', 'Level', 'Committee / Role']}
             rows={services}
@@ -410,10 +449,10 @@ const FacultyProfilePage = () => {
           />
         )}
 
-        {/* Section 6: Awards & Recognition */}
+        {/* Section 7: Awards & Recognition */}
         {profile && (
           <CvSectionCard
-            title="6. Awards & Recognition"
+            title="7. Awards and Recognition"
             icon={Award}
             columns={['Year', 'Award / Recognition', 'Institution / Organization']}
             rows={awards}
@@ -431,10 +470,10 @@ const FacultyProfilePage = () => {
           />
         )}
 
-        {/* Additional: Professional Experience */}
+        {/* Section 8: Professional Experience */}
         {profile && (
           <CvSectionCard
-            title="Professional Experience"
+            title="8. Professional Experience"
             icon={Briefcase}
             columns={['Period', 'Position', 'Organization', 'Key Responsibilities']}
             rows={experience}

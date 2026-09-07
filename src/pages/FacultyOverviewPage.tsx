@@ -42,6 +42,7 @@ const FacultyOverviewPage = () => {
         .from('intellectual_contributions')
         .select('*')
         .eq('faculty_id', profile!.faculty_id)
+        .eq('record_class', 'ic')
         .order('created_at', { ascending: false });
       return data || [];
     },

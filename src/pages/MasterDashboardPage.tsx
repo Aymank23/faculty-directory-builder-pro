@@ -15,7 +15,8 @@ import { BarChart3, BookOpen, FileText, Clock, CheckCircle, XCircle, TrendingUp,
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend, LineChart, Line } from 'recharts';
 import { CHART_COLORS, departments, campuses, icCategories, icTypes, quartiles, icStatuses, facultyQualifications, disciplines } from '@/lib/constants';
 import { normalizeNA, isNA, normalizeDepartment, normalizeDiscipline } from '@/lib/normalize';
-import { VERIFICATION_STATUSES, VERIFICATION_STATUS_LABELS, icStats, countSchoolIcs, verificationStatusOf, onlyIcs, onlyAcademicEngagement } from '@/lib/icMetrics';
+import { VERIFICATION_STATUSES, VERIFICATION_STATUS_LABELS, icStats, countSchoolIcs, verificationStatusOf, onlyIcs, onlyAcademicEngagement, eligibleIcs, dedupeSharedIcs } from '@/lib/icMetrics';
+import { IC_REPORTING_TYPES } from '@/lib/icTaxonomy';
 
 
 const CLASSIFICATION_COLORS: Record<string, string> = {
@@ -37,6 +38,7 @@ const MasterDashboardPage = () => {
   const [typeFilter, setTypeFilter] = useState('all');
   const [quartileFilter, setQuartileFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [reportingTypeFilter, setReportingTypeFilter] = useState('all');
 
   // Eligibility is decided centrally in src/lib/icMetrics.ts — never by ic_type here.
   const { data: allIcsRaw = [] } = useQuery({
@@ -73,6 +75,7 @@ const MasterDashboardPage = () => {
     if (typeFilter !== 'all' && ic.ic_type !== typeFilter) return false;
     if (quartileFilter !== 'all' && ic.quartile !== quartileFilter) return false;
     if (statusFilter !== 'all' && verificationStatusOf(ic) !== statusFilter) return false;
+    if (reportingTypeFilter !== 'all' && (ic.ic_reporting_type || 'Needs Review') !== reportingTypeFilter) return false;
     return true;
   });
 
@@ -91,8 +94,12 @@ const MasterDashboardPage = () => {
   const needsReviewType = stats.needsReportingType;
   // School-level total: eligible ICs only, shared publications counted once.
   const schoolUniqueIcs = countSchoolIcs(ics);
-  const prjs = ics.filter(ic => ic.ic_type === 'PRJ');
-  const q1 = ics.filter(ic => ic.quartile === 'Q1');
+  // Final totals and every breakdown below use eligible (Verified) records with
+  // shared publications counted once. Per-faculty views keep each faculty's copy.
+  const eligible = eligibleIcs(ics);
+  const countedIcs = dedupeSharedIcs(eligible);
+  const prjs = eligible.filter(ic => ic.ic_type === 'PRJ');
+  const q1 = countedIcs.filter(ic => ic.quartile === 'Q1');
 
   // AACSB Classification distribution (normalize NA / N/A → "N/A")
   const classificationCounts: Record<string, number> = {};
@@ -109,31 +116,40 @@ const MasterDashboardPage = () => {
   const participatingCount = filteredFaculty.filter(f => (f as any).faculty_sufficiency === 'Participating').length;
   const participatingPct = filteredFaculty.length ? ((participatingCount / filteredFaculty.length) * 100).toFixed(1) : '0';
 
-  // Category distribution (verified only)
+  // Category distribution (final totals: verified, deduplicated)
   const catCounts: Record<string, number> = {};
-  verified.forEach(ic => {
+  countedIcs.forEach(ic => {
     const cat = ic.ic_category ? ic.ic_category.split('/')[0].trim() : 'Uncategorized';
     catCounts[cat] = (catCounts[cat] || 0) + 1;
   });
   const catData = Object.entries(catCounts).map(([name, value]) => ({ name, value }));
 
+  // IC Reporting Type breakdown (final totals)
+  const reportingTypeCounts: Record<string, number> = {};
+  countedIcs.forEach(ic => {
+    const t = ic.ic_reporting_type || 'Needs Review';
+    reportingTypeCounts[t] = (reportingTypeCounts[t] || 0) + 1;
+  });
+  const reportingTypeData = Object.entries(reportingTypeCounts).sort((a, b) => b[1] - a[1]);
+
   // Year trend
   const yearCounts: Record<number, number> = {};
-  ics.forEach(ic => { if (ic.year) yearCounts[ic.year] = (yearCounts[ic.year] || 0) + 1; });
+  countedIcs.forEach(ic => { if (ic.year) yearCounts[ic.year] = (yearCounts[ic.year] || 0) + 1; });
   const yearData = Object.entries(yearCounts).sort().map(([year, count]) => ({ year, count }));
 
   // Department breakdown — collapse aliases (MKT→Marketing, MGT→Management, …)
   const deptCounts: Record<string, number> = {};
-  ics.forEach(ic => {
+  countedIcs.forEach(ic => {
     const fac = facultyMap[ic.faculty_id];
     const dept = fac?.department ? normalizeDepartment(fac.department) : 'Unknown';
     deptCounts[dept] = (deptCounts[dept] || 0) + 1;
   });
   const deptData = Object.entries(deptCounts).map(([name, value]) => ({ name, value }));
 
-  // Publications per faculty — keep faculty_id so we can drill-down to a profile view.
+  // Publications per faculty — shared publications stay visible for each faculty
+  // member here, even though the school-level totals count them once.
   const perFaculty: Record<string, { name: string; department: string; count: number; faculty_id: string }> = {};
-  ics.forEach(ic => {
+  eligible.forEach(ic => {
     const fac = facultyMap[ic.faculty_id];
     if (!fac) return;
     if (!perFaculty[fac.faculty_id]) {
@@ -157,7 +173,7 @@ const MasterDashboardPage = () => {
 
   // Q distribution (normalize NA / N/A variants to a single bucket)
   const qCounts: Record<string, number> = {};
-  ics.forEach(ic => { const q = normalizeNA(ic.quartile); qCounts[q] = (qCounts[q] || 0) + 1; });
+  countedIcs.forEach(ic => { const q = normalizeNA(ic.quartile); qCounts[q] = (qCounts[q] || 0) + 1; });
   const qData = Object.entries(qCounts).map(([name, value]) => ({ name, value }));
 
   const hasData = ics.length > 0 || filteredFaculty.length > 0;
@@ -166,6 +182,7 @@ const MasterDashboardPage = () => {
     setDeptFilter('all'); setCampusFilter('all'); setYearFrom('2020');
     setYearTo(new Date().getFullYear().toString()); setCategoryFilter('all');
     setTypeFilter('all'); setQuartileFilter('all'); setStatusFilter('all');
+    setDisciplineFilter('all'); setReportingTypeFilter('all');
   };
 
   return (
@@ -238,6 +255,13 @@ const MasterDashboardPage = () => {
               {VERIFICATION_STATUSES.map(s => <SelectItem key={s} value={s}>{VERIFICATION_STATUS_LABELS[s]}</SelectItem>)}
             </SelectContent>
           </Select>
+          <Select value={reportingTypeFilter} onValueChange={setReportingTypeFilter}>
+            <SelectTrigger className="w-56"><SelectValue placeholder="IC Reporting Type" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All IC Reporting Types</SelectItem>
+              {IC_REPORTING_TYPES.map(t => <SelectItem key={t} value={t} className="text-xs">{t}</SelectItem>)}
+            </SelectContent>
+          </Select>
           <div className="flex items-center gap-2">
             <Label className="text-xs text-muted-foreground whitespace-nowrap">Year</Label>
             <Input type="number" value={yearFrom} onChange={e => setYearFrom(e.target.value)} className="w-24" placeholder="From" />
@@ -267,6 +291,33 @@ const MasterDashboardPage = () => {
           <KpiCard title="Academic Engagement" value={academicEngagement.length} icon={Users} />
           <KpiCard title="IC Type Needs Review" value={needsReviewType.length} icon={Clock} variant="warning" />
         </div>
+
+        {/* IC Reporting Type breakdown — Verified records, shared publications counted once */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="font-serif text-base">Totals by IC Reporting Type</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {reportingTypeData.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-6">
+                No verified intellectual contributions in the current filter.
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {reportingTypeData.map(([name, value]) => (
+                  <div key={name} className="flex items-center justify-between gap-3 rounded-md border border-border px-3 py-2 text-sm">
+                    <span className="min-w-0 truncate">{name}</span>
+                    <span className="shrink-0 font-medium">{value}</span>
+                  </div>
+                ))}
+                <div className="flex items-center justify-between gap-3 px-3 pt-1 text-sm font-medium">
+                  <span>School-level total (deduplicated)</span>
+                  <span>{countedIcs.length}</span>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         {/* AACSB Classification & Participation Statistics */}
         <div data-tour="aacsb-stats" className="grid grid-cols-1 lg:grid-cols-2 gap-6">

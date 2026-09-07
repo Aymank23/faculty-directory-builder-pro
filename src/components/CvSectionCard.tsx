@@ -10,9 +10,9 @@ import { Plus, Trash2, Pencil } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
 import { useQueryClient } from '@tanstack/react-query';
-import ProofUploadCell from '@/components/ProofUploadCell';
+import ProofUploadCell, { PROOF_TABLE_CONFIG, type ProofTable } from '@/components/ProofUploadCell';
 
-const PROOF_TABLES = new Set(['professional_engagements', 'service_contributions', 'professional_experience']);
+const PROOF_TABLES = new Set(Object.keys(PROOF_TABLE_CONFIG));
 
 export interface CvFormField {
   name: string;
@@ -38,6 +38,10 @@ export interface CvSectionCardProps {
   pkField?: string;
   /** hide the proof column even for proof-capable tables */
   showProof?: boolean;
+  /** extra column values applied to every row inserted from this section */
+  defaultValues?: Record<string, unknown>;
+  /** optional helper line under the section title */
+  description?: string;
 }
 
 const CvSectionCard = ({
@@ -54,6 +58,8 @@ const CvSectionCard = ({
   formFields,
   pkField = 'id',
   showProof = true,
+  defaultValues,
+  description,
 }: CvSectionCardProps) => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingRow, setEditingRow] = useState<any>(null);
@@ -124,7 +130,9 @@ const CvSectionCard = ({
       });
       toast.success('Entry updated');
     } else {
-      const { error } = await supabase.from(tableName as any).insert({ faculty_id: facultyId, ...payload } as any);
+      const { error } = await supabase
+        .from(tableName as any)
+        .insert({ faculty_id: facultyId, ...(defaultValues || {}), ...payload } as any);
       if (error) {
         toast.error(`Failed to add entry: ${error.message}`);
         setSaving(false);
@@ -169,7 +177,10 @@ const CvSectionCard = ({
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-md bg-muted text-primary"><Icon className="h-5 w-5" /></div>
-            <CardTitle className="font-serif text-base">{title} ({rows.length})</CardTitle>
+            <div>
+              <CardTitle className="font-serif text-base">{title} ({rows.length})</CardTitle>
+              {description && <p className="text-xs text-muted-foreground mt-0.5">{description}</p>}
+            </div>
           </div>
           <Button size="sm" variant="outline" onClick={openAdd}>
             <Plus className="h-4 w-4 mr-1" /> Add
@@ -200,12 +211,9 @@ const CvSectionCard = ({
                     {withProof && (
                       <TableCell>
                         <ProofUploadCell
-                          tableName={tableName as any}
-                          rowId={row.id}
+                          tableName={tableName as ProofTable}
+                          row={row}
                           facultyId={facultyId}
-                          proofStatus={row.proof_status}
-                          proofFilePath={row.proof_file_path}
-                          proofReviewComment={row.proof_review_comment}
                           queryKey={queryKey}
                         />
                       </TableCell>
