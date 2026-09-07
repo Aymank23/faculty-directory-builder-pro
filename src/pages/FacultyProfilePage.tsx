@@ -12,7 +12,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Badge } from '@/components/ui/badge';
-import { User, GraduationCap, Briefcase, Heart, Award, Upload, Pencil, BookOpen } from 'lucide-react';
+import { User, GraduationCap, Briefcase, Heart, Award, Upload, Pencil, BookOpen, Users } from 'lucide-react';
+import { onlyIcs, onlyAcademicEngagement, verificationLabel } from '@/lib/icMetrics';
 import { toast } from 'sonner';
 import { departments, campuses, academicRanks, ftPtStatuses, highestDegrees, tenureStatuses } from '@/lib/constants';
 import { normalizeDepartment } from '@/lib/normalize';
@@ -106,6 +107,10 @@ const FacultyProfilePage = () => {
     },
     enabled: !!facultyId,
   });
+
+  // Section 3 shows research contributions only; section 4 shows Academic Engagement.
+  const icRecords = onlyIcs(ics);
+  const academicEngagementRecords = onlyAcademicEngagement(ics);
 
   useEffect(() => {
     if (profile && editOpen) {
