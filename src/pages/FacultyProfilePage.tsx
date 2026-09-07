@@ -322,7 +322,7 @@ const FacultyProfilePage = () => {
 
         {profile && (
           <CvSectionCard
-            title="2. Academic & Professional Qualifications"
+            title="2. Academic and Professional Qualifications"
             icon={GraduationCap}
             columns={['Degree / Certification', 'Institution', 'Year', 'Field / Area']}
             rows={qualifications}
