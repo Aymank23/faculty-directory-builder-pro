@@ -94,8 +94,12 @@ const MasterDashboardPage = () => {
   const needsReviewType = stats.needsReportingType;
   // School-level total: eligible ICs only, shared publications counted once.
   const schoolUniqueIcs = countSchoolIcs(ics);
-  const prjs = ics.filter(ic => ic.ic_type === 'PRJ');
-  const q1 = ics.filter(ic => ic.quartile === 'Q1');
+  // Final totals and every breakdown below use eligible (Verified) records with
+  // shared publications counted once. Per-faculty views keep each faculty's copy.
+  const eligible = eligibleIcs(ics);
+  const countedIcs = dedupeSharedIcs(eligible);
+  const prjs = eligible.filter(ic => ic.ic_type === 'PRJ');
+  const q1 = countedIcs.filter(ic => ic.quartile === 'Q1');
 
   // AACSB Classification distribution (normalize NA / N/A → "N/A")
   const classificationCounts: Record<string, number> = {};
