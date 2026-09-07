@@ -38,6 +38,10 @@ export interface CvSectionCardProps {
   pkField?: string;
   /** hide the proof column even for proof-capable tables */
   showProof?: boolean;
+  /** extra column values applied to every row inserted from this section */
+  defaultValues?: Record<string, unknown>;
+  /** optional helper line under the section title */
+  description?: string;
 }
 
 const CvSectionCard = ({
