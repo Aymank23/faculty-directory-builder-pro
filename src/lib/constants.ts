@@ -27,9 +27,10 @@ export const abdcRanks = ['A*', 'A', 'B', 'C', 'Not Ranked'];
 
 export const icStatuses = ['draft', 'under_review', 'verified', 'rejected'];
 
-export const ftPtStatuses = ['FT', 'PT'];
+// Adjunct is a staffing status (practitioner / part-time faculty), not an academic rank.
+export const ftPtStatuses = ['FT', 'PT', 'Adjunct'];
 
-export const academicRanks = ['Professor', 'Associate Professor', 'Assistant Professor', 'Lecturer', 'Instructor', 'Visiting Professor', 'Senior Instructor', 'Practice Lecturer', 'Practice Instructor', 'Visiting Lecturer'];
+export const academicRanks = ['Professor', 'Associate Professor', 'Assistant Professor', 'Lecturer', 'Instructor', 'Visiting Professor', 'Senior Instructor', 'Practice Lecturer', 'Practice Instructor', 'Visiting Lecturer', 'Not Applicable'];
 
 export const highestDegrees = ['PhD', 'DBA', 'EdD', 'MBA', 'MS', 'MA', 'BS', 'BA', 'JD', 'DSc', 'Other'];
 
@@ -41,7 +42,7 @@ export const facultyQualifications = ['SA', 'PA', 'IP', 'IA', 'A', 'SP'];
 
 export const facultySufficiencies = ['Participating', 'Supporting'];
 
-export const tenureStatuses = ['Tenured', 'Tenure- Track', 'Non-Tenure Track'];
+export const tenureStatuses = ['Tenured', 'Tenure- Track', 'Non-Tenure Track', 'Not Applicable'];
 
 export const facultyStatuses = ['Full-time Faculty', 'Adjunct Faculty', 'Part-time Faculty', 'Post-Retirement Appointment', 'Faculty Retirees/Adjunct'];
 
