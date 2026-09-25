@@ -1,57 +1,139 @@
-# Requirements-Completeness Audit and Consolidated Remediation Plan
+# AKSOB Dashboard V2 — Architecture Audit and Implementation Plan
 
-Verified by reading the actual pages and querying the live data. No changes made.
+Scope: in-place re-architecture of the existing app, backend and accounts. Nothing is implemented, reclassified or deleted until this plan is approved. The four-profile remediation testing that was in progress is paused. It will be folded into the V2 pilot (Phase 5).
 
-## Why Academic Engagement Activities is missing from Maya Farah's profile
+## Key audit findings (from the live database, 25 Sep 2026)
 
-Two separate causes, both confirmed:
+| Fact | Value | Consequence |
+|---|---|---|
+| Faculty profiles | 196 | Reused as they are |
+| IC rows (record_class = ic) | 1,505 | Reused. **0 are Verified**, so Table 8.1 would show 0 today |
+| Academic Engagement rows (same table) | 18 | Reused |
+| PE / Service / Qualifications / Awards / Experience | 592 / 479 / 684 / 161 / 125 | Reused |
+| IC Reporting Type set | ~110 of 1,505 (rest "Needs Review") | Needs admin classification. Never auto-set |
+| Values currently stored in IC Reporting Type | AKSOB historical subcategories (Peer-Reviewed Journals, Proceedings, Presentations, Editorial-Reviewed, Other IC Type…) | Kept as the subcategory. The 3-way Table 8.1 type is derived from it |
+| Canonical key populated | 68 rows | Shared-publication detection is effectively inactive |
+| ICs shared across ≥2 AKSOB faculty | 0 detected | No coauthor linking exists yet. Point allocation cannot be computed |
+| P/S (faculty_sufficiency), AACSB class (faculty_qualification) | 76 of 196 | Blank values are shown as "Not set". Never inferred |
+| Discipline | 69 of 196 | Blank values are shown as "Unassigned" row in Table 8.1. Never inferred |
+| Scholarship Portfolio (ic_category) | Mostly set. Label variants exist ("Pedagogical/Teaching", "(PA)" suffix, one citation typed into the field) | Normalise the labels. Flag the garbage value for review |
 
-1. The faculty "My Profile" page has only seven sections and no Academic Engagement section at all. Its numbering is 1 Personal, 2 Qualifications, 3 Intellectual Contributions, 4 Professional Engagement, 5 Service, 6 Awards, then an unnumbered Professional Experience block. Academic Engagement was implemented in the CV reader, the stored data, the school-wide dashboard and the Excel export — but the faculty profile page was never rewired to it, so nothing on that page reads it.
-2. The Intellectual Contributions section on that page lists every row in the contributions table without separating the two record classes. On a profile that does have Academic Engagement rows (Annelie Baalbaki, 18 rows) they currently appear inside Intellectual Contributions, which inflates what a faculty member sees.
+## A. Current → Target architecture
 
-Also worth knowing: Maya Farah's own record has 46 research contributions and zero Academic Engagement rows, so even once the section is added her section 4 will legitimately show "none recorded". The section must still be present, and it will be populated for practitioner profiles such as Annelie.
+```text
+CURRENT                                   V2 (same app, same backend)
+faculty_profiles ─┐                       faculty_profiles (+ discipline, P/S, AACSB class)
+intellectual_contributions (per faculty)  canonical IC  ◄── ic_authors (IC ↔ AKSOB faculty, many-to-many)
+engagements / services / quals / awards   AE | PE | Services | Education | Other Evidence (existing tables)
+        │                                         │
+  pages each count on their own           ONE shared service (icMetrics + new points/table81 helpers)
+                                                  │
+                                ┌─────────────────┼──────────────────┐
+                        Faculty Dashboard   Master Dashboard     Table 8.1
+                        (7 tabs)            (3 tabs)             (derived, never typed)
+```
+Both dashboards read the same rows through the same helper functions. The Master Faculty tab opens the same Faculty Dashboard page, not a copy.
 
-## Audit table
+## B. Feature mapping
 
-| Requirement | Faculty View | Practitioner / Part-Time View | Admin View | Master Dashboard | Backend / Data | Status | Evidence | Required fix |
-|---|---|---|---|---|---|---|---|---|
-| Exact 8-section My Profile order | No Academic Engagement section; Professional Experience unnumbered | Same page, same gap | Admin faculty profile has 5 sections only (no Academic Engagement, no Professional Experience) | n/a | Data supports it | **Missing** | FacultyProfilePage sections numbered 1,2,3,4=Professional Engagement,5,6 + unnumbered Experience; AdminFacultyProfilePage has sections 2,3,4,5,6 only | Add Academic Engagement as section 4, renumber, add Professional Experience as section 8, mirror on admin page |
-| Academic Engagement excluded from IC totals | Not applied on profile page | Same | Admin profile KPIs count all rows | Applied | record_class column exists and is populated | **Partial** | FacultyProfilePage does not use the shared counting helpers at all; Annelie's 18 engagement rows sit inside her IC list | Route both profile pages through the shared counting helpers |
-| Only three verification statuses (Verified / Under Review / Excluded) | Repository detail panel still prints the old status field | n/a | Admin profile KPI counts `status='verified'` | Uses new status | Both old `status` and new `verification_status` still stored | **Partial** | MyRepositoryPage detail dialog reads `viewIc.status`; AdminFacultyProfilePage KPI reads `i.status` | Retire every read of the legacy field; single label helper everywhere |
-| Only Verified records in final totals | Repository shows all with filter | n/a | Admin KPIs not eligibility-filtered | Export applies eligibility | Every pilot row is Under Review, so verified totals are legitimately zero today | **Partial** | 0 verified rows across the four pilots | Apply the eligibility rule to admin/faculty KPIs too, and label totals "Verified only" |
-| Part-time options: Academic Rank / Tenure = Not Applicable, FT-PT = Adjunct | Options absent from the edit form | Absent | Absent | Filters unaffected | Free-text columns, so values are storable | **Missing** | constants.ts: `ftPtStatuses = ['FT','PT']`; `academicRanks` and `tenureStatuses` contain no "Not Applicable" | Add the three options and normalise existing practitioner values |
-| Academic vs Practitioner CV structures, Experience/Engagement separation | Experience shown but unnumbered | Practitioner sections present | Experience section absent | n/a | Separate tables exist and are populated | **Partial** | Admin page lacks Professional Experience card | Add Experience to admin page; keep both CV shapes in the 8-section frame |
-| Complete extraction (outlet, authors, dates, identifiers, activity types) | Visible | Visible | Visible | Visible | Reconciled for the four pilots only | **Partial** | Pilot reconciliation complete; remaining ~192 faculty untouched by agreement | No action now; awaits your backfill approval |
-| Add / Edit / Delete on sections 2-8 | Works via shared section card | Works | Works | n/a | RLS allows owner + HoD + admin | **Complete** | Shared CvSectionCard used on both profile pages | Extend to the new sections |
-| Proof upload + status badge | Works for Engagement, Service, Experience | Works | Works | n/a | Private bucket + proof columns | **Complete** | Proof column rendered for the three proof tables | Decide whether Academic Engagement rows need proof too |
-| Permanent Original CV Item Type | Not shown | Not shown | Not shown | Used | Stored | **Partial** | Column present in export and verification queue only | Show it read-only in the profile IC/Engagement tables |
-| Separate IC Reporting Type, exact agreed option list | Not shown | Not shown | Not shown | Used | Stored, single source list in icTaxonomy | **Partial** | Only the verification queue exposes the list | Display it on profiles; keep the list as the only source of labels |
-| Agreed initial mapping + Needs Review | n/a | n/a | Editable in queue | Counted | Applied on CV save | **Complete** | Mapping applied at save; unmapped items fall to Needs Review | none |
-| Admin: reclassify, review evidence, verify, return to review, exclude | n/a | n/a | Verify and exclude only; no return-to-review, no record-class reclassification, no evidence viewer | n/a | Columns for reclassification exist and are unused | **Partial** | VerificationQueuePage has verify and reject/exclude actions only | Add return-to-review, IC vs Academic Engagement reclassification, evidence preview |
-| Shared publications: visible per faculty, counted once school-wide | Visible | Visible | Visible | Not deduplicated | Canonical key + dedupe helpers written but unused | **Broken** | No page imports the dedupe helper; school KPIs double-count co-authored work | Use the school-level unique count on Master, Department and export totals; badge shared rows |
-| Master Dashboard filters (reporting type, category, department, discipline, campus, year, quartile, status) | n/a | n/a | n/a | Reporting-type filter missing; others present | Field available | **Partial** | Master filter set: department, discipline, campus, category, type, year, quartile, status | Add IC Reporting Type filter and a reporting-type breakdown |
-| Two-sheet Excel export with exact fields | n/a | n/a | n/a | n/a | Two sheets exist | **Partial** | Sheets "Intellectual Contributions" and "Academic Engagement"; engagement sheet lacks campus, activity type and period | Confirm the exact field list per sheet and complete it |
-| CV archive (private, versioned, admin retrieval) | Shown | Shown | Shown | n/a | Private bucket + version columns | **Partial** | Archive card lists versions; a re-upload of an identical file still creates a new version, and the card reads a different timestamp field than the upload writes | Align the timestamp field, skip a new version when the file content is unchanged |
+| Existing item | Decision | Why |
+|---|---|---|
+| MasterDashboardPage | MODIFY | Becomes the 3 tabs Overview / Faculty / Table 8.1. Clickable KPIs drill into records |
+| FacultyDirectoryPage | MOVE → Master "Faculty" tab | Only Name, Dept, Discipline, P/S, AACSB class and an Open icon. Status and validity are removed from view. Admin editing stays reachable from the profile |
+| AACSBExportsPage | MODIFY | The two-sheet Excel is regenerated from Table 8.1 helpers |
+| FacultyProfilePage + AdminFacultyProfilePage | MERGE → one Faculty Dashboard | Tabs Overview / IC / AE / PE / Services / Education / Other Evidence. Same component for faculty, HoD and admin. Permissions come from the existing access rules |
+| FacultyOverviewPage, MyAnalyticsPage | RETIRE (redirect to Faculty Dashboard Overview) | Duplicate views |
+| MyRepositoryPage | MODIFY → IC tab content | Add, edit and delete stay |
+| CvSectionCard, ProofUploadCell | KEEP | Evidence stays in the workflow. Only the visible Evidence column is hidden in IC and Education |
+| Professional Experience section | KEEP (under Education/Degrees as a secondary list) | Data is preserved. It does not count as a separate tab |
+| Awards section | MOVE → Other Evidence | Per the crosswalk. Competitive research awards can be promoted to IC by an admin |
+| VerificationQueuePage | MODIFY | Adds the crosswalk activity type, the Table 8.1 type, a coauthor-linking panel and a "conditional" review reason |
+| Department Overview / Reports (HoD) | KEEP, rewire | Use the shared helpers and Department Points |
+| UploadCvPage, parse-cv, cvArchive, CvArchiveCard | KEEP | New rows arrive as Under Review with a suggested crosswalk class only |
+| Audit log, auth, user management | KEEP | Unchanged |
+| icTaxonomy / icMetrics | MODIFY + ADD | Crosswalk table, 3-way type mapping, points and Table 8.1 aggregation |
 
-## Consolidated remediation plan (in order)
+## C. Data-model gap analysis
 
-1. **Profile structure** — rebuild both profile pages on the exact 8-section order, with Academic Engagement as section 4 reading `record_class='academic_engagement'` and Intellectual Contributions restricted to `record_class='ic'`. Add Professional Experience as section 8 on the faculty page and add the missing Qualifications-through-Experience set on the admin page. Show Original CV Item Type and IC Reporting Type as read-only columns.
-2. **Single counting path** — every KPI, chart, table and export goes through the shared counting helpers: three statuses only, verified-only final totals, Academic Engagement never in IC totals, legacy status field no longer read anywhere.
-3. **Shared publications** — school-level and department-level totals use the canonical-key unique count; per-faculty views keep showing the row, marked "Shared".
-4. **Part-time / practitioner options** — add Not Applicable ranks and tenure, Adjunct FT-PT status, everywhere those dropdowns appear, and normalise existing practitioner values without inferring anything new.
-5. **Admin verification workflow** — reclassify between IC and Academic Engagement, change reporting type, open evidence, verify, return to review, exclude, each written to the audit log.
-6. **Master Dashboard** — add the reporting-type filter and breakdown so all nine filters are present.
-7. **Export** — finalise the two sheets against your exact field list.
-8. **CV archive fixes** — content-hash check before creating a version, and the correct upload timestamp on the history card.
-9. **Regression pass** — walk the faculty, practitioner, HoD-equivalent and admin views in the running app and confirm each row of the audit table by looking at the screen, not the code, before handing back for testing.
+| Requirement | Existing support | Change? | Proposed solution | Risk |
+|---|---|---|---|---|
+| Discipline, P/S, AACSB class | Columns exist | No | Normalise the values only | Low |
+| Latest degree | highest_degree + qualifications | No | Derived | Low |
+| Canonical IC shared by several faculty | Each faculty member has their own row. canonical_key is sparse | **Yes** | New `ic_authors` link table (ic_id, faculty_id, department at time of the IC, is_primary, confirmed_by). Existing rows stay. Duplicates across faculty are linked to one canonical IC, and the other rows are marked `duplicate_of` rather than deleted | Medium. Matching is proposed by the system and confirmed by an admin |
+| Total authors | Free-text `authors` | Yes (one column) | `total_authors` int, derived from the citation and editable | Low |
+| AKSOB and same-department author counts | None | No stored column | Computed live from `ic_authors` | None |
+| School / Department Points | None | No stored column | Computed: 1/AKSOB authors and 1/same-department authors | None |
+| Scholarship Portfolio | ic_category | No | Normalise the 3 labels | Low |
+| Table 8.1 IC Reporting Type (3-way) | ic_reporting_type holds historical subcategories | Yes (one column) | Keep the subcategory. Add derived `table81_type` (PRJ / Additional / All Other) via a fixed mapping | Low |
+| Crosswalk activity type | original_cv_item_type (free text) | Yes (one column) | Add `activity_type` (controlled list from the crosswalk) on IC, engagements and awards. The original CV text is kept untouched | Low |
+| Conditional flag | None | Yes | `eligibility` = include / exclude / conditional plus `condition_note`. Conditional items stay out of totals until an admin resolves them | Low |
+| Quartile | Column exists | No | — | — |
+| Verification (3-state) | Exists | No | Unchanged | — |
+| AE vs PE | AE lives in the IC table (record_class). PE has its own table | No | Keep both. AE never feeds Table 8.1 | — |
+| Services | Table exists | No | Services tab | — |
+| Other Evidence | Awards table only | Yes (one category column) | Add `evidence_category` on awards_recognition (Award / Grant-Project / Media-Outreach / Other). Grants not treated as IC go here | Low |
+| Evidence, CV versions, audit | Exist | No | — | — |
+
+## D. Crosswalk → deterministic classification spec (for your review)
+
+| Original activity type | Destination | Table 8.1 | 3-way type (historical subcategory) | Condition | Human review? |
+|---|---|---|---|---|---|
+| PRJ article (Scopus-indexed) | IC | Include | Peer-Reviewed Journal Article | Completed/published. Quartile is an attribute | No |
+| Practice-oriented / trade / magazine / newspaper article | IC | Include | Additional (Editorial-Reviewed) **or** All Other | Additional only if editorial review is documented | Yes |
+| Academic conference proceeding | IC | Include | Additional (Proceedings) | — | No |
+| Academic conference paper presentation | IC | Include | Additional (Presentations) | — | No |
+| Academic conference keynote | IC | Include | Additional (Presentations) | Substantive and documented | Yes |
+| Case study with demonstrable impact | IC | Include | Additional (Case Studies) | — | No |
+| Scholarly book; book chapter / monograph | IC | Include | Additional | — | No |
+| Textbook (new or substantially revised) | IC | Include | Additional (Textbooks) | Adoption evidence | Yes |
+| Book review in PRJ; published letter to PRJ editor | IC | Include | Additional | — | No |
+| Report from sponsored research | IC | Include | All Other | Review process may upgrade it | Yes |
+| Working paper in a qualifying outlet | IC | **Conditional** | All Other | DOI available | Yes (if no DOI → excluded) |
+| Competitive research grant received | IC | Include | Additional (Competitive Grants) | Grant must be competitive | Yes |
+| Internal / noncompetitive grant; grant proposal | Other Evidence | Exclude | — | Award may be counted only if competitive | Yes |
+| International research recognition award | Other Evidence | **Conditional** (the crosswalk says "Exclude" but also "count when competitive") | Additional (Competitive Awards) | Competitive research award | Yes — please confirm |
+| Policy development / advisory panel / standards development | PE or AE | Exclude | Additional (Practice Standards/Public Policy) only for a distinct authored output, recorded as a separate IC | The output must exist | Yes |
+| Editor-in-Chief / Executive Editor; journal reviewer | AE | Exclude | N/A | — | No |
+| Conference organiser/chair; graduate supervision; guest lectures; online-course design/training; curriculum/accreditation frameworks | AE | Exclude | N/A | — | No |
+| Consulting; board membership; entrepreneurship; exec-ed workshops; faculty-development workshops; speeches; invited presentations; panels; jury; certifications; internships; associations; partnerships; university–business collaboration | PE | Exclude | N/A | A distinct published output is recorded separately as an IC | No |
+| Vocational education leading to a credential | Education/Degrees (or PE) | Exclude | N/A | — | No |
+| University / school / department / community service | Services | Exclude | N/A | — | No |
+| Media / outreach, other awards | Other Evidence | Exclude | N/A | — | No |
+
+Two points in the crosswalk need your ruling before Phase 2:
+1. International Research Recognition Award: the crosswalk says both "Exclude" and "count when competitive". The plan treats it as Conditional.
+2. Faculty Development Workshop: the crosswalk routes it to PE (Appendix C), but the tutorial routes faculty development to AE. The plan follows the crosswalk (PE) unless you say otherwise.
+
+## E. Impact on existing data (nothing is changed during the audit)
+
+- **Reused directly:** faculty profiles, qualifications, services, PE, experience, evidence files, CV archive, audit log, verification states, manual edits.
+- **Derived with no change to the source:** 3-way Table 8.1 type from the stored subcategory; points; counts; latest degree.
+- **Needs reclassification (proposed by the system, confirmed by an admin, pilot first):** ~1,395 ICs still at "Needs Review"; Scholarship Portfolio label variants; awards → Other Evidence categories; grants and working papers → conditional.
+- **Needs new linking:** coauthor detection across faculty using DOI and normalised title plus year. Every proposed link is confirmed by an admin before points change.
+- **Cannot be safely transformed without source evidence:** "editorial review documented", "competitive grant", "textbook adoption", "working-paper DOI", missing Discipline/P/S/AACSB class for about 120 faculty. These stay Conditional or "Not set" and are never guessed.
+
+## F. Implementation phases
+
+1. **Backup and schema additions.** Take a fresh backup. Add `ic_authors`, `table81_type`, `activity_type`, `eligibility`/`condition_note`, `total_authors`, `duplicate_of` and `evidence_category`. These are additions only, with access rules mirroring the existing tables.
+2. **Shared logic.** Add the crosswalk table, 3-way mapping, points functions and Table 8.1 aggregation to the central service, with unit tests. Map the existing subcategories.
+3. **Faculty Dashboard (7 tabs).** One component for all roles. Retire the duplicate pages with redirects.
+4. **Master Dashboard (3 tabs) and export.** Clickable KPIs, Faculty directory and Table 8.1 with both drill-downs. The Excel export uses the same aggregation.
+5. **Pilot (Baalbaki, Boustani, Farah, Aad only).** Propose crosswalk classes and coauthor links. An admin confirms them in the Verification Queue. Produce a reconciliation report. **STOP for approval.**
+6. **School-wide rollout** after approval. Suggestions are batched by department and still need admin confirmation.
+
+## G. Regression and acceptance tests
+
+- Editing one pilot IC changes that faculty member's IC tab, the Master Overview, Table 8.1 and the Excel export identically.
+- Each record appears in exactly one of IC / AE / PE / Services / Education / Other Evidence. AE and PE never count in Table 8.1.
+- Only records that are Verified, with record class IC, a reporting type set and eligibility "include", reach Table 8.1. Under Review, Excluded and Conditional records are absent.
+- A publication linked to 2 AKSOB faculty counts as 1 school IC, with 0.5 school points on each profile. The 4 tutorial scenarios reproduce 1.00/1.00, 0.50/0.50, 0.33/0.50 and 0.25/1.00.
+- For each discipline: Basic + Applied + Pedagogy = Total, and the sum of the three reporting types = the same Total. Drill-down 1 and drill-down 2 totals equal the Table 8.1 cell.
+- Master "Total Faculty" and the P/S and AACSB class distributions equal the Faculty tab row counts under the same filters.
+- Pilot manual edits, evidence files, CV versions and audit entries match the pre-V2 backup.
+- Faculty see only their own dashboard, HoDs see their department, and admins see everything. This is checked with pilot faculty, HoD and admin accounts.
 
 ## Technical notes
 
-- Profile pages: `src/pages/FacultyProfilePage.tsx`, `src/pages/AdminFacultyProfilePage.tsx`; shared section UI `src/components/CvSectionCard.tsx`.
-- Counting/eligibility/shared-publication helpers already exist in `src/lib/icMetrics.ts`; label lists in `src/lib/icTaxonomy.ts` stay the only source of reporting-type strings.
-- No migration is needed for items 1-3, 5-7: `record_class`, `verification_status`, `ic_reporting_type`, `original_cv_item_type` and `canonical_key` are all present and populated. Item 4 touches option lists plus a scoped normalisation update; item 8 touches the archive helper only.
-- Out of scope until you approve separately: backfilling the remaining ~192 faculty, any auto-verification, any Discipline inference, and any rebuild or auth change.
-
-## Open question
-
-Please confirm the exact field list for each of the two export sheets, so item 7 is completed against your list rather than my reconstruction.
+- No new project, backend, authentication or parallel dataset is created. All schema changes are additive, and nothing is dropped.
+- Points, counts and Table 8.1 are always computed and never stored as totals.
+- The legacy `status` column remains read-only fallback. `verification_status` stays authoritative.
