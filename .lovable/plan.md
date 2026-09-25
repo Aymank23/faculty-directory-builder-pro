@@ -56,6 +56,19 @@ Every count, point value and Table 8.1 cell resolves to **canonical_ics**. The f
 - Verification, classification and evidence live on the canonical IC. A shared publication is verified once, and the result applies to every coauthor.
 - Only an admin can merge two canonical ICs or split one. Every merge or split is written to the audit log.
 
+### 3a. Shared canonical IC editing safeguard (D-7)
+
+- **Shared fields** are everything that describes the publication: title, year, outlet, DOI, authors, total authors, quartile, Scholarship Portfolio, historical reporting type and evidence.
+- **One confirmed AKSOB author:** that faculty member's edit applies directly. It is still logged, and a verified IC goes back to Under Review when a shared field changes.
+- **Two or more confirmed AKSOB authors:** a faculty edit never changes the record directly. It creates a **change proposal** (new table `canonical_ic_change_requests`: canonical_ic_id, proposed_by, field, old value, new value, reason, status of pending/approved/rejected, reviewed_by/at). Coauthors see a "Change proposed" badge. The live values stay as they are until an admin approves.
+- Approval rules:
+  - Admins approve or reject in the Verification Queue under a new "Shared IC changes" filter.
+  - Conflicting proposals for the same field are shown side by side for an admin to reconcile.
+  - HoDs can review proposals only within their own department.
+- Direct updates to shared fields on a multi-author canonical IC are blocked at the database level for non-admins. Only the approval path can apply the change.
+- **Audit:** every proposal, approval, rejection and direct change is written to the audit log with field-level before/after values. Nothing is overwritten without a record.
+- Author-link changes (adding or removing yourself as an author) also go through a proposal when other AKSOB authors are linked.
+
 ## 4. Activity versus resulting output
 
 - Every activity row has exactly **one primary destination**: AE, PE, Services, Education or Other Evidence.
@@ -101,7 +114,7 @@ This stays a **separate dataset** in its existing `professional_experience` tabl
 
 Proposal: show it as a clearly labelled, collapsible subsection at the bottom of the PE tab, headed "Professional Experience (employment history, not counted as engagement)". Its rows are excluded from the PE totals and KPIs. The data also stays accessible in the admin detailed record.
 
-Alternative for you to choose instead: visible only in the admin detailed record. This is entry D-4 in the register.
+Decision: approved as proposed (D-4).
 
 ## 7. Decision Register
 
@@ -109,10 +122,13 @@ Alternative for you to choose instead: visible only in the admin detailed record
 |---|---|---|---|---|
 | D-1 | International Research Recognition Award | Crosswalk says "Exclude" in the Table 8.1 column but "count when competitive" in the note | Treat as Conditional: Other Evidence by default, linked IC only if an admin confirms it is competitive | **Unresolved — not implemented** |
 | D-2 | Faculty Development Workshop | Faculty tutorial says AE, the crosswalk (Appendix C) says PE | No assumption. Such items are held as "Unrouted" in the review queue | **Unresolved — not implemented** |
-| D-3 | Working-paper rule | Crosswalk: "Conditional if DOI is available" | Include as All Other IC only when a DOI is present and the item is verified. Otherwise excluded | Pending |
-| D-4 | Where Professional Experience appears | Your feedback | PE subsection (see section 6) or admin record only | Pending |
-| D-5 | Trade/practice articles without documented editorial review | Crosswalk | All Other ICs. Upgrade to Additional when evidence is uploaded | Pending |
-| D-6 | Grant: internal vs competitive | Crosswalk | Default Other Evidence. A linked IC is created only when competitiveness is confirmed | Pending |
+| D-3 | Working-paper rule | Crosswalk: "Conditional if DOI is available" | Include as All Other IC only when a DOI is present and the item is verified. Otherwise excluded | **Approved 25 Sep 2026.** A working paper with the required DOI can be All Other ICs after verification. Otherwise it stays out of Table 8.1 |
+| D-4 | Where Professional Experience appears | Your feedback | PE subsection (see section 6) or admin record only | **Approved 25 Sep 2026.** A collapsible subsection at the bottom of the PE tab, labelled "Professional Experience (employment history — not counted as engagement)". It stays a separate dataset and is excluded from PE counts and KPIs |
+| D-5 | Trade/practice articles without documented editorial review | Crosswalk | All Other ICs. Upgrade to Additional when evidence is uploaded | **Approved 25 Sep 2026.** All Other ICs by default. Upgrade to Additional Peer-/Editorial-Reviewed ICs only when editorial review is documented |
+| D-6 | Grant: internal vs competitive | Crosswalk | Default Other Evidence. A linked IC is created only when competitiveness is confirmed | **Approved 25 Sep 2026.** Conditional. No IC is created or counted just because a grant exists. IC treatment needs the crosswalk conditions and confirmation through review |
+| D-7 | Editing a shared canonical IC | Your safeguard | See section 3a | **Approved 25 Sep 2026** |
+
+Implementation is blocked until D-1 and D-2 are confirmed.
 
 ## 8. Crosswalk → deterministic spec (unchanged from rev. 1 except for D-1 and D-2)
 
