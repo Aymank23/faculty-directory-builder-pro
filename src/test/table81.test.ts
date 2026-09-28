@@ -93,7 +93,7 @@ describe('Table 8.1 eligibility and reconciliation', () => {
     expect(t.rows.map((r) => [r.discipline, r.portfolio.total])).toEqual([['FIN', 0.5], ['MKT', 0.5]]);
     expect(table81Reconciles(t.rows, t.counted.length)).toBe(true);
     // school points unchanged: 3 confirmed authors -> 1/3 each
-    expect(pointsFor(au2, 'a', 'f1').school).toBeCloseTo(1 / 3);
+    expect(pointsFor(au2, 'a', 'f1').schoolPoints).toBeCloseTo(1 / 3);
     const three = buildTable81([ics[0]], au2, (f) => ({ f1: 'FIN', f2: 'ECO', f3: 'MKT' } as any)[f] || 'X');
     expect(three.rows.every((r) => Math.abs(r.portfolio.total - 1 / 3) < 1e-9)).toBe(true);
   });
