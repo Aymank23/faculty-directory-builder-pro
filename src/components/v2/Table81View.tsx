@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Download, ArrowLeft } from 'lucide-react';
 import {
   buildTable81, table81Reconciles, TABLE81_TYPES, deriveTable81Type, normalizePortfolio,
-  confirmedAuthors, primaryAuthor, type CanonicalIc, type IcAuthor, type Table81Type,
+  confirmedAuthors, fmt81, type CanonicalIc, type IcAuthor, type Table81Type,
 } from '@/lib/table81';
 
 type Props = { ics: CanonicalIc[]; authors: IcAuthor[]; faculty: any[] };
@@ -38,11 +38,11 @@ export function exportTable81Xlsx(t: ReturnType<typeof useTable81>, authors: IcA
   const drill: any[] = [];
   t.rows.forEach((r) => TABLE81_TYPES.forEach((ty) => drill.push({ Discipline: r.discipline, 'IC Reporting Type': ty, Basic: r.byType[ty].basic, Applied: r.byType[ty].applied, Pedagogy: r.byType[ty].pedagogy, Total: r.byType[ty].total })));
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(drill), 'By Type of IC');
-  const disc = new Map<string, string>(); t.rows.forEach((r) => r.icIds.forEach((id) => disc.set(id, r.discipline)));
+  const disc = new Map<string, string>(); t.rows.forEach((r) => r.icIds.forEach((id) => disc.set(id, [disc.get(id), `${r.discipline} (${r.shares[id].toFixed(2)})`].filter(Boolean).join('; '))));
   const recs = t.counted.map((ic) => {
     const conf = confirmedAuthors(authors, ic.id);
     return {
-      Discipline: disc.get(ic.id), Title: ic.title, Year: ic.year, Outlet: ic.journal_outlet, DOI: ic.doi,
+      'Discipline allocation (D-8)': disc.get(ic.id), Title: ic.title, Year: ic.year, Outlet: ic.journal_outlet, DOI: ic.doi,
       'Scholarship Portfolio': normalizePortfolio(ic.scholarship_portfolio), 'IC Reporting Type': deriveTable81Type(ic.historical_reporting_type),
       'AKSOB Reporting Type (historical)': ic.historical_reporting_type, Quartile: ic.quartile,
       'AKSOB Authors': conf.length,
@@ -59,7 +59,7 @@ export default function Table81View(props: Props) {
   const t = useTable81(props);
   const [disc, setDisc] = useState<string | null>(null);
   const [cell, setCell] = useState<{ type: Table81Type | null; pk: keyof typeof PK | null } | null>(null);
-  const ok = table81Reconciles(t.rows);
+  const ok = table81Reconciles(t.rows, t.counted.length);
   const row = t.rows.find((r) => r.discipline === disc);
 
   const drillIcs = useMemo(() => {
@@ -76,7 +76,7 @@ export default function Table81View(props: Props) {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <Badge variant={ok ? 'default' : 'destructive'}>{ok ? 'Reconciled' : 'Does not reconcile'}</Badge>
-          Generated from Verified, eligible canonical ICs only. Each IC appears once, under its primary AKSOB author's discipline.
+          Generated from Verified, eligible canonical ICs only. Each IC totals 1.00; an IC with authors from several disciplines is split equally between them (D-8).
         </div>
         <Button size="sm" variant="outline" onClick={() => exportTable81Xlsx(t, props.authors)}><Download className="h-4 w-4 mr-1" /> Export Excel</Button>
       </div>
@@ -101,8 +101,8 @@ export default function Table81View(props: Props) {
                 {t.rows.map((r) => (
                   <TableRow key={r.discipline} className="cursor-pointer" onClick={() => { setDisc(r.discipline); setCell(null); }}>
                     <TableCell className="font-medium text-primary underline-offset-2 hover:underline">{r.discipline}</TableCell>
-                    <TableCell className="text-right border-l">{r.portfolio.basic}</TableCell><TableCell className="text-right">{r.portfolio.applied}</TableCell><TableCell className="text-right">{r.portfolio.pedagogy}</TableCell><TableCell className="text-right font-semibold">{r.portfolio.total}</TableCell>
-                    {TABLE81_TYPES.map((ty, i) => <TableCell key={ty} className={`text-right ${i === 0 ? 'border-l' : ''}`}>{r.byType[ty].total}</TableCell>)}
+                    <TableCell className="text-right border-l">{fmt81(r.portfolio.basic)}</TableCell><TableCell className="text-right">{fmt81(r.portfolio.applied)}</TableCell><TableCell className="text-right">{fmt81(r.portfolio.pedagogy)}</TableCell><TableCell className="text-right font-semibold">{fmt81(r.portfolio.total)}</TableCell>
+                    {TABLE81_TYPES.map((ty, i) => <TableCell key={ty} className={`text-right ${i === 0 ? 'border-l' : ''}`}>{fmt81(r.byType[ty].total)}</TableCell>)}
                   </TableRow>
                 ))}
               </TableBody>
@@ -110,8 +110,8 @@ export default function Table81View(props: Props) {
                 <TableFooter>
                   <TableRow>
                     <TableCell>Total</TableCell>
-                    <TableCell className="text-right border-l">{t.totals.basic}</TableCell><TableCell className="text-right">{t.totals.applied}</TableCell><TableCell className="text-right">{t.totals.pedagogy}</TableCell><TableCell className="text-right">{t.totals.total}</TableCell>
-                    {TABLE81_TYPES.map((ty, i) => <TableCell key={ty} className={`text-right ${i === 0 ? 'border-l' : ''}`}>{t.rows.reduce((s, r) => s + r.byType[ty].total, 0)}</TableCell>)}
+                    <TableCell className="text-right border-l">{fmt81(t.totals.basic)}</TableCell><TableCell className="text-right">{fmt81(t.totals.applied)}</TableCell><TableCell className="text-right">{fmt81(t.totals.pedagogy)}</TableCell><TableCell className="text-right">{fmt81(t.totals.total)}</TableCell>
+                    {TABLE81_TYPES.map((ty, i) => <TableCell key={ty} className={`text-right ${i === 0 ? 'border-l' : ''}`}>{fmt81(t.rows.reduce((s, r) => s + r.byType[ty].total, 0))}</TableCell>)}
                   </TableRow>
                 </TableFooter>
               )}
@@ -131,13 +131,13 @@ export default function Table81View(props: Props) {
                     <TableRow key={ty}>
                       <TableCell><button className="text-primary hover:underline" onClick={() => setCell({ type: ty, pk: null })}>{ty}</button></TableCell>
                       {(['basic', 'applied', 'pedagogy'] as const).map((pk) => (
-                        <TableCell key={pk} className="text-right"><button className="hover:underline" onClick={() => setCell({ type: ty, pk })}>{row!.byType[ty][pk]}</button></TableCell>
+                        <TableCell key={pk} className="text-right"><button className="hover:underline" onClick={() => setCell({ type: ty, pk })}>{fmt81(row!.byType[ty][pk])}</button></TableCell>
                       ))}
-                      <TableCell className="text-right font-semibold">{row!.byType[ty].total}</TableCell>
+                      <TableCell className="text-right font-semibold">{fmt81(row!.byType[ty].total)}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
-                <TableFooter><TableRow><TableCell>Total ({disc})</TableCell><TableCell className="text-right">{row!.portfolio.basic}</TableCell><TableCell className="text-right">{row!.portfolio.applied}</TableCell><TableCell className="text-right">{row!.portfolio.pedagogy}</TableCell><TableCell className="text-right"><button className="hover:underline" onClick={() => setCell({ type: null, pk: null })}>{row!.portfolio.total}</button></TableCell></TableRow></TableFooter>
+                <TableFooter><TableRow><TableCell>Total ({disc})</TableCell><TableCell className="text-right">{fmt81(row!.portfolio.basic)}</TableCell><TableCell className="text-right">{fmt81(row!.portfolio.applied)}</TableCell><TableCell className="text-right">{fmt81(row!.portfolio.pedagogy)}</TableCell><TableCell className="text-right"><button className="hover:underline" onClick={() => setCell({ type: null, pk: null })}>{fmt81(row!.portfolio.total)}</button></TableCell></TableRow></TableFooter>
               </Table>
             </CardContent>
           </Card>
@@ -146,21 +146,20 @@ export default function Table81View(props: Props) {
               <CardHeader><CardTitle className="font-serif text-base">Individual ICs ({drillIcs.length}){cell.type ? ` · ${cell.type}` : ''}{cell.pk ? ` · ${PK[cell.pk]}` : ''}</CardTitle></CardHeader>
               <CardContent className="p-0 overflow-x-auto">
                 <Table>
-                  <TableHeader><TableRow><TableHead>Title</TableHead><TableHead>Year</TableHead><TableHead>Scholarship Type</TableHead><TableHead>IC Reporting Type</TableHead><TableHead className="text-right">AKSOB Authors</TableHead><TableHead className="text-right">School Points</TableHead><TableHead>Faculty</TableHead></TableRow></TableHeader>
+                  <TableHeader><TableRow><TableHead>Title</TableHead><TableHead>Year</TableHead><TableHead>Scholarship Type</TableHead><TableHead>IC Reporting Type</TableHead><TableHead className="text-right">AKSOB Authors</TableHead><TableHead className="text-right">Discipline Share</TableHead><TableHead className="text-right">School Points / author</TableHead><TableHead>Faculty</TableHead></TableRow></TableHeader>
                   <TableBody>
                     {drillIcs.map((ic) => {
                       const conf = confirmedAuthors(props.authors, ic.id);
-                      const pa = primaryAuthor(props.authors, ic.id);
-                      return (
+                                            return (
                         <TableRow key={ic.id}>
                           <TableCell className="text-sm max-w-md">{ic.title}</TableCell>
                           <TableCell>{ic.year}</TableCell>
                           <TableCell>{normalizePortfolio(ic.scholarship_portfolio)}</TableCell>
                           <TableCell>{deriveTable81Type(ic.historical_reporting_type)}</TableCell>
                           <TableCell className="text-right">{conf.length}</TableCell>
-                          <TableCell className="text-right">{(1 / conf.length).toFixed(2)}</TableCell>
+                          <TableCell className="text-right">{row!.shares[ic.id].toFixed(2)}</TableCell><TableCell className="text-right">{(1 / conf.length).toFixed(2)}</TableCell>
                           <TableCell className="text-sm">
-                            {conf.map((a) => { const f = t.fmap.get(a.faculty_id); return <Link key={a.faculty_id} to={`/faculty/${a.faculty_id}`} className="block text-primary hover:underline">{f ? `${f.first_name} ${f.last_name}` : '—'}{a.faculty_id === pa?.faculty_id && conf.length > 1 ? ' (primary)' : ''}</Link>; })}
+                            {conf.map((a) => { const f = t.fmap.get(a.faculty_id); return <Link key={a.faculty_id} to={`/faculty/${a.faculty_id}`} className="block text-primary hover:underline">{f ? `${f.first_name} ${f.last_name}` : '—'}</Link>; })}
                           </TableCell>
                         </TableRow>
                       );
