@@ -58,6 +58,44 @@ export type Database = {
           },
         ]
       }
+      activity_outputs: {
+        Row: {
+          activity_id: string
+          activity_table: string
+          canonical_ic_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          relationship: string | null
+        }
+        Insert: {
+          activity_id: string
+          activity_table: string
+          canonical_ic_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          relationship?: string | null
+        }
+        Update: {
+          activity_id?: string
+          activity_table?: string
+          canonical_ic_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          relationship?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "activity_outputs_canonical_ic_id_fkey"
+            columns: ["canonical_ic_id"]
+            isOneToOne: false
+            referencedRelation: "canonical_ics"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       app_users: {
         Row: {
           auth_user_id: string | null
@@ -135,9 +173,11 @@ export type Database = {
       }
       awards_recognition: {
         Row: {
+          activity_type: string | null
           award: string | null
           award_name: string | null
           created_at: string
+          evidence_category: string | null
           faculty_id: string | null
           id: string
           institution_organization: string | null
@@ -145,9 +185,11 @@ export type Database = {
           year: number | null
         }
         Insert: {
+          activity_type?: string | null
           award?: string | null
           award_name?: string | null
           created_at?: string
+          evidence_category?: string | null
           faculty_id?: string | null
           id?: string
           institution_organization?: string | null
@@ -155,9 +197,11 @@ export type Database = {
           year?: number | null
         }
         Update: {
+          activity_type?: string | null
           award?: string | null
           award_name?: string | null
           created_at?: string
+          evidence_category?: string | null
           faculty_id?: string | null
           id?: string
           institution_organization?: string | null
@@ -173,6 +217,191 @@ export type Database = {
             referencedColumns: ["faculty_id"]
           },
         ]
+      }
+      canonical_ic_change_requests: {
+        Row: {
+          canonical_ic_id: string
+          created_at: string
+          field: string
+          id: string
+          new_value: string | null
+          old_value: string | null
+          proposed_by: string
+          reason: string | null
+          review_note: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+        }
+        Insert: {
+          canonical_ic_id: string
+          created_at?: string
+          field: string
+          id?: string
+          new_value?: string | null
+          old_value?: string | null
+          proposed_by: string
+          reason?: string | null
+          review_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+        }
+        Update: {
+          canonical_ic_id?: string
+          created_at?: string
+          field?: string
+          id?: string
+          new_value?: string | null
+          old_value?: string | null
+          proposed_by?: string
+          reason?: string | null
+          review_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "canonical_ic_change_requests_canonical_ic_id_fkey"
+            columns: ["canonical_ic_id"]
+            isOneToOne: false
+            referencedRelation: "canonical_ics"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      canonical_ics: {
+        Row: {
+          abdc_rank: string | null
+          activity_type: string | null
+          admin_notes: string | null
+          apa_citation: string | null
+          authors: string | null
+          canonical_key: string | null
+          condition_note: string | null
+          created_at: string
+          created_by: string | null
+          doi: string | null
+          eligibility: string
+          evidence_file_url: string | null
+          evidence_status: string | null
+          historical_reporting_type: string
+          id: string
+          impact_factor: string | null
+          indexing_database: string | null
+          journal_outlet: string | null
+          original_cv_item_type: string | null
+          quartile: string | null
+          rejection_reason: string | null
+          scholarship_portfolio: string | null
+          title: string | null
+          total_authors: number | null
+          updated_at: string
+          verification_date: string | null
+          verification_status: string
+          verified_by: string | null
+          year: number | null
+        }
+        Insert: {
+          abdc_rank?: string | null
+          activity_type?: string | null
+          admin_notes?: string | null
+          apa_citation?: string | null
+          authors?: string | null
+          canonical_key?: string | null
+          condition_note?: string | null
+          created_at?: string
+          created_by?: string | null
+          doi?: string | null
+          eligibility?: string
+          evidence_file_url?: string | null
+          evidence_status?: string | null
+          historical_reporting_type?: string
+          id?: string
+          impact_factor?: string | null
+          indexing_database?: string | null
+          journal_outlet?: string | null
+          original_cv_item_type?: string | null
+          quartile?: string | null
+          rejection_reason?: string | null
+          scholarship_portfolio?: string | null
+          title?: string | null
+          total_authors?: number | null
+          updated_at?: string
+          verification_date?: string | null
+          verification_status?: string
+          verified_by?: string | null
+          year?: number | null
+        }
+        Update: {
+          abdc_rank?: string | null
+          activity_type?: string | null
+          admin_notes?: string | null
+          apa_citation?: string | null
+          authors?: string | null
+          canonical_key?: string | null
+          condition_note?: string | null
+          created_at?: string
+          created_by?: string | null
+          doi?: string | null
+          eligibility?: string
+          evidence_file_url?: string | null
+          evidence_status?: string | null
+          historical_reporting_type?: string
+          id?: string
+          impact_factor?: string | null
+          indexing_database?: string | null
+          journal_outlet?: string | null
+          original_cv_item_type?: string | null
+          quartile?: string | null
+          rejection_reason?: string | null
+          scholarship_portfolio?: string | null
+          title?: string | null
+          total_authors?: number | null
+          updated_at?: string
+          verification_date?: string | null
+          verification_status?: string
+          verified_by?: string | null
+          year?: number | null
+        }
+        Relationships: []
+      }
+      classification_policies: {
+        Row: {
+          activity_type: string
+          condition_note: string | null
+          decision_ref: string | null
+          destination: string
+          historical_reporting_type: string | null
+          provisional: boolean
+          requires_review: boolean
+          table81: string
+          updated_at: string
+        }
+        Insert: {
+          activity_type: string
+          condition_note?: string | null
+          decision_ref?: string | null
+          destination: string
+          historical_reporting_type?: string | null
+          provisional?: boolean
+          requires_review?: boolean
+          table81: string
+          updated_at?: string
+        }
+        Update: {
+          activity_type?: string
+          condition_note?: string | null
+          decision_ref?: string | null
+          destination?: string
+          historical_reporting_type?: string | null
+          provisional?: boolean
+          requires_review?: boolean
+          table81?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       cv_uploads: {
         Row: {
@@ -338,9 +567,61 @@ export type Database = {
           },
         ]
       }
+      ic_authors: {
+        Row: {
+          author_position: number | null
+          canonical_ic_id: string
+          confirmed_at: string | null
+          confirmed_by: string | null
+          created_at: string
+          department_snapshot: string | null
+          faculty_id: string
+          id: string
+          link_status: string
+        }
+        Insert: {
+          author_position?: number | null
+          canonical_ic_id: string
+          confirmed_at?: string | null
+          confirmed_by?: string | null
+          created_at?: string
+          department_snapshot?: string | null
+          faculty_id: string
+          id?: string
+          link_status?: string
+        }
+        Update: {
+          author_position?: number | null
+          canonical_ic_id?: string
+          confirmed_at?: string | null
+          confirmed_by?: string | null
+          created_at?: string
+          department_snapshot?: string | null
+          faculty_id?: string
+          id?: string
+          link_status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ic_authors_canonical_ic_id_fkey"
+            columns: ["canonical_ic_id"]
+            isOneToOne: false
+            referencedRelation: "canonical_ics"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ic_authors_faculty_id_fkey"
+            columns: ["faculty_id"]
+            isOneToOne: false
+            referencedRelation: "faculty_profiles"
+            referencedColumns: ["faculty_id"]
+          },
+        ]
+      }
       intellectual_contributions: {
         Row: {
           abdc_rank: string | null
+          activity_type: string | null
           admin_notes: string | null
           apa_citation: string | null
           authors: string | null
@@ -373,6 +654,7 @@ export type Database = {
         }
         Insert: {
           abdc_rank?: string | null
+          activity_type?: string | null
           admin_notes?: string | null
           apa_citation?: string | null
           authors?: string | null
@@ -405,6 +687,7 @@ export type Database = {
         }
         Update: {
           abdc_rank?: string | null
+          activity_type?: string | null
           admin_notes?: string | null
           apa_citation?: string | null
           authors?: string | null
@@ -452,9 +735,49 @@ export type Database = {
           },
         ]
       }
+      legacy_ic_link: {
+        Row: {
+          canonical_ic_id: string
+          conflict_fields: Json | null
+          created_at: string
+          legacy_ic_id: string
+          match_method: string
+        }
+        Insert: {
+          canonical_ic_id: string
+          conflict_fields?: Json | null
+          created_at?: string
+          legacy_ic_id: string
+          match_method: string
+        }
+        Update: {
+          canonical_ic_id?: string
+          conflict_fields?: Json | null
+          created_at?: string
+          legacy_ic_id?: string
+          match_method?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "legacy_ic_link_canonical_ic_id_fkey"
+            columns: ["canonical_ic_id"]
+            isOneToOne: false
+            referencedRelation: "canonical_ics"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "legacy_ic_link_legacy_ic_id_fkey"
+            columns: ["legacy_ic_id"]
+            isOneToOne: true
+            referencedRelation: "intellectual_contributions"
+            referencedColumns: ["ic_id"]
+          },
+        ]
+      }
       professional_engagements: {
         Row: {
           activity: string | null
+          activity_type: string | null
           created_at: string
           description: string | null
           details: string | null
@@ -472,6 +795,7 @@ export type Database = {
         }
         Insert: {
           activity?: string | null
+          activity_type?: string | null
           created_at?: string
           description?: string | null
           details?: string | null
@@ -489,6 +813,7 @@ export type Database = {
         }
         Update: {
           activity?: string | null
+          activity_type?: string | null
           created_at?: string
           description?: string | null
           details?: string | null
@@ -564,6 +889,7 @@ export type Database = {
       }
       service_contributions: {
         Row: {
+          activity_type: string | null
           committee_role: string | null
           contribution_type: string | null
           created_at: string
@@ -581,6 +907,7 @@ export type Database = {
           year: number | null
         }
         Insert: {
+          activity_type?: string | null
           committee_role?: string | null
           contribution_type?: string | null
           created_at?: string
@@ -598,6 +925,7 @@ export type Database = {
           year?: number | null
         }
         Update: {
+          activity_type?: string | null
           committee_role?: string | null
           contribution_type?: string | null
           created_at?: string
@@ -695,6 +1023,7 @@ export type Database = {
     }
     Functions: {
       can_edit_faculty: { Args: { _faculty_id: string }; Returns: boolean }
+      can_view_canonical_ic: { Args: { _id: string }; Returns: boolean }
       can_view_faculty: { Args: { _faculty_id: string }; Returns: boolean }
       canonical_department: { Args: { v: string }; Returns: string }
       canonical_discipline: { Args: { v: string }; Returns: string }
@@ -737,6 +1066,7 @@ export type Database = {
         }
       }
       clean_cv: { Args: { v: string }; Returns: string }
+      confirmed_author_count: { Args: { _id: string }; Returns: number }
       current_app_user_id: { Args: never; Returns: string }
       current_department: { Args: never; Returns: string }
       has_role: {
