@@ -1,189 +1,50 @@
-import { useState } from 'react';
-import AppLayout from '@/components/AppLayout';
-import { Card, CardContent } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { supabase } from '@/lib/supabase';
+import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { FileSpreadsheet } from 'lucide-react';
-import { departments, disciplines } from '@/lib/constants';
-import { normalizeDepartment, normalizeDiscipline } from '@/lib/normalize';
-import * as XLSX from 'xlsx';
-import {
-  eligibleIcs, onlyAcademicEngagement, verificationLabel,
-  dedupeSharedIcs, buildSharedKeySet, isSharedRecord, canonicalKeyOf,
-} from '@/lib/icMetrics';
+import AppLayout from '@/components/AppLayout';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { fetchSchoolCanonical } from '@/lib/canonicalData';
+import { normalizeDepartment } from '@/lib/normalize';
+import Table81View from '@/components/v2/Table81View';
 
+// Uses the SAME canonical service + Table 8.1 engine as the Master Dashboard (single counting engine).
+const ALL = 'all';
 const AACSBExportsPage = () => {
-  const [deptFilter, setDeptFilter] = useState('all');
-  const [disciplineFilter, setDisciplineFilter] = useState('all');
+  const { data, isLoading } = useQuery({ queryKey: ['v2-school'], queryFn: fetchSchoolCanonical });
+  const [year, setYear] = useState(ALL);
+  const [dept, setDept] = useState(ALL);
 
-  const { data: faculty = [] } = useQuery({
-    queryKey: ['export-faculty'],
-    queryFn: async () => {
-      const { data } = await supabase.from('faculty_profiles').select('*');
-      return data || [];
-    },
-  });
+  const faculty = useMemo(() => (data?.faculty || []).map((f: any) => ({ ...f, department: f.department ? normalizeDepartment(f.department) : null })), [data]);
+  const years = useMemo(() => [...new Set((data?.ics || []).map((i) => i.year).filter(Boolean))].sort((a: any, b: any) => b - a), [data]);
+  const depts = useMemo(() => [...new Set(faculty.map((f: any) => f.department).filter(Boolean))].sort(), [faculty]);
 
-  const { data: ics = [] } = useQuery({
-    queryKey: ['export-ics'],
-    queryFn: async () => {
-      const { data } = await supabase.from('intellectual_contributions').select('*');
-      return data || [];
-    },
-  });
-
-  const facultyMap = Object.fromEntries(faculty.map(f => [f.faculty_id, f]));
-
-  const inScope = (ic: any) => {
-    const fac = facultyMap[ic.faculty_id];
-    if (deptFilter !== 'all' && normalizeDepartment(fac?.department) !== deptFilter) return false;
-    if (disciplineFilter !== 'all' && normalizeDiscipline(fac?.discipline) !== disciplineFilter) return false;
-    return true;
-  };
-
-  // Only eligible (record_class = ic, Verified, reportable type) records may be
-  // exported. Academic Engagement never enters IC totals.
-  const reportableIcs = eligibleIcs(ics).filter(inScope);
-  const sharedKeys = buildSharedKeySet(ics);
-  // School-level totals count shared publications once.
-  const countedIcs = dedupeSharedIcs(reportableIcs);
-
-  const tally = (rows: any[], keyFn: (r: any) => string) => {
-    const out: Record<string, number> = {};
-    for (const r of rows) {
-      const k = keyFn(r) || 'Unspecified';
-      out[k] = (out[k] || 0) + 1;
-    }
-    return out;
-  };
-
-  const summarySection = (label: string, counts: Record<string, number>) => {
-    const entries = Object.entries(counts).sort((a, b) => b[1] - a[1]);
-    return [
-      { Category: label, Value: '', Count: '' },
-      ...entries.map(([k, v]) => ({ Category: '', Value: k, Count: v })),
-      { Category: '', Value: 'Subtotal', Count: entries.reduce((s, [, v]) => s + v, 0) },
-      { Category: '', Value: '', Count: '' },
-    ];
-  };
-
-  const summaryRows = [
-    { Category: 'School-level total (Verified, deduplicated)', Value: '', Count: countedIcs.length },
-    { Category: '', Value: '', Count: '' },
-    ...summarySection('Totals by IC Reporting Type', tally(countedIcs, r => r.ic_reporting_type)),
-    ...summarySection('Totals by Basic / Applied / Pedagogical', tally(countedIcs, r => r.ic_category)),
-    ...summarySection('Totals by Department', tally(countedIcs, r => normalizeDepartment(facultyMap[r.faculty_id]?.department))),
-    ...summarySection('Totals by Discipline', tally(countedIcs, r => normalizeDiscipline(facultyMap[r.faculty_id]?.discipline))),
-    ...summarySection('Totals by Year', tally(countedIcs, r => (r.year ? String(r.year) : ''))),
-    ...summarySection('Totals by Quartile', tally(countedIcs, r => r.quartile)),
-  ];
-
-  const supportingRows = reportableIcs.map((ic: any) => {
-    const fac = facultyMap[ic.faculty_id];
-    return {
-      'Faculty Member': fac ? `${fac.first_name} ${fac.last_name}` : 'Unknown',
-      'Employee ID': fac?.employee_id || '',
-      'Department': fac?.department ? normalizeDepartment(fac.department) : '',
-      'Original CV Item Type': ic.original_cv_item_type || '',
-      'IC Reporting Type': ic.ic_reporting_type || 'Needs Review',
-      'Title': ic.title || '',
-      'Authors': ic.authors || '',
-      'Year': ic.year || '',
-      'Journal/Outlet': ic.journal_outlet || '',
-      'Basic/Applied/Pedagogical': ic.ic_category || '',
-      'Quartile': ic.quartile || '',
-      'DOI/Identifier': ic.doi || canonicalKeyOf(ic) || '',
-      'Verification Status': verificationLabel(ic),
-      'Duplicate/Shared Record': isSharedRecord(ic, sharedKeys) ? 'Shared — counted once at school level' : 'No',
-    };
-  });
-
-  const engagementRows = onlyAcademicEngagement(ics).filter(inScope).map((ic: any) => {
-    const fac = facultyMap[ic.faculty_id];
-    return {
-      'Faculty Member': fac ? `${fac.first_name} ${fac.last_name}` : 'Unknown',
-      'Employee ID': fac?.employee_id || '',
-      'Department': fac?.department ? normalizeDepartment(fac.department) : '',
-      'Original CV Item Type': ic.original_cv_item_type || '',
-      'Year': ic.year || '',
-      'Activity': ic.title || '',
-      'Verification Status': verificationLabel(ic),
-    };
-  });
-
-  const handleExport = () => {
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(summaryRows), 'Summary');
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(supportingRows), 'Supporting Records');
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(engagementRows), 'Academic Engagement');
-    XLSX.writeFile(wb, `AACSB_Export_${new Date().toISOString().slice(0, 10)}.xlsx`);
-  };
+  // Department filter keeps ICs with at least one confirmed author in that department.
+  const ics = useMemo(() => {
+    const deptOf = new Map(faculty.map((f: any) => [f.faculty_id, f.department]));
+    return (data?.ics || []).filter((ic) =>
+      (year === ALL || String(ic.year) === year) &&
+      (dept === ALL || (data?.authors || []).some((a) => a.canonical_ic_id === ic.id && a.link_status === 'confirmed' && deptOf.get(a.faculty_id) === dept)));
+  }, [data, faculty, year, dept]);
 
   return (
     <AppLayout>
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
             <h1 className="text-2xl font-bold font-serif text-foreground">AACSB Exports</h1>
-            <p className="text-sm text-muted-foreground">
-              Two-sheet workbook: Summary totals and Supporting Records. Verified, non-duplicated intellectual contributions only.
-            </p>
+            <p className="text-sm text-muted-foreground">Table 8.1 and supporting records, generated from the same calculation as the Master Dashboard.</p>
           </div>
-          <Button onClick={handleExport} disabled={supportingRows.length === 0}>
-            <FileSpreadsheet className="h-4 w-4 mr-2" /> Export to Excel
-          </Button>
+          <div className="flex gap-2">
+            <Select value={year} onValueChange={setYear}>
+              <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
+              <SelectContent><SelectItem value={ALL}>All years</SelectItem>{years.map((y: any) => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}</SelectContent>
+            </Select>
+            <Select value={dept} onValueChange={setDept}>
+              <SelectTrigger className="w-64"><SelectValue /></SelectTrigger>
+              <SelectContent><SelectItem value={ALL}>All departments</SelectItem>{depts.map((d: any) => <SelectItem key={d} value={d}>{d}</SelectItem>)}</SelectContent>
+            </Select>
+          </div>
         </div>
-
-        <div className="flex gap-3 flex-wrap items-center">
-          <Select value={deptFilter} onValueChange={setDeptFilter}>
-            <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Departments</SelectItem>
-              {departments.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
-            </SelectContent>
-          </Select>
-          <Select value={disciplineFilter} onValueChange={setDisciplineFilter}>
-            <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Disciplines</SelectItem>
-              {disciplines.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
-            </SelectContent>
-          </Select>
-          <p className="text-xs text-muted-foreground">
-            {supportingRows.length} supporting record(s) · {countedIcs.length} counted at school level · {engagementRows.length} academic engagement record(s)
-          </p>
-        </div>
-
-        <Card>
-          <CardContent className="p-0">
-            {supportingRows.length === 0 ? (
-              <div className="text-center py-16">
-                <FileSpreadsheet className="h-10 w-10 mx-auto text-muted-foreground/30 mb-3" />
-                <p className="text-sm text-muted-foreground">No verified intellectual contributions available for export.</p>
-              </div>
-            ) : (
-              <div className="overflow-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      {Object.keys(supportingRows[0]).map(k => <TableHead key={k} className="text-xs whitespace-nowrap">{k}</TableHead>)}
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {supportingRows.map((row, i) => (
-                      <TableRow key={i}>
-                        {Object.values(row).map((v, j) => <TableCell key={j} className="text-xs whitespace-nowrap">{String(v ?? '')}</TableCell>)}
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+        {isLoading ? <p className="text-sm text-muted-foreground">Loading…</p> : <Table81View ics={ics} authors={data?.authors || []} faculty={faculty} />}
       </div>
     </AppLayout>
   );
