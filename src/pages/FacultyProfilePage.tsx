@@ -21,8 +21,7 @@ import { repairQualification } from '@/lib/qualifications';
 import { repairService } from '@/lib/services';
 import { repairEngagement } from '@/lib/engagements';
 import { cleanCvValue } from '@/lib/cvNoise';
-import CvSectionCard from '@/components/CvSectionCard';
-import CvArchiveCard from '@/components/CvArchiveCard';
+import FacultyDashboard from '@/components/v2/FacultyDashboard';
 
 
 
@@ -182,7 +181,7 @@ const FacultyProfilePage = () => {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold font-serif text-foreground">My Profile</h1>
-            <p className="text-sm text-muted-foreground">Your AACSB CV record — sections 1 to 8</p>
+            <p className="text-sm text-muted-foreground">Individual Faculty Dashboard</p>
           </div>
           {profile && (
             <Button asChild variant="outline">
@@ -192,45 +191,6 @@ const FacultyProfilePage = () => {
             </Button>
           )}
         </div>
-
-        {/* Section 1: Personal & Academic */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-md bg-muted text-primary"><User className="h-5 w-5" /></div>
-                <div>
-                  <CardTitle className="font-serif text-base">1. Personal & Academic Information</CardTitle>
-                  <p className="text-xs text-muted-foreground mt-0.5">Click Edit to correct any inaccuracies</p>
-                </div>
-              </div>
-              {profile && (
-                <Button size="sm" variant="outline" onClick={() => setEditOpen(true)}>
-                  <Pencil className="h-4 w-4 mr-1" /> Edit
-                </Button>
-              )}
-            </div>
-          </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <p className="text-sm text-muted-foreground">Loading profile...</p>
-            ) : !profile ? (
-              <div className="text-center py-8">
-                <User className="h-10 w-10 mx-auto text-muted-foreground/30 mb-3" />
-                <p className="text-sm text-muted-foreground">No profile record found. Upload a CV or contact your administrator.</p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {fields.map(f => (
-                  <div key={f.label} className="space-y-1">
-                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{f.label}</p>
-                    <p className="text-sm text-foreground">{f.value || <Badge variant="outline" className="text-xs">Not set</Badge>}</p>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
 
         {/* Edit profile dialog */}
         <Dialog open={editOpen} onOpenChange={setEditOpen}>
@@ -318,182 +278,7 @@ const FacultyProfilePage = () => {
           </DialogContent>
         </Dialog>
 
-        {/* Section 2: Academic and Professional Qualifications */}
-
-        {profile && (
-          <CvSectionCard
-            title="2. Academic and Professional Qualifications"
-            icon={GraduationCap}
-            columns={['Degree / Certification', 'Institution', 'Year', 'Field / Area']}
-            rows={qualifications}
-            renderRow={(q: any) => [q.degree_certification, q.institution, q.year, q.field_area]}
-            emptyText="No qualifications recorded."
-            tableName="academic_qualifications"
-            facultyId={facultyId!}
-            userId={user!.id}
-            queryKey="my-qualifications"
-            formFields={[
-              { name: 'degree_certification', label: 'Degree / Certification', required: true },
-              { name: 'institution', label: 'Institution' },
-              { name: 'year', label: 'Year', type: 'number' },
-              { name: 'field_area', label: 'Field / Area' },
-            ]}
-          />
-        )}
-
-        {/* Section 3: Intellectual Contributions — record_class = 'ic' only */}
-        {profile && (
-          <CvSectionCard
-            title="3. Intellectual Contributions"
-            icon={BookOpen}
-            description="Research and scholarly output only. Academic Engagement activities are listed separately in section 4 and never count as Intellectual Contributions."
-            columns={['Title', 'Authors', 'Year', 'Journal / Outlet', 'Original CV Item Type', 'IC Reporting Type', 'Quartile', 'Status']}
-            rows={icRecords}
-            renderRow={(ic: any) => [
-              ic.title, ic.authors, ic.year, ic.journal_outlet,
-              ic.original_cv_item_type, ic.ic_reporting_type || 'Needs Review',
-              ic.quartile, verificationLabel(ic),
-            ]}
-            emptyText="No intellectual contributions recorded."
-            tableName="intellectual_contributions"
-            facultyId={facultyId!}
-            userId={user!.id}
-            queryKey="my-ics"
-            pkField="ic_id"
-            defaultValues={{ record_class: 'ic', verification_status: 'under_review' }}
-            formFields={[
-              { name: 'title', label: 'Title', required: true },
-              { name: 'authors', label: 'Authors' },
-              { name: 'year', label: 'Year', type: 'number' },
-              { name: 'journal_outlet', label: 'Journal / Outlet' },
-              { name: 'ic_type', label: 'IC Type (PRJ, Book, Chapter, …)' },
-              { name: 'ic_category', label: 'IC Category' },
-              { name: 'indexing_database', label: 'Indexing Database' },
-              { name: 'quartile', label: 'Quartile (Q1–Q4)' },
-              { name: 'abdc_rank', label: 'ABDC Rank' },
-              { name: 'doi', label: 'DOI' },
-              { name: 'apa_citation', label: 'APA Citation', type: 'textarea' },
-            ]}
-          />
-        )}
-
-        {/* Section 4: Academic Engagement Activities — record_class = 'academic_engagement' */}
-        {profile && (
-          <CvSectionCard
-            title="4. Academic Engagement Activities"
-            icon={Users}
-            description="Reviewing, guest lectures, curriculum and accreditation work, conference organisation and similar activities. Reported separately and excluded from Intellectual Contribution totals."
-            columns={['Year', 'Activity', 'Original CV Item Type', 'Details', 'Status']}
-            rows={academicEngagementRecords}
-            renderRow={(a: any) => [
-              a.year, a.title, a.original_cv_item_type, a.journal_outlet || a.apa_citation, verificationLabel(a),
-            ]}
-            emptyText="No academic engagement activities recorded."
-            tableName="intellectual_contributions"
-            facultyId={facultyId!}
-            userId={user!.id}
-            queryKey="my-ics"
-            pkField="ic_id"
-            defaultValues={{ record_class: 'academic_engagement', ic_reporting_type: 'Not Applicable', verification_status: 'under_review' }}
-            formFields={[
-              { name: 'title', label: 'Activity', required: true },
-              { name: 'year', label: 'Year', type: 'number' },
-              { name: 'original_cv_item_type', label: 'Original CV Item Type' },
-              { name: 'journal_outlet', label: 'Organisation / Outlet' },
-              { name: 'apa_citation', label: 'Details', type: 'textarea' },
-            ]}
-          />
-        )}
-
-        {/* Section 5: Professional Engagement Activities */}
-        {profile && (
-          <CvSectionCard
-            title="5. Professional Engagement Activities"
-            icon={Briefcase}
-            columns={['From-To', 'Activity', 'Details']}
-            rows={engagements}
-            renderRow={(e: any) => [e.from_to, e.activity, e.details]}
-            emptyText="No professional engagements recorded."
-            tableName="professional_engagements"
-            facultyId={facultyId!}
-            userId={user!.id}
-            queryKey="my-engagements"
-            formFields={[
-              { name: 'from_to', label: 'From-To (e.g. 2022–2024)' },
-              { name: 'activity', label: 'Activity', required: true },
-              { name: 'engagement_type', label: 'Engagement Type' },
-              { name: 'details', label: 'Details', type: 'textarea' },
-            ]}
-          />
-        )}
-
-        {/* Section 6: Service Contributions */}
-        {profile && (
-          <CvSectionCard
-            title="6. Service Contributions"
-            icon={Heart}
-            columns={['From-To', 'Level', 'Committee / Role']}
-            rows={services}
-            renderRow={(s: any) => [s.from_to, s.level, s.committee_role]}
-            emptyText="No service contributions recorded."
-            tableName="service_contributions"
-            facultyId={facultyId!}
-            userId={user!.id}
-            queryKey="my-services"
-            formFields={[
-              { name: 'from_to', label: 'From-To (e.g. 2021–Present)' },
-              { name: 'level', label: 'Level (e.g. Department, School, University)' },
-              { name: 'committee_role', label: 'Committee / Role', required: true },
-              { name: 'contribution_type', label: 'Contribution Type' },
-              { name: 'description', label: 'Description', type: 'textarea' },
-            ]}
-          />
-        )}
-
-        {/* Section 7: Awards & Recognition */}
-        {profile && (
-          <CvSectionCard
-            title="7. Awards and Recognition"
-            icon={Award}
-            columns={['Year', 'Award / Recognition', 'Institution / Organization']}
-            rows={awards}
-            renderRow={(a: any) => [a.year, a.award, a.institution_organization]}
-            emptyText="No awards recorded."
-            tableName="awards_recognition"
-            facultyId={facultyId!}
-            userId={user!.id}
-            queryKey="my-awards"
-            formFields={[
-              { name: 'year', label: 'Year', type: 'number' },
-              { name: 'award', label: 'Award / Recognition', required: true },
-              { name: 'institution_organization', label: 'Institution / Organization' },
-            ]}
-          />
-        )}
-
-        {/* Section 8: Professional Experience */}
-        {profile && (
-          <CvSectionCard
-            title="8. Professional Experience"
-            icon={Briefcase}
-            columns={['Period', 'Position', 'Organization', 'Key Responsibilities']}
-            rows={experience}
-            renderRow={(x: any) => [x.period, x.position_title, x.organization, x.key_responsibilities]}
-            emptyText="No professional experience recorded."
-            tableName="professional_experience"
-            facultyId={facultyId!}
-            userId={user!.id}
-            queryKey="my-experience"
-            formFields={[
-              { name: 'period', label: 'Period (e.g. 2018–2022)' },
-              { name: 'position_title', label: 'Position Title', required: true },
-              { name: 'organization', label: 'Organization' },
-              { name: 'key_responsibilities', label: 'Key Responsibilities', type: 'textarea' },
-            ]}
-          />
-        )}
-
-        {facultyId && <CvArchiveCard facultyId={facultyId} title="My Uploaded CVs" />}
+        {profile && <FacultyDashboard profile={profile} onEditProfile={() => setEditOpen(true)} archiveTitle="My Uploaded CVs" />}
 
       </div>
 
