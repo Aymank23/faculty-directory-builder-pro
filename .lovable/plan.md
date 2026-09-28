@@ -120,15 +120,10 @@ Decision: approved as proposed (D-4).
 
 | # | Conflict / open point | Sources | Proposed interpretation | Final approved decision |
 |---|---|---|---|---|
-| D-1 | International Research Recognition Award | Crosswalk says "Exclude" in the Table 8.1 column but "count when competitive" in the note | Treat as Conditional: Other Evidence by default, linked IC only if an admin confirms it is competitive | **Unresolved — not implemented** |
-| D-2 | Faculty Development Workshop | Faculty tutorial says AE, the crosswalk (Appendix C) says PE | No assumption. Such items are held as "Unrouted" in the review queue | **Unresolved — not implemented** |
-| D-3 | Working-paper rule | Crosswalk: "Conditional if DOI is available" | Include as All Other IC only when a DOI is present and the item is verified. Otherwise excluded | **Approved 25 Sep 2026.** A working paper with the required DOI can be All Other ICs after verification. Otherwise it stays out of Table 8.1 |
-| D-4 | Where Professional Experience appears | Your feedback | PE subsection (see section 6) or admin record only | **Approved 25 Sep 2026.** A collapsible subsection at the bottom of the PE tab, labelled "Professional Experience (employment history — not counted as engagement)". It stays a separate dataset and is excluded from PE counts and KPIs |
-| D-5 | Trade/practice articles without documented editorial review | Crosswalk | All Other ICs. Upgrade to Additional when evidence is uploaded | **Approved 25 Sep 2026.** All Other ICs by default. Upgrade to Additional Peer-/Editorial-Reviewed ICs only when editorial review is documented |
-| D-6 | Grant: internal vs competitive | Crosswalk | Default Other Evidence. A linked IC is created only when competitiveness is confirmed | **Approved 25 Sep 2026.** Conditional. No IC is created or counted just because a grant exists. IC treatment needs the crosswalk conditions and confirmation through review |
-| D-7 | Editing a shared canonical IC | Your safeguard | See section 3a | **Approved 25 Sep 2026** |
-
-Implementation is blocked until D-1 and D-2 are confirmed.
+| D-1 | International Research Recognition Award | Crosswalk says "Exclude" in the Table 8.1 column but "count when competitive" in the note | Other Evidence by default; linked IC only if an admin confirms it is competitive | **PROVISIONAL (28 Sep 2026).** Goes to Other Evidence and is excluded from Table 8.1. No automatic IC. An admin may promote or link it to an IC through review. The policy can be changed centrally |
+| D-2 | Faculty Development Workshop | Faculty tutorial says AE, the crosswalk (Appendix C) says PE | — | **PROVISIONAL (28 Sep 2026).** Goes to AE, is excluded from Table 8.1 and earns no IC points. The policy can be changed centrally |
+...
+D-3 to D-7 remain approved as documented.
 
 ## 8. Crosswalk → deterministic spec (unchanged from rev. 1 except for D-1 and D-2)
 
@@ -182,7 +177,7 @@ Implementation is blocked until D-1 and D-2 are confirmed.
 
 1. Schema additions (section 9).
 2. Shared logic: the classification chain, eligibility, points and Table 8.1 aggregation, with unit tests covering the 4 tutorial point scenarios.
-3. Faculty Dashboard with 7 tabs, including the PE subsection for Professional Experience (subject to D-4).
+3. Faculty Dashboard with 7 tabs, including the approved Professional Experience subsection in the PE tab (D-4).
 4. Master Dashboard with 3 tabs, plus the Excel export built on the same aggregation.
 5. Pilot migration and verification on the four profiles, then reconciliation. STOP.
 6. School-wide rollout after approval.
