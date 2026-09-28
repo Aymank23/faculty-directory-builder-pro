@@ -1,525 +1,178 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import DashboardTour from '@/components/DashboardTour';
+import { useQuery } from '@tanstack/react-query';
 import AppLayout from '@/components/AppLayout';
-import KpiCard from '@/components/KpiCard';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { supabase } from '@/lib/supabase';
-import { useQuery } from '@tanstack/react-query';
-import { BarChart3, BookOpen, FileText, Clock, CheckCircle, XCircle, TrendingUp, Users, UserCheck, RotateCcw } from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend, LineChart, Line } from 'recharts';
-import { CHART_COLORS, departments, campuses, icCategories, icTypes, quartiles, icStatuses, facultyQualifications, disciplines } from '@/lib/constants';
-import { normalizeNA, isNA, normalizeDepartment, normalizeDiscipline } from '@/lib/normalize';
-import { VERIFICATION_STATUSES, VERIFICATION_STATUS_LABELS, icStats, countSchoolIcs, verificationStatusOf, onlyIcs, onlyAcademicEngagement, eligibleIcs, dedupeSharedIcs } from '@/lib/icMetrics';
-import { IC_REPORTING_TYPES } from '@/lib/icTaxonomy';
+import { Eye } from 'lucide-react';
+import { fetchSchoolCanonical } from '@/lib/canonicalData';
+import { normalizeDepartment } from '@/lib/normalize';
+import {
+  buildTable81, deriveTable81Type, normalizePortfolio, quartileBucket, primaryAuthor,
+  TABLE81_TYPES, PORTFOLIOS,
+} from '@/lib/table81';
+import Table81View from '@/components/v2/Table81View';
 
+const ALL = 'all';
+const NOT_SET = 'Not set';
+const val = (v: any) => (v && String(v).trim()) || NOT_SET;
 
-const CLASSIFICATION_COLORS: Record<string, string> = {
-  SA: 'hsl(var(--chart-1))',
-  PA: 'hsl(var(--chart-2))',
-  IP: 'hsl(var(--chart-3))',
-  IA: 'hsl(var(--chart-4))',
-  A: 'hsl(var(--chart-5))',
-  SP: 'hsl(220 14% 60%)',
-};
+type FacFilter = { dept: string; disc: string; ps: string; cls: string; q: string };
+
+function Dist({ title, data, onPick }: { title: string; data: Record<string, number>; onPick?: (k: string) => void }) {
+  const entries = Object.entries(data).sort((a, b) => b[1] - a[1]);
+  const max = Math.max(1, ...entries.map((e) => e[1]));
+  return (
+    <Card>
+      <CardHeader className="pb-2"><CardTitle className="font-serif text-sm">{title}</CardTitle></CardHeader>
+      <CardContent className="space-y-1.5">
+        {entries.length === 0 && <p className="text-xs text-muted-foreground">No data</p>}
+        {entries.map(([k, n]) => (
+          <button key={k} onClick={() => onPick?.(k)} disabled={!onPick} className="w-full text-left group">
+            <div className="flex justify-between text-xs"><span className="group-hover:text-primary truncate pr-2">{k}</span><span className="font-medium">{n}</span></div>
+            <div className="h-1.5 rounded bg-muted"><div className="h-1.5 rounded bg-primary" style={{ width: `${(n / max) * 100}%` }} /></div>
+          </button>
+        ))}
+      </CardContent>
+    </Card>
+  );
+}
+
+function Kpi({ label, value, onClick }: { label: string; value: string | number; onClick?: () => void }) {
+  return (
+    <button onClick={onClick} className="text-left rounded-lg border bg-card p-4 hover:border-primary transition-colors">
+      <p className="text-xs text-muted-foreground">{label}</p>
+      <p className="text-2xl font-bold font-serif">{value}</p>
+    </button>
+  );
+}
 
 const MasterDashboardPage = () => {
-  const [deptFilter, setDeptFilter] = useState('all');
-  const [disciplineFilter, setDisciplineFilter] = useState('all');
-  const [campusFilter, setCampusFilter] = useState('all');
-  const [yearFrom, setYearFrom] = useState('2020');
-  const [yearTo, setYearTo] = useState(new Date().getFullYear().toString());
-  const [categoryFilter, setCategoryFilter] = useState('all');
-  const [typeFilter, setTypeFilter] = useState('all');
-  const [quartileFilter, setQuartileFilter] = useState('all');
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [reportingTypeFilter, setReportingTypeFilter] = useState('all');
+  const [tab, setTab] = useState('overview');
+  const [year, setYear] = useState(ALL);
+  const [ff, setFf] = useState<FacFilter>({ dept: ALL, disc: ALL, ps: ALL, cls: ALL, q: '' });
+  const { data, isLoading } = useQuery({ queryKey: ['v2-school'], queryFn: fetchSchoolCanonical });
 
-  // Eligibility is decided centrally in src/lib/icMetrics.ts — never by ic_type here.
-  const { data: allIcsRaw = [] } = useQuery({
-    queryKey: ['admin-ics'],
-    queryFn: async () => {
-      const { data } = await supabase.from('intellectual_contributions').select('*');
-      return data || [];
-    },
-  });
-  const allIcs = allIcsRaw;
+  const faculty = useMemo(() => (data?.faculty || []).map((f: any) => ({ ...f, department: f.department ? normalizeDepartment(f.department) : null })), [data]);
+  const icsYear = useMemo(() => (data?.ics || []).filter((ic) => year === ALL || String(ic.year) === year), [data, year]);
+  const years = useMemo(() => [...new Set((data?.ics || []).map((i) => i.year).filter(Boolean))].sort((a: any, b: any) => b - a), [data]);
 
+  const t81 = useMemo(() => {
+    const fmap = new Map(faculty.map((f: any) => [f.faculty_id, f]));
+    return buildTable81(icsYear, data?.authors || [], (id) => (fmap.get(id) as any)?.discipline || null);
+  }, [icsYear, data, faculty]);
 
-  const { data: faculty = [] } = useQuery({
-    queryKey: ['admin-faculty'],
-    queryFn: async () => {
-      const { data } = await supabase.from('faculty_profiles').select('*');
-      return data || [];
-    },
-  });
+  const count = (rows: any[], fn: (r: any) => string) => rows.reduce((m: Record<string, number>, r) => ((m[fn(r)] = (m[fn(r)] || 0) + 1), m), {});
+  const fmap = useMemo(() => new Map(faculty.map((f: any) => [f.faculty_id, f])), [faculty]);
+  const discOfIc = (icId: string) => { const pa = primaryAuthor(data?.authors || [], icId); return val(pa && (fmap.get(pa.faculty_id) as any)?.discipline); };
 
-  const facultyMap = Object.fromEntries(faculty.map(f => [f.faculty_id, f]));
+  const goFaculty = (patch: Partial<FacFilter>) => { setFf({ dept: ALL, disc: ALL, ps: ALL, cls: ALL, q: '', ...patch }); setTab('faculty'); };
 
-  const fromYear = parseInt(yearFrom) || 2020;
-  const toYear = parseInt(yearTo) || new Date().getFullYear();
-  // Requirement 11: Academic Engagement records live in the same table but must
-  // never be counted as Intellectual Contributions.
-  const ics = onlyIcs(allIcs).filter(ic => {
-    const fac = facultyMap[ic.faculty_id];
-    if (deptFilter !== 'all' && normalizeDepartment(fac?.department) !== deptFilter) return false;
-    if (disciplineFilter !== 'all' && normalizeDiscipline(fac?.discipline) !== disciplineFilter) return false;
-    if (campusFilter !== 'all' && fac?.campus !== campusFilter) return false;
-    if (ic.year && (ic.year < fromYear || ic.year > toYear)) return false;
-    if (categoryFilter !== 'all' && ic.ic_category !== categoryFilter) return false;
-    if (typeFilter !== 'all' && ic.ic_type !== typeFilter) return false;
-    if (quartileFilter !== 'all' && ic.quartile !== quartileFilter) return false;
-    if (statusFilter !== 'all' && verificationStatusOf(ic) !== statusFilter) return false;
-    if (reportingTypeFilter !== 'all' && (ic.ic_reporting_type || 'Needs Review') !== reportingTypeFilter) return false;
-    return true;
-  });
+  const filteredFaculty = faculty.filter((f: any) =>
+    (ff.dept === ALL || val(f.department) === ff.dept) &&
+    (ff.disc === ALL || val(f.discipline) === ff.disc) &&
+    (ff.ps === ALL || val(f.faculty_sufficiency) === ff.ps) &&
+    (ff.cls === ALL || val(f.faculty_qualification) === ff.cls) &&
+    (!ff.q || `${f.first_name} ${f.last_name} ${f.employee_id || ''}`.toLowerCase().includes(ff.q.toLowerCase())),
+  ).sort((a: any, b: any) => `${a.last_name}`.localeCompare(`${b.last_name}`));
 
-  const filteredFaculty = faculty.filter(f => {
-    if (deptFilter !== 'all' && normalizeDepartment(f.department) !== deptFilter) return false;
-    if (disciplineFilter !== 'all' && normalizeDiscipline(f.discipline) !== disciplineFilter) return false;
-    if (campusFilter !== 'all' && f.campus !== campusFilter) return false;
-    return true;
-  });
-
-  const stats = icStats(ics);
-  const academicEngagement = onlyAcademicEngagement(allIcs);
-  const verified = stats.verified;
-  const underReview = stats.underReview;
-  const rejected = stats.excluded;
-  const needsReviewType = stats.needsReportingType;
-  // School-level total: eligible ICs only, shared publications counted once.
-  const schoolUniqueIcs = countSchoolIcs(ics);
-  // Final totals and every breakdown below use eligible (Verified) records with
-  // shared publications counted once. Per-faculty views keep each faculty's copy.
-  const eligible = eligibleIcs(ics);
-  const countedIcs = dedupeSharedIcs(eligible);
-  const prjs = eligible.filter(ic => ic.ic_type === 'PRJ');
-  const q1 = countedIcs.filter(ic => ic.quartile === 'Q1');
-
-  // AACSB Classification distribution (normalize NA / N/A → "N/A")
-  const classificationCounts: Record<string, number> = {};
-  filteredFaculty.forEach(f => {
-    const raw = (f as any).faculty_qualification;
-    const q = raw == null || String(raw).trim() === '' ? 'Unclassified' : normalizeNA(raw);
-    classificationCounts[q] = (classificationCounts[q] || 0) + 1;
-  });
-  const classificationData = Object.entries(classificationCounts)
-    .filter(([name]) => name !== 'Unclassified' || classificationCounts['Unclassified'] > 0)
-    .map(([name, value]) => ({ name, value, pct: filteredFaculty.length ? ((value / filteredFaculty.length) * 100).toFixed(1) : '0' }));
-
-  // Participating faculty %
-  const participatingCount = filteredFaculty.filter(f => (f as any).faculty_sufficiency === 'Participating').length;
-  const participatingPct = filteredFaculty.length ? ((participatingCount / filteredFaculty.length) * 100).toFixed(1) : '0';
-
-  // Category distribution (final totals: verified, deduplicated)
-  const catCounts: Record<string, number> = {};
-  countedIcs.forEach(ic => {
-    const cat = ic.ic_category ? ic.ic_category.split('/')[0].trim() : 'Uncategorized';
-    catCounts[cat] = (catCounts[cat] || 0) + 1;
-  });
-  const catData = Object.entries(catCounts).map(([name, value]) => ({ name, value }));
-
-  // IC Reporting Type breakdown (final totals)
-  const reportingTypeCounts: Record<string, number> = {};
-  countedIcs.forEach(ic => {
-    const t = ic.ic_reporting_type || 'Needs Review';
-    reportingTypeCounts[t] = (reportingTypeCounts[t] || 0) + 1;
-  });
-  const reportingTypeData = Object.entries(reportingTypeCounts).sort((a, b) => b[1] - a[1]);
-
-  // Year trend
-  const yearCounts: Record<number, number> = {};
-  countedIcs.forEach(ic => { if (ic.year) yearCounts[ic.year] = (yearCounts[ic.year] || 0) + 1; });
-  const yearData = Object.entries(yearCounts).sort().map(([year, count]) => ({ year, count }));
-
-  // Department breakdown — collapse aliases (MKT→Marketing, MGT→Management, …)
-  const deptCounts: Record<string, number> = {};
-  countedIcs.forEach(ic => {
-    const fac = facultyMap[ic.faculty_id];
-    const dept = fac?.department ? normalizeDepartment(fac.department) : 'Unknown';
-    deptCounts[dept] = (deptCounts[dept] || 0) + 1;
-  });
-  const deptData = Object.entries(deptCounts).map(([name, value]) => ({ name, value }));
-
-  // Publications per faculty — shared publications stay visible for each faculty
-  // member here, even though the school-level totals count them once.
-  const perFaculty: Record<string, { name: string; department: string; count: number; faculty_id: string }> = {};
-  eligible.forEach(ic => {
-    const fac = facultyMap[ic.faculty_id];
-    if (!fac) return;
-    if (!perFaculty[fac.faculty_id]) {
-      perFaculty[fac.faculty_id] = {
-        name: `${fac.first_name || ''} ${fac.last_name || ''}`.trim() || '—',
-        department: fac.department ? normalizeDepartment(fac.department) : '',
-        count: 0,
-        faculty_id: fac.faculty_id,
-      };
-    }
-    perFaculty[fac.faculty_id].count++;
-  });
-  // Collapse any same name+department duplicates left over (defensive).
-  const collapsed: Record<string, { name: string; department: string; count: number; faculty_id: string }> = {};
-  Object.values(perFaculty).forEach(row => {
-    const key = `${row.name.toLowerCase().trim()}|${(row.department || '').toLowerCase().trim()}`;
-    if (!collapsed[key]) collapsed[key] = { ...row };
-    else collapsed[key].count += row.count;
-  });
-  const perFacultyData = Object.values(collapsed).sort((a, b) => b.count - a.count);
-
-  // Q distribution (normalize NA / N/A variants to a single bucket)
-  const qCounts: Record<string, number> = {};
-  countedIcs.forEach(ic => { const q = normalizeNA(ic.quartile); qCounts[q] = (qCounts[q] || 0) + 1; });
-  const qData = Object.entries(qCounts).map(([name, value]) => ({ name, value }));
-
-  const hasData = ics.length > 0 || filteredFaculty.length > 0;
-
-  const resetFilters = () => {
-    setDeptFilter('all'); setCampusFilter('all'); setYearFrom('2020');
-    setYearTo(new Date().getFullYear().toString()); setCategoryFilter('all');
-    setTypeFilter('all'); setQuartileFilter('all'); setStatusFilter('all');
-    setDisciplineFilter('all'); setReportingTypeFilter('all');
-  };
+  const opts = (fn: (f: any) => string) => [...new Set(faculty.map(fn))].sort();
+  const counted = t81.counted;
 
   return (
     <AppLayout>
       <div className="space-y-6">
-        <div className="flex items-start justify-between">
-          <div>
-            <h1 className="text-2xl font-bold font-serif text-foreground">Master AACSB Dashboard</h1>
-            <p className="text-sm text-muted-foreground">Aggregated faculty portfolio and accreditation overview</p>
-          </div>
-          <DashboardTour
-            storageKey="tour-admin-dashboard"
-            steps={[
-              { target: '[data-tour="filters"]', title: 'Filters', description: 'Narrow data by department, campus, year range, IC category, type, quartile, and status.' },
-              { target: '[data-tour="kpi-row"]', title: 'Key Metrics', description: 'At-a-glance KPIs showing faculty count, verified ICs, PRJs, and Q1 publications.' },
-              { target: '[data-tour="aacsb-stats"]', title: 'AACSB Statistics', description: 'Classification distribution and participating faculty percentage.' },
-              { target: '[data-tour="charts"]', title: 'Visual Analytics', description: 'Charts showing trends, distributions, and per-faculty productivity.' },
-            ]}
-          />
+        <div>
+          <h1 className="text-2xl font-bold font-serif text-foreground">Master Dashboard</h1>
+          <p className="text-sm text-muted-foreground">School-level view generated from faculty records. Totals are never typed in.</p>
         </div>
 
-        {/* Filters */}
-        <div data-tour="filters" className="flex flex-wrap gap-3 items-end">
-          <Select value={deptFilter} onValueChange={setDeptFilter}>
-            <SelectTrigger className="w-44"><SelectValue placeholder="Department" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Departments</SelectItem>
-              {departments.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
-            </SelectContent>
-          </Select>
-          <Select value={disciplineFilter} onValueChange={setDisciplineFilter}>
-            <SelectTrigger className="w-40"><SelectValue placeholder="Discipline" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Disciplines</SelectItem>
-              {disciplines.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
-            </SelectContent>
-          </Select>
-          <Select value={campusFilter} onValueChange={setCampusFilter}>
-            <SelectTrigger className="w-36"><SelectValue placeholder="Campus" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Campuses</SelectItem>
-              {campuses.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-            </SelectContent>
-          </Select>
-          <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-            <SelectTrigger className="w-48"><SelectValue placeholder="IC Category" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Categories</SelectItem>
-              {icCategories.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-            </SelectContent>
-          </Select>
-          <Select value={typeFilter} onValueChange={setTypeFilter}>
-            <SelectTrigger className="w-36"><SelectValue placeholder="IC Type" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Types</SelectItem>
-              {icTypes.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
-            </SelectContent>
-          </Select>
-          <Select value={quartileFilter} onValueChange={setQuartileFilter}>
-            <SelectTrigger className="w-36"><SelectValue placeholder="Quartile" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Quartiles</SelectItem>
-              {quartiles.map(q => <SelectItem key={q} value={q}>{q}</SelectItem>)}
-            </SelectContent>
-          </Select>
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-36"><SelectValue placeholder="Status" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Statuses</SelectItem>
-              {VERIFICATION_STATUSES.map(s => <SelectItem key={s} value={s}>{VERIFICATION_STATUS_LABELS[s]}</SelectItem>)}
-            </SelectContent>
-          </Select>
-          <Select value={reportingTypeFilter} onValueChange={setReportingTypeFilter}>
-            <SelectTrigger className="w-56"><SelectValue placeholder="IC Reporting Type" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All IC Reporting Types</SelectItem>
-              {IC_REPORTING_TYPES.map(t => <SelectItem key={t} value={t} className="text-xs">{t}</SelectItem>)}
-            </SelectContent>
-          </Select>
-          <div className="flex items-center gap-2">
-            <Label className="text-xs text-muted-foreground whitespace-nowrap">Year</Label>
-            <Input type="number" value={yearFrom} onChange={e => setYearFrom(e.target.value)} className="w-24" placeholder="From" />
-            <span className="text-muted-foreground text-sm">–</span>
-            <Input type="number" value={yearTo} onChange={e => setYearTo(e.target.value)} className="w-24" placeholder="To" />
-          </div>
-          <Button variant="ghost" size="sm" onClick={resetFilters}>
-            <RotateCcw className="h-4 w-4 mr-1" /> Reset
-          </Button>
-        </div>
-
-        {/* KPI Row */}
-        <div data-tour="kpi-row" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <KpiCard title="Total Faculty" value={filteredFaculty.length} icon={Users} />
-          <KpiCard title="Participating Faculty" value={`${participatingPct}%`} icon={UserCheck} variant="success" />
-          <KpiCard title="Verified ICs" value={verified.length} icon={CheckCircle} variant="success" />
-          <KpiCard title="Q1 Publications" value={q1.length} icon={TrendingUp} variant="success" />
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <KpiCard title="Total PRJs" value={prjs.length} icon={FileText} />
-          <KpiCard title="Under Review" value={underReview.length} icon={Clock} variant="warning" />
-          <KpiCard title="Excluded" value={rejected.length} icon={XCircle} variant="destructive" />
-          <KpiCard title="Avg ICs/Faculty" value={filteredFaculty.length ? (ics.length / filteredFaculty.length).toFixed(1) : '0'} icon={BookOpen} />
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <KpiCard title="Unique School ICs" value={schoolUniqueIcs} icon={BookOpen} />
-          <KpiCard title="Academic Engagement" value={academicEngagement.length} icon={Users} />
-          <KpiCard title="IC Type Needs Review" value={needsReviewType.length} icon={Clock} variant="warning" />
-        </div>
-
-        {/* IC Reporting Type breakdown — Verified records, shared publications counted once */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="font-serif text-base">Totals by IC Reporting Type</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {reportingTypeData.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-6">
-                No verified intellectual contributions in the current filter.
-              </p>
-            ) : (
-              <div className="space-y-2">
-                {reportingTypeData.map(([name, value]) => (
-                  <div key={name} className="flex items-center justify-between gap-3 rounded-md border border-border px-3 py-2 text-sm">
-                    <span className="min-w-0 truncate">{name}</span>
-                    <span className="shrink-0 font-medium">{value}</span>
-                  </div>
-                ))}
-                <div className="flex items-center justify-between gap-3 px-3 pt-1 text-sm font-medium">
-                  <span>School-level total (deduplicated)</span>
-                  <span>{countedIcs.length}</span>
-                </div>
-              </div>
+        <Tabs value={tab} onValueChange={setTab} className="space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <TabsList>
+              <TabsTrigger value="overview">Overview</TabsTrigger>
+              <TabsTrigger value="faculty">Faculty</TabsTrigger>
+              <TabsTrigger value="t81">Table 8.1</TabsTrigger>
+            </TabsList>
+            {tab !== 'faculty' && (
+              <Select value={year} onValueChange={setYear}>
+                <SelectTrigger className="w-40"><SelectValue placeholder="Year" /></SelectTrigger>
+                <SelectContent><SelectItem value={ALL}>All years</SelectItem>{years.map((y: any) => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}</SelectContent>
+              </Select>
             )}
-          </CardContent>
-        </Card>
+          </div>
 
-        {/* AACSB Classification & Participation Statistics */}
-        <div data-tour="aacsb-stats" className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Classification Donut */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="font-serif text-base">Faculty Classification Distribution</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {classificationData.length > 0 ? (
-                <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_220px] xl:items-center">
-                  <div className="min-w-0">
-                    <div className="h-[260px] w-full">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <PieChart margin={{ top: 8, right: 8, bottom: 8, left: 8 }}>
-                          <Pie data={classificationData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={56} outerRadius={84} paddingAngle={2}>
-                            {classificationData.map((entry) => (
-                              <Cell key={entry.name} fill={CLASSIFICATION_COLORS[entry.name] || 'hsl(var(--muted))'} />
-                            ))}
-                          </Pie>
-                          <Tooltip formatter={(value, _name, item) => [`${value} faculty (${item.payload.pct}%)`, item.payload.name]} />
-                        </PieChart>
-                      </ResponsiveContainer>
-                    </div>
-                  </div>
-                  <div className="space-y-2 text-sm min-w-0">
-                    {classificationData.map(d => (
-                      <div key={d.name} className="flex items-center justify-between gap-3 rounded-md border border-border px-3 py-2">
-                        <div className="flex min-w-0 items-center gap-2">
-                          <div className="h-3 w-3 shrink-0 rounded-sm" style={{ backgroundColor: CLASSIFICATION_COLORS[d.name] || 'hsl(var(--muted))' }} />
-                          <span className="font-medium">{d.name}</span>
-                        </div>
-                        <span className="shrink-0 text-muted-foreground">{d.value} ({d.pct}%)</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ) : (
-                <p className="text-sm text-muted-foreground text-center py-8">No classification data available. Import faculty data with AACSB classifications.</p>
-              )}
-            </CardContent>
-          </Card>
+          {isLoading && <p className="text-sm text-muted-foreground">Loading…</p>}
 
-          {/* Participation Summary */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="font-serif text-base">Participating Faculty</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center gap-6">
-                <div className="text-center">
-                  <p className="text-5xl font-bold text-primary">{participatingPct}%</p>
-                  <p className="text-sm text-muted-foreground mt-1">Participating</p>
-                </div>
-                <div className="flex-1 space-y-3">
-                  <div>
-                    <div className="flex justify-between text-sm mb-1">
-                      <span>Participating</span>
-                      <span className="font-medium">{participatingCount}</span>
-                    </div>
-                    <div className="h-3 bg-muted rounded-full overflow-hidden">
-                      <div className="h-full bg-primary rounded-full transition-all" style={{ width: `${participatingPct}%` }} />
-                    </div>
-                  </div>
-                  <div>
-                    <div className="flex justify-between text-sm mb-1">
-                      <span>Supporting</span>
-                      <span className="font-medium">{filteredFaculty.filter(f => (f as any).faculty_sufficiency === 'Supporting').length}</span>
-                    </div>
-                    <div className="h-3 bg-muted rounded-full overflow-hidden">
-                      <div className="h-full bg-chart-3 rounded-full transition-all" style={{ width: `${filteredFaculty.length ? ((filteredFaculty.filter(f => (f as any).faculty_sufficiency === 'Supporting').length / filteredFaculty.length) * 100) : 0}%` }} />
-                    </div>
-                  </div>
-                  <div>
-                    <div className="flex justify-between text-sm mb-1">
-                      <span>Unclassified</span>
-                      <span className="font-medium">{filteredFaculty.filter(f => !(f as any).faculty_sufficiency).length}</span>
-                    </div>
-                    <div className="h-3 bg-muted rounded-full overflow-hidden">
-                      <div className="h-full bg-muted-foreground/30 rounded-full transition-all" style={{ width: `${filteredFaculty.length ? ((filteredFaculty.filter(f => !(f as any).faculty_sufficiency).length / filteredFaculty.length) * 100) : 0}%` }} />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {hasData && (
-          <div data-tour="charts" className="space-y-6">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <Card>
-                <CardHeader><CardTitle className="font-serif text-base">5-Year Trend Analysis</CardTitle></CardHeader>
-                <CardContent>
-                  <ResponsiveContainer width="100%" height={260}>
-                    <LineChart data={yearData}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                      <XAxis dataKey="year" fontSize={12} />
-                      <YAxis fontSize={12} />
-                      <Tooltip />
-                      <Line type="monotone" dataKey="count" stroke={CHART_COLORS[0]} strokeWidth={2} dot={{ fill: CHART_COLORS[0] }} />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader><CardTitle className="font-serif text-base">IC Category Distribution (Verified)</CardTitle></CardHeader>
-                <CardContent>
-                  <ResponsiveContainer width="100%" height={260}>
-                    <PieChart>
-                      <Pie data={catData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={90} label>
-                        {catData.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
-                      </Pie>
-                      <Tooltip />
-                      <Legend />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader><CardTitle className="font-serif text-base">Quartile Distribution</CardTitle></CardHeader>
-                <CardContent>
-                  <ResponsiveContainer width="100%" height={260}>
-                    <BarChart data={qData}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                      <XAxis dataKey="name" fontSize={12} />
-                      <YAxis fontSize={12} />
-                      <Tooltip />
-                      <Bar dataKey="value" fill={CHART_COLORS[3]} radius={[4, 4, 0, 0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader><CardTitle className="font-serif text-base">ICs by Department</CardTitle></CardHeader>
-                <CardContent>
-                  <ResponsiveContainer width="100%" height={260}>
-                    <BarChart data={deptData}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                      <XAxis dataKey="name" fontSize={11} angle={-15} textAnchor="end" height={50} />
-                      <YAxis fontSize={12} />
-                      <Tooltip />
-                      <Bar dataKey="value" fill={CHART_COLORS[2]} radius={[4, 4, 0, 0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </CardContent>
-              </Card>
+          <TabsContent value="overview" className="space-y-4">
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+              <Kpi label="Total Faculty" value={faculty.length} onClick={() => goFaculty({})} />
+              <Kpi label="Total Qualifying ICs" value={counted.length} onClick={() => setTab('t81')} />
+              <Kpi label="Total School Points" value={counted.length.toFixed(2)} onClick={() => setTab('t81')} />
             </div>
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <Dist title="Participating / Supporting" data={count(faculty, (f) => val(f.faculty_sufficiency))} onPick={(k) => goFaculty({ ps: k })} />
+              <Dist title="AACSB Classification" data={count(faculty, (f) => val(f.faculty_qualification))} onPick={(k) => goFaculty({ cls: k })} />
+              <Dist title="Faculty by Department" data={count(faculty, (f) => val(f.department))} onPick={(k) => goFaculty({ dept: k })} />
+              <Dist title="Faculty by Discipline" data={count(faculty, (f) => val(f.discipline))} onPick={(k) => goFaculty({ disc: k })} />
+              <Dist title="Journal Quality (qualifying ICs)" data={Object.fromEntries(['Q1', 'Q2', 'Q3', 'Q4', 'Unranked / N.A.'].map((q) => [q, counted.filter((i) => quartileBucket(i.quartile) === q).length]))} onPick={() => setTab('t81')} />
+              <Dist title="IC Reporting Type" data={Object.fromEntries(TABLE81_TYPES.map((ty) => [ty, counted.filter((i) => deriveTable81Type(i.historical_reporting_type) === ty).length]))} onPick={() => setTab('t81')} />
+              <Dist title="Scholarship Portfolio" data={Object.fromEntries(PORTFOLIOS.map((p) => [p, counted.filter((i) => normalizePortfolio(i.scholarship_portfolio) === p).length]))} onPick={() => setTab('t81')} />
+              <Dist title="ICs by Discipline" data={count(counted, (i) => discOfIc(i.id))} onPick={() => setTab('t81')} />
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Pilot phase: IC figures include only faculty migrated to the shared-publication model and only records that reviewers have Verified.
+            </p>
+          </TabsContent>
 
-            {/* Publications per Faculty Member — admin drill-down via Faculty Directory */}
+          <TabsContent value="faculty" className="space-y-3">
+            <div className="flex flex-wrap gap-2">
+              <Input placeholder="Search name or ID" className="w-56" value={ff.q} onChange={(e) => setFf({ ...ff, q: e.target.value })} />
+              {([
+                ['dept', 'Department', (f: any) => val(f.department)],
+                ['disc', 'Discipline', (f: any) => val(f.discipline)],
+                ['ps', 'Participating / Supporting', (f: any) => val(f.faculty_sufficiency)],
+                ['cls', 'AACSB Classification', (f: any) => val(f.faculty_qualification)],
+              ] as const).map(([k, label, fn]) => (
+                <Select key={k} value={(ff as any)[k]} onValueChange={(v) => setFf({ ...ff, [k]: v })}>
+                  <SelectTrigger className="w-52"><SelectValue placeholder={label} /></SelectTrigger>
+                  <SelectContent><SelectItem value={ALL}>All — {label}</SelectItem>{opts(fn).map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent>
+                </Select>
+              ))}
+              <Button variant="ghost" size="sm" onClick={() => setFf({ dept: ALL, disc: ALL, ps: ALL, cls: ALL, q: '' })}>Clear</Button>
+            </div>
+            <p className="text-xs text-muted-foreground">{filteredFaculty.length} faculty</p>
             <Card>
-              <CardHeader>
-                <CardTitle className="font-serif text-base">Publications per Faculty Member</CardTitle>
-                <p className="text-xs text-muted-foreground mt-1">Counts only valid intellectual contributions (PRJ, Book, Chapter). Click "View" to open the faculty profile.</p>
-              </CardHeader>
-              <CardContent className="p-0">
-                <div className="overflow-auto max-h-96">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Faculty</TableHead>
-                        <TableHead>Department</TableHead>
-                        <TableHead className="text-right">IC Count</TableHead>
-                        <TableHead className="w-24"></TableHead>
+              <CardContent className="p-0 overflow-x-auto">
+                <Table>
+                  <TableHeader><TableRow><TableHead>Name</TableHead><TableHead>Department</TableHead><TableHead>Discipline</TableHead><TableHead>Participating / Supporting</TableHead><TableHead>AACSB Classification</TableHead><TableHead className="w-16 text-right">Profile</TableHead></TableRow></TableHeader>
+                  <TableBody>
+                    {filteredFaculty.map((f: any) => (
+                      <TableRow key={f.faculty_id}>
+                        <TableCell className="font-medium"><Link to={`/faculty/${f.faculty_id}`} className="hover:text-primary">{f.first_name} {f.last_name}</Link></TableCell>
+                        <TableCell className="text-sm">{f.department || '—'}</TableCell>
+                        <TableCell className="text-sm">{f.discipline || '—'}</TableCell>
+                        <TableCell className="text-sm">{f.faculty_sufficiency || '—'}</TableCell>
+                        <TableCell className="text-sm">{f.faculty_qualification || '—'}</TableCell>
+                        <TableCell className="text-right">
+                          <Button asChild variant="ghost" size="sm" aria-label={`Open ${f.first_name} ${f.last_name}`}><Link to={`/faculty/${f.faculty_id}`}><Eye className="h-4 w-4" /></Link></Button>
+                        </TableCell>
                       </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {perFacultyData.map((row, i) => (
-                        <TableRow key={i}>
-                          <TableCell className="font-medium">{row.name}</TableCell>
-                          <TableCell>{row.department}</TableCell>
-                          <TableCell className="text-right">{row.count}</TableCell>
-                          <TableCell className="text-right">
-                            <Button asChild variant="ghost" size="sm" className="h-7 text-xs">
-                              <Link to={`/faculty/${row.faculty_id}`}>View</Link>
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
+                    ))}
+                  </TableBody>
+                </Table>
               </CardContent>
             </Card>
-          </div>
-        )}
+          </TabsContent>
 
-        {!hasData && (
-          <Card>
-            <CardContent className="py-16 text-center">
-              <BarChart3 className="h-12 w-12 mx-auto text-muted-foreground/30 mb-4" />
-              <h3 className="font-serif text-lg text-foreground mb-2">No Data Available Yet</h3>
-              <p className="text-sm text-muted-foreground max-w-md mx-auto">
-                To begin, import faculty profiles and intellectual contributions using the Import Center,
-                or wait for faculty members to submit their records.
-              </p>
-            </CardContent>
-          </Card>
-        )}
+          <TabsContent value="t81">
+            <Table81View ics={icsYear} authors={data?.authors || []} faculty={faculty} />
+          </TabsContent>
+        </Tabs>
       </div>
     </AppLayout>
   );
