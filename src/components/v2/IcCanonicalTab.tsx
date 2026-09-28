@@ -81,9 +81,9 @@ export default function IcCanonicalTab({ facultyId, department }: { facultyId: s
           .insert({ ...payload, historical_reporting_type: payload.historical_reporting_type || 'Needs Review', created_by: user!.id, verification_status: 'under_review', eligibility: 'conditional', condition_note: 'New entry — awaiting review' })
           .select('id').single();
         if (error) throw error;
-        const { error: e2 } = await supabase.from('ic_authors').insert({ canonical_ic_id: created.id, faculty_id: facultyId, department_snapshot: department, link_status: 'confirmed', confirmed_at: new Date().toISOString() });
+        const { error: e2 } = await supabase.from('ic_authors').insert({ canonical_ic_id: created.id, faculty_id: facultyId, department_snapshot: department, link_status: user?.role === 'admin' ? 'confirmed' : 'proposed', ...(user?.role === 'admin' ? { confirmed_at: new Date().toISOString() } : {}) });
         if (e2) throw e2;
-        toast.success('Intellectual contribution added (Under Review)');
+        toast.success(user?.role === 'admin' ? 'Intellectual contribution added (Under Review)' : 'Added — Under Review. An admin must confirm you as author before it counts.');
       } else {
         const changed = SHARED_FIELDS.filter((k) => String(editing[k] ?? '') !== String(payload[k] ?? ''));
         if (!changed.length) { setEditing(null); setSaving(false); return; }

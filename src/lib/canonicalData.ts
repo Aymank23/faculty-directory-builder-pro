@@ -4,7 +4,7 @@ import { supabase } from '@/lib/supabase';
 import type { CanonicalIc, IcAuthor } from '@/lib/table81';
 
 export async function fetchFacultyCanonical(facultyId: string) {
-  const { data: mine } = await supabase.from('ic_authors').select('canonical_ic_id').eq('faculty_id', facultyId);
+  const { data: mine } = await supabase.from('ic_authors').select('canonical_ic_id').eq('faculty_id', facultyId).neq('link_status', 'rejected');
   const ids = [...new Set((mine || []).map((r: any) => r.canonical_ic_id))];
   if (!ids.length) return { ics: [] as CanonicalIc[], authors: [] as IcAuthor[] };
   const [{ data: ics }, { data: authors }] = await Promise.all([
