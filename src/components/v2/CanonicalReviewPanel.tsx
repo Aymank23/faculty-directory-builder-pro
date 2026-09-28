@@ -95,7 +95,7 @@ export default function CanonicalReviewPanel() {
                     <TableCell className="text-sm max-w-md">{ic.title}<div className="text-xs text-muted-foreground">{ic.journal_outlet}{ic.doi ? ` · ${ic.doi}` : ''}</div></TableCell>
                     <TableCell>{ic.year}</TableCell>
                     <TableCell className="text-xs">
-                      {au.map((a) => <div key={a.id}>{name(a.faculty_id)} {a.link_status !== 'confirmed' && <Badge variant="outline" className="text-[10px] ml-1">{a.link_status}</Badge>}</div>)}
+                      {au.map((a, i) => <div key={a.id || i}>{name(a.faculty_id)} {a.link_status !== 'confirmed' && <Badge variant="outline" className="text-[10px] ml-1">{a.link_status}</Badge>}</div>)}
                     </TableCell>
                     <TableCell className="text-xs">{deriveTable81Type(ic.historical_reporting_type) || 'Needs review'}<div className="text-muted-foreground">{ic.eligibility}</div></TableCell>
                     <TableCell><Badge variant={ic.verification_status === 'verified' ? 'default' : ic.verification_status === 'excluded' ? 'destructive' : 'secondary'}>{STATUS_LABEL[ic.verification_status]}</Badge>{pendingCr(ic.id).length > 0 && <Badge variant="outline" className="ml-1 text-[10px]">change proposed</Badge>}</TableCell>

@@ -57,6 +57,7 @@ export type CanonicalIc = Record<string, any> & {
 };
 
 export type IcAuthor = {
+  id?: string;
   canonical_ic_id: string;
   faculty_id: string;
   department_snapshot?: string | null;
