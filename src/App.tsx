@@ -6,16 +6,12 @@ import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { SidebarProvider } from "@/contexts/SidebarContext";
 import LoginPage from "./pages/LoginPage";
 import MasterDashboardPage from "./pages/MasterDashboardPage";
-import FacultyOverviewPage from "./pages/FacultyOverviewPage";
 import FacultyProfilePage from "./pages/FacultyProfilePage";
 import UploadCvPage from "./pages/UploadCvPage";
 import TeachingLoadPage from "./pages/TeachingLoadPage";
 import AddContributionPage from "./pages/AddContributionPage";
 import MyRepositoryPage from "./pages/MyRepositoryPage";
-import MyAnalyticsPage from "./pages/MyAnalyticsPage";
-import DepartmentOverviewPage from "./pages/DepartmentOverviewPage";
 import VerificationQueuePage from "./pages/VerificationQueuePage";
-import DepartmentReportsPage from "./pages/DepartmentReportsPage";
 import FacultyDirectoryPage from "./pages/FacultyDirectoryPage";
 import ImportCenterPage from "./pages/ImportCenterPage";
 import AACSBExportsPage from "./pages/AACSBExportsPage";
@@ -61,23 +57,23 @@ const App = () => (
             <Route path="/login" element={<LoginPage />} />
 
             {/* Faculty routes */}
-            <Route path="/overview" element={<ProtectedRoute allowedRoles={['faculty']}><FacultyOverviewPage /></ProtectedRoute>} />
+            <Route path="/overview" element={<Navigate to="/profile" replace />} />
             <Route path="/profile" element={<ProtectedRoute allowedRoles={['faculty']}><FacultyProfilePage /></ProtectedRoute>} />
             <Route path="/upload-cv" element={<ProtectedRoute allowedRoles={['faculty']}><UploadCvPage /></ProtectedRoute>} />
             <Route path="/teaching-load" element={<ProtectedRoute allowedRoles={['faculty']}><TeachingLoadPage /></ProtectedRoute>} />
             <Route path="/add-contribution" element={<ProtectedRoute allowedRoles={['faculty']}><AddContributionPage /></ProtectedRoute>} />
             <Route path="/my-repository" element={<ProtectedRoute allowedRoles={['faculty']}><MyRepositoryPage /></ProtectedRoute>} />
-            <Route path="/my-analytics" element={<ProtectedRoute allowedRoles={['faculty']}><MyAnalyticsPage /></ProtectedRoute>} />
+            <Route path="/my-analytics" element={<Navigate to="/profile" replace />} />
 
             {/* HOD routes */}
-            <Route path="/department-overview" element={<ProtectedRoute allowedRoles={['hod']}><DepartmentOverviewPage /></ProtectedRoute>} />
-            <Route path="/department-reports" element={<ProtectedRoute allowedRoles={['hod']}><DepartmentReportsPage /></ProtectedRoute>} />
+            <Route path="/department-overview" element={<Navigate to="/dashboard" replace />} />
+            <Route path="/department-reports" element={<Navigate to="/dashboard" replace />} />
 
             {/* Shared HOD + Admin */}
             <Route path="/verification-queue" element={<ProtectedRoute allowedRoles={['hod', 'admin']}><VerificationQueuePage /></ProtectedRoute>} />
 
             {/* Admin routes */}
-            <Route path="/dashboard" element={<ProtectedRoute allowedRoles={['admin']}><MasterDashboardPage /></ProtectedRoute>} />
+            <Route path="/dashboard" element={<ProtectedRoute allowedRoles={['admin', 'hod']}><MasterDashboardPage /></ProtectedRoute>} />
             <Route path="/faculty-directory" element={<ProtectedRoute allowedRoles={['admin']}><FacultyDirectoryPage /></ProtectedRoute>} />
             <Route path="/import-center" element={<ProtectedRoute allowedRoles={['admin']}><ImportCenterPage /></ProtectedRoute>} />
             <Route path="/aacsb-exports" element={<ProtectedRoute allowedRoles={['admin']}><AACSBExportsPage /></ProtectedRoute>} />

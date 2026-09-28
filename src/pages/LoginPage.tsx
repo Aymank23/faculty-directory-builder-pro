@@ -18,8 +18,8 @@ const LoginPage = () => {
 
   useEffect(() => {
     if (user) {
-      if (user.role === 'faculty') navigate('/overview', { replace: true });
-      else if (user.role === 'hod') navigate('/department-overview', { replace: true });
+      if (user.role === 'faculty') navigate('/profile', { replace: true });
+      else if (user.role === 'hod') navigate('/dashboard', { replace: true });
       else navigate('/dashboard', { replace: true });
     }
   }, [user, navigate]);

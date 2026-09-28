@@ -23,21 +23,17 @@ import { useSidebarState } from '@/contexts/SidebarContext';
 
 const navItems = [
   // Faculty items
-  { title: 'Overview', path: '/overview', icon: LayoutDashboard, roles: ['faculty'] },
   { title: 'My Profile', path: '/profile', icon: User, roles: ['faculty'] },
   { title: 'Upload CV', path: '/upload-cv', icon: Upload, roles: ['faculty'] },
   { title: 'Teaching Load', path: '/teaching-load', icon: BookOpen, roles: ['faculty'] },
   { title: 'Add Contribution', path: '/add-contribution', icon: PlusCircle, roles: ['faculty'] },
   { title: 'My Repository', path: '/my-repository', icon: Library, roles: ['faculty'] },
-  { title: 'My Analytics', path: '/my-analytics', icon: BarChart3, roles: ['faculty'] },
 
   // HOD items
-  { title: 'Department Overview', path: '/department-overview', icon: Building2, roles: ['hod'] },
   { title: 'Verification Queue', path: '/verification-queue', icon: CheckSquare, roles: ['hod', 'admin'] },
-  { title: 'Department Reports', path: '/department-reports', icon: BarChart3, roles: ['hod'] },
 
   // Admin items
-  { title: 'Master Dashboard', path: '/dashboard', icon: LayoutDashboard, roles: ['admin'] },
+  { title: 'Master Dashboard', path: '/dashboard', icon: LayoutDashboard, roles: ['admin', 'hod'] },
   { title: 'Faculty Directory', path: '/faculty-directory', icon: Users, roles: ['admin'] },
   { title: 'Import Center', path: '/import-center', icon: Upload, roles: ['admin'] },
   { title: 'AACSB Exports', path: '/aacsb-exports', icon: FileSpreadsheet, roles: ['admin'] },
