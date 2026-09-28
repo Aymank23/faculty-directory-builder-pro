@@ -1,29 +1,14 @@
-# Roadmap — AACSB dashboard in-place upgrade
+# Roadmap — AKSOB Dashboard V2 (Rev. 2 baseline, pilot only)
 
-## Phase 0 — Backup
-- [x] Export all tables to /mnt/documents/db-backup-2026-09-05 and verify row counts
+## Earlier work
+- [x] Backups 2026-09-05, pilot reconciliation v2, CV archive, 8-section remediation
 
-## Phase 1 — Shared logic first
-- [ ] Central counting/classification/status service (src/lib/icTaxonomy.ts extension)
-- [ ] Route Faculty Overview, My Repository, My Analytics, Admin Faculty Profile, Master Dashboard, Export through it
-- [ ] Also Department Overview + Department Reports
-- [ ] Retire old `status` field from all reads; verification_status authoritative
-
-## Phase 2 — Pilot on four profiles only (then STOP for approval)
-- [x] Cleaning pass on existing stored rows (done 2026-09-05)
-- [x] Four filled CVs received; independent DOCX inventory rebuilt (no production parser)
-- [x] Corrections applied to the four profiles only, all Under Review
-- [x] Full-accounting reconciliation report v2 in /mnt/documents (5 items flagged for human decision)
-- [ ] AWAITING APPROVAL before touching any other faculty
-
-## Phase 2b — Permanent CV archive
-- [x] Private `cv-archive` bucket + storage policies (faculty own / HoD department / admin all)
-- [x] cv_uploads: storage_path, version, file_size, mime_type, content_hash, archived_at
-- [x] Upload flow archives the original document; version history shown on faculty + admin profile
-
-## Phase 3+ (after approval)
-- [ ] Remaining faculty backfill (no Discipline inference)
-- [ ] Admin verification workflow (reclassify, reopen, evidence)
-- [ ] Practitioner/staffing field options + normalisation (Adjunct is a status, not a role)
-- [ ] Two-sheet Excel export
-- [ ] Faculty-facing reporting type / record class display
+## V2 — authorised 28 Sep 2026 (HARD STOP after Phase 5)
+- [x] Decision Register: D-1/D-2 provisional, D-3..D-7 approved
+- [x] Phase 1a — Fresh backup + baseline counts (/mnt/documents/db-backup-2026-09-28-pre-v2)
+- [ ] Phase 1b — Additive schema: canonical_ics, ic_authors, legacy_ic_link, activity_outputs, canonical_ic_change_requests, activity_type, evidence_category, policy table
+- [ ] Phase 2 — Shared logic: crosswalk, derived Table 8.1 type, eligibility, points, aggregation + unit tests
+- [ ] Phase 3 — Faculty Dashboard (7 tabs, PE subsection for Professional Experience)
+- [ ] Phase 4 — Master Dashboard (3 tabs), Table 8.1 drill-downs, Excel export
+- [ ] Phase 5 — Pilot canonicalisation (4 faculty), reconciliation, regression, readiness report
+- [ ] STOP — await approval before Phase 6 (school-wide)

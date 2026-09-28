@@ -122,8 +122,11 @@ Decision: approved as proposed (D-4).
 |---|---|---|---|---|
 | D-1 | International Research Recognition Award | Crosswalk says "Exclude" in the Table 8.1 column but "count when competitive" in the note | Other Evidence by default; linked IC only if an admin confirms it is competitive | **PROVISIONAL (28 Sep 2026).** Goes to Other Evidence and is excluded from Table 8.1. No automatic IC. An admin may promote or link it to an IC through review. The policy can be changed centrally |
 | D-2 | Faculty Development Workshop | Faculty tutorial says AE, the crosswalk (Appendix C) says PE | — | **PROVISIONAL (28 Sep 2026).** Goes to AE, is excluded from Table 8.1 and earns no IC points. The policy can be changed centrally |
-...
-D-3 to D-7 remain approved as documented.
+| D-3 | Working-paper rule | Crosswalk: "Conditional if DOI is available" | — | **Approved 25 Sep 2026.** A working paper with the required DOI can be All Other ICs after verification. Otherwise it stays out of Table 8.1 |
+| D-4 | Where Professional Experience appears | Your feedback | — | **Approved 25 Sep 2026.** A collapsible subsection at the bottom of the PE tab, labelled "Professional Experience (employment history — not counted as engagement)". It is a separate dataset and is excluded from PE counts and KPIs |
+| D-5 | Trade/practice articles | Crosswalk | — | **Approved 25 Sep 2026.** All Other ICs by default. Upgrade to Additional Peer-/Editorial-Reviewed ICs only when editorial review is documented |
+| D-6 | Grants | Crosswalk | — | **Approved 25 Sep 2026.** Conditional. No IC is created or counted just because a grant exists. IC treatment needs the crosswalk conditions and confirmation through review |
+| D-7 | Editing a shared canonical IC | Your safeguard | Section 3a | **Approved 25 Sep 2026.** If more than one AKSOB author is linked, a faculty edit becomes a proposal that an admin confirms. Every change is audited |
 
 ## 8. Crosswalk → deterministic spec (unchanged from rev. 1 except for D-1 and D-2)
 
