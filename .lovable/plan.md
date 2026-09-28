@@ -127,6 +127,7 @@ Decision: approved as proposed (D-4).
 | D-5 | Trade/practice articles | Crosswalk | — | **Approved 25 Sep 2026.** All Other ICs by default. Upgrade to Additional Peer-/Editorial-Reviewed ICs only when editorial review is documented |
 | D-6 | Grants | Crosswalk | — | **Approved 25 Sep 2026.** Conditional. No IC is created or counted just because a grant exists. IC treatment needs the crosswalk conditions and confirmation through review |
 | D-7 | Editing a shared canonical IC | Your safeguard | Section 3a | **Approved 25 Sep 2026.** If more than one AKSOB author is linked, a faculty edit becomes a proposal that an admin confirms. Every change is audited |
+| D-8 | Which discipline a shared IC counts under in Table 8.1 | Agent proposal | Table 8.1 | **Provisional — needs your decision.** Each IC counts once, under the discipline of its first-listed confirmed AKSOB author. Alternatives: split fractionally by author discipline, or count under every author discipline (would double count). Changeable in one place |
 
 ## 8. Crosswalk → deterministic spec (unchanged from rev. 1 except for D-1 and D-2)
 
