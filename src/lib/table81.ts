@@ -111,6 +111,26 @@ export function primaryAuthor(authors: IcAuthor[], icId: string): IcAuthor | nul
   return conf[0] ?? null;
 }
 
+/**
+ * D-8 (approved provisional, 28 Sep 2026): discipline allocation rule for Table 8.1.
+ * 'fractional' — each IC is split equally across the DISTINCT disciplines of its confirmed AKSOB authors
+ * (shares always sum to 1.00). 'primary' — whole IC to the primary author's discipline. Change here only.
+ * Independent of School/Department points (author-based formulas in pointsFor).
+ */
+export type DisciplineAllocation = 'fractional' | 'primary';
+export const DISCIPLINE_ALLOCATION: DisciplineAllocation = 'fractional';
+
+export function disciplineShares(
+  authors: IcAuthor[], icId: string, disciplineOf: (facultyId: string) => string | null,
+  mode: DisciplineAllocation = DISCIPLINE_ALLOCATION,
+): Record<string, number> {
+  const conf = confirmedAuthors(authors, icId);
+  if (!conf.length) return {};
+  if (mode === 'primary') return { [disciplineOf(primaryAuthor(authors, icId)!.faculty_id) || 'Unassigned']: 1 };
+  const discs = [...new Set(conf.map((a) => disciplineOf(a.faculty_id) || 'Unassigned'))];
+  return Object.fromEntries(discs.map((d) => [d, 1 / discs.length]));
+}
+
 export type Table81Cell = { basic: number; applied: number; pedagogy: number; total: number };
 const emptyCell = (): Table81Cell => ({ basic: 0, applied: 0, pedagogy: 0, total: 0 });
 const portfolioKey = (p: Portfolio): keyof Omit<Table81Cell, 'total'> =>
@@ -121,31 +141,33 @@ export type Table81Row = {
   portfolio: Table81Cell;
   byType: Record<Table81Type, Table81Cell>;
   icIds: string[];
+  /** share of each IC allocated to this discipline (D-8) */
+  shares: Record<string, number>;
 };
 
-/** Builds Table 8.1 from canonical ICs. Only eligible ICs with ≥1 confirmed author are counted, each exactly once. */
-export function buildTable81(ics: CanonicalIc[], authors: IcAuthor[], disciplineOf: (facultyId: string) => string | null) {
+/** Builds Table 8.1 from canonical ICs. Only eligible ICs with ≥1 confirmed author count; each IC totals exactly 1.00 across disciplines. */
+export function buildTable81(ics: CanonicalIc[], authors: IcAuthor[], disciplineOf: (facultyId: string) => string | null, mode: DisciplineAllocation = DISCIPLINE_ALLOCATION) {
   const rows = new Map<string, Table81Row>();
   const counted: CanonicalIc[] = [];
   for (const ic of ics) {
     if (!isTable81Eligible(ic)) continue;
-    const pa = primaryAuthor(authors, ic.id);
-    if (!pa) continue;
-    const disc = disciplineOf(pa.faculty_id) || 'Unassigned';
+    const shares = disciplineShares(authors, ic.id, disciplineOf, mode);
+    if (!Object.keys(shares).length) continue;
     const type = deriveTable81Type(ic.historical_reporting_type)!;
     const pk = portfolioKey(normalizePortfolio(ic.scholarship_portfolio)!);
-    if (!rows.has(disc)) {
-      rows.set(disc, {
-        discipline: disc,
-        portfolio: emptyCell(),
-        byType: Object.fromEntries(TABLE81_TYPES.map((t) => [t, emptyCell()])) as Record<Table81Type, Table81Cell>,
-        icIds: [],
-      });
+    for (const [disc, s] of Object.entries(shares)) {
+      if (!rows.has(disc)) {
+        rows.set(disc, {
+          discipline: disc, portfolio: emptyCell(),
+          byType: Object.fromEntries(TABLE81_TYPES.map((t) => [t, emptyCell()])) as Record<Table81Type, Table81Cell>,
+          icIds: [], shares: {},
+        });
+      }
+      const r = rows.get(disc)!;
+      r.portfolio[pk] += s; r.portfolio.total += s;
+      r.byType[type][pk] += s; r.byType[type].total += s;
+      r.icIds.push(ic.id); r.shares[ic.id] = s;
     }
-    const r = rows.get(disc)!;
-    r.portfolio[pk]++; r.portfolio.total++;
-    r.byType[type][pk]++; r.byType[type].total++;
-    r.icIds.push(ic.id);
     counted.push(ic);
   }
   const list = [...rows.values()].sort((a, b) => a.discipline.localeCompare(b.discipline));
@@ -154,13 +176,20 @@ export function buildTable81(ics: CanonicalIc[], authors: IcAuthor[], discipline
   return { rows: list, totals, counted };
 }
 
+const near = (a: number, b: number) => Math.abs(a - b) < 1e-6;
+/** Format a (possibly fractional) Table 8.1 figure. */
+export const fmt81 = (n: number) => (near(n, Math.round(n)) ? String(Math.round(n)) : n.toFixed(2));
+
 /** Invariant check used by tests and the UI "reconciled" badge. */
-export function table81Reconciles(rows: Table81Row[]): boolean {
-  return rows.every((r) => {
+export function table81Reconciles(rows: Table81Row[], countedIcs?: number): boolean {
+  const rowsOk = rows.every((r) => {
     const p = r.portfolio;
     const byTypeSum = TABLE81_TYPES.reduce((s, t) => s + r.byType[t].total, 0);
-    return p.basic + p.applied + p.pedagogy === p.total && byTypeSum === p.total && r.icIds.length === p.total;
+    const shareSum = Object.values(r.shares).reduce((s, v) => s + v, 0);
+    return near(p.basic + p.applied + p.pedagogy, p.total) && near(byTypeSum, p.total) && near(shareSum, p.total);
   });
+  if (countedIcs === undefined) return rowsOk;
+  return rowsOk && near(rows.reduce((s, r) => s + r.portfolio.total, 0), countedIcs);
 }
 
 export function quartileBucket(q?: string | null): 'Q1' | 'Q2' | 'Q3' | 'Q4' | 'Unranked / N.A.' {
