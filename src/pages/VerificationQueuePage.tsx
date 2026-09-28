@@ -18,6 +18,8 @@ import { CheckSquare, CheckCircle, XCircle, Trash2, RotateCcw, FileText } from '
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { disciplines } from '@/lib/constants';
 import { normalizeDepartment, normalizeDiscipline } from '@/lib/normalize';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import CanonicalReviewPanel from '@/components/v2/CanonicalReviewPanel';
 
 const RECORD_CLASSES = [
   { value: 'ic', label: 'Intellectual Contribution' },
@@ -181,6 +183,13 @@ const VerificationQueuePage = () => {
   return (
     <AppLayout>
       <div className="space-y-6">
+        <Tabs defaultValue="canonical" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="canonical">Shared publications (V2)</TabsTrigger>
+          <TabsTrigger value="legacy">Legacy records (read-across)</TabsTrigger>
+        </TabsList>
+        <TabsContent value="canonical"><CanonicalReviewPanel /></TabsContent>
+        <TabsContent value="legacy" className="space-y-6">
         <div className="flex items-end justify-between gap-4 flex-wrap">
           <div>
             <h1 className="text-2xl font-bold font-serif text-foreground">Verification Queue</h1>
@@ -327,6 +336,8 @@ const VerificationQueuePage = () => {
           title="Delete Contribution"
           description={`Are you sure you want to delete "${deleteTarget?.title}"? This action cannot be undone.`}
         />
+        </TabsContent>
+        </Tabs>
       </div>
     </AppLayout>
   );

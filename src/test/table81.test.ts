@@ -79,4 +79,22 @@ describe('Table 8.1 eligibility and reconciliation', () => {
     expect(ineligibilityReason(ics[4])).toBe('Working paper without DOI (D-3)');
     expect(ineligibilityReason(ics[5])).toBe('Excluded');
   });
+
+  it('D-8: splits an IC equally across distinct author disciplines, summing to 1', () => {
+    const au2: IcAuthor[] = [
+      { canonical_ic_id: 'a', faculty_id: 'f1', department_snapshot: 'Finance', link_status: 'confirmed' },
+      { canonical_ic_id: 'a', faculty_id: 'f2', department_snapshot: 'Finance', link_status: 'confirmed' },
+      { canonical_ic_id: 'a', faculty_id: 'f3', department_snapshot: 'Marketing', link_status: 'confirmed' },
+      { canonical_ic_id: 'a', faculty_id: 'f4', department_snapshot: 'Marketing', link_status: 'proposed' },
+    ];
+    const d = (f: string) => (f === 'f3' || f === 'f4' ? 'MKT' : 'FIN');
+    const t = buildTable81([ics[0]], au2, d);
+    expect(t.totals.total).toBeCloseTo(1);
+    expect(t.rows.map((r) => [r.discipline, r.portfolio.total])).toEqual([['FIN', 0.5], ['MKT', 0.5]]);
+    expect(table81Reconciles(t.rows, t.counted.length)).toBe(true);
+    // school points unchanged: 3 confirmed authors -> 1/3 each
+    expect(pointsFor(au2, 'a', 'f1').schoolPoints).toBeCloseTo(1 / 3);
+    const three = buildTable81([ics[0]], au2, (f) => ({ f1: 'FIN', f2: 'ECO', f3: 'MKT' } as any)[f] || 'X');
+    expect(three.rows.every((r) => Math.abs(r.portfolio.total - 1 / 3) < 1e-9)).toBe(true);
+  });
 });

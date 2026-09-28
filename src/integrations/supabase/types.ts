@@ -223,6 +223,10 @@ export type Database = {
           canonical_ic_id: string
           created_at: string
           field: string
+          hod_note: string | null
+          hod_recommendation: string | null
+          hod_reviewed_at: string | null
+          hod_reviewed_by: string | null
           id: string
           new_value: string | null
           old_value: string | null
@@ -237,6 +241,10 @@ export type Database = {
           canonical_ic_id: string
           created_at?: string
           field: string
+          hod_note?: string | null
+          hod_recommendation?: string | null
+          hod_reviewed_at?: string | null
+          hod_reviewed_by?: string | null
           id?: string
           new_value?: string | null
           old_value?: string | null
@@ -251,6 +259,10 @@ export type Database = {
           canonical_ic_id?: string
           created_at?: string
           field?: string
+          hod_note?: string | null
+          hod_recommendation?: string | null
+          hod_reviewed_at?: string | null
+          hod_reviewed_by?: string | null
           id?: string
           new_value?: string | null
           old_value?: string | null
@@ -578,6 +590,7 @@ export type Database = {
           faculty_id: string
           id: string
           link_status: string
+          review_note: string | null
         }
         Insert: {
           author_position?: number | null
@@ -589,6 +602,7 @@ export type Database = {
           faculty_id: string
           id?: string
           link_status?: string
+          review_note?: string | null
         }
         Update: {
           author_position?: number | null
@@ -600,6 +614,7 @@ export type Database = {
           faculty_id?: string
           id?: string
           link_status?: string
+          review_note?: string | null
         }
         Relationships: [
           {
@@ -1076,11 +1091,29 @@ export type Database = {
         }
         Returns: boolean
       }
+      hod_can_review_ic: { Args: { _id: string }; Returns: boolean }
       is_admin: { Args: never; Returns: boolean }
       is_cv_noise: { Args: { v: string }; Returns: boolean }
       is_hod: { Args: never; Returns: boolean }
       norm_doi: { Args: { v: string }; Returns: string }
       norm_text: { Args: { v: string }; Returns: string }
+      review_author_link: {
+        Args: { _decision: string; _link_id: string; _note?: string }
+        Returns: undefined
+      }
+      review_change_request: {
+        Args: { _decision: string; _id: string; _note?: string }
+        Returns: undefined
+      }
+      set_canonical_verification: {
+        Args: {
+          _eligibility?: string
+          _id: string
+          _note?: string
+          _status: string
+        }
+        Returns: undefined
+      }
     }
     Enums: {
       app_role: "admin" | "hod" | "faculty"

@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import AppLayout from '@/components/AppLayout';
+import { useAuth } from '@/contexts/AuthContext';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -12,7 +13,7 @@ import { Eye } from 'lucide-react';
 import { fetchSchoolCanonical } from '@/lib/canonicalData';
 import { normalizeDepartment } from '@/lib/normalize';
 import {
-  buildTable81, deriveTable81Type, normalizePortfolio, quartileBucket, primaryAuthor,
+  buildTable81, deriveTable81Type, normalizePortfolio, quartileBucket, fmt81,
   TABLE81_TYPES, PORTFOLIOS,
 } from '@/lib/table81';
 import Table81View from '@/components/v2/Table81View';
@@ -52,6 +53,7 @@ function Kpi({ label, value, onClick }: { label: string; value: string | number;
 }
 
 const MasterDashboardPage = () => {
+  const { user } = useAuth();
   const [tab, setTab] = useState('overview');
   const [year, setYear] = useState(ALL);
   const [ff, setFf] = useState<FacFilter>({ dept: ALL, disc: ALL, ps: ALL, cls: ALL, q: '' });
@@ -68,7 +70,7 @@ const MasterDashboardPage = () => {
 
   const count = (rows: any[], fn: (r: any) => string) => rows.reduce((m: Record<string, number>, r) => ((m[fn(r)] = (m[fn(r)] || 0) + 1), m), {});
   const fmap = useMemo(() => new Map(faculty.map((f: any) => [f.faculty_id, f])), [faculty]);
-  const discOfIc = (icId: string) => { const pa = primaryAuthor(data?.authors || [], icId); return val(pa && (fmap.get(pa.faculty_id) as any)?.discipline); };
+  
 
   const goFaculty = (patch: Partial<FacFilter>) => { setFf({ dept: ALL, disc: ALL, ps: ALL, cls: ALL, q: '', ...patch }); setTab('faculty'); };
 
@@ -88,7 +90,7 @@ const MasterDashboardPage = () => {
       <div className="space-y-6">
         <div>
           <h1 className="text-2xl font-bold font-serif text-foreground">Master Dashboard</h1>
-          <p className="text-sm text-muted-foreground">School-level view generated from faculty records. Totals are never typed in.</p>
+          <p className="text-sm text-muted-foreground">{user?.role === 'hod' ? `Department view — ${user?.department}. ` : 'School-level view. '}Generated from faculty records; totals are never typed in.</p>
         </div>
 
         <Tabs value={tab} onValueChange={setTab} className="space-y-4">
@@ -122,7 +124,7 @@ const MasterDashboardPage = () => {
               <Dist title="Journal Quality (qualifying ICs)" data={Object.fromEntries(['Q1', 'Q2', 'Q3', 'Q4', 'Unranked / N.A.'].map((q) => [q, counted.filter((i) => quartileBucket(i.quartile) === q).length]))} onPick={() => setTab('t81')} />
               <Dist title="IC Reporting Type" data={Object.fromEntries(TABLE81_TYPES.map((ty) => [ty, counted.filter((i) => deriveTable81Type(i.historical_reporting_type) === ty).length]))} onPick={() => setTab('t81')} />
               <Dist title="Scholarship Portfolio" data={Object.fromEntries(PORTFOLIOS.map((p) => [p, counted.filter((i) => normalizePortfolio(i.scholarship_portfolio) === p).length]))} onPick={() => setTab('t81')} />
-              <Dist title="ICs by Discipline" data={count(counted, (i) => discOfIc(i.id))} onPick={() => setTab('t81')} />
+              <Dist title="ICs by Discipline (D-8 shares)" data={Object.fromEntries(t81.rows.map((r) => [r.discipline, +r.portfolio.total.toFixed(2)]))} onPick={() => setTab('t81')} />
             </div>
             <p className="text-xs text-muted-foreground">
               Pilot phase: IC figures include only faculty migrated to the shared-publication model and only records that reviewers have Verified.
