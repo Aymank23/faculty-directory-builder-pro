@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import AppLayout from '@/components/AppLayout';
+import { useAuth } from '@/contexts/AuthContext';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -52,6 +53,7 @@ function Kpi({ label, value, onClick }: { label: string; value: string | number;
 }
 
 const MasterDashboardPage = () => {
+  const { user } = useAuth();
   const [tab, setTab] = useState('overview');
   const [year, setYear] = useState(ALL);
   const [ff, setFf] = useState<FacFilter>({ dept: ALL, disc: ALL, ps: ALL, cls: ALL, q: '' });
@@ -88,7 +90,7 @@ const MasterDashboardPage = () => {
       <div className="space-y-6">
         <div>
           <h1 className="text-2xl font-bold font-serif text-foreground">Master Dashboard</h1>
-          <p className="text-sm text-muted-foreground">School-level view generated from faculty records. Totals are never typed in.</p>
+          <p className="text-sm text-muted-foreground">{user?.role === 'hod' ? `Department view — ${user?.department}. ` : 'School-level view. '}Generated from faculty records; totals are never typed in.</p>
         </div>
 
         <Tabs value={tab} onValueChange={setTab} className="space-y-4">
