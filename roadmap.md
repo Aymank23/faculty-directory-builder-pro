@@ -10,9 +10,12 @@
 - [x] Phase 2 — Shared logic: crosswalk, derived Table 8.1 type, eligibility, points, aggregation + unit tests
 - [x] Phase 3 — Faculty Dashboard (7 tabs) on faculty, admin and HoD profile pages
 - [x] Phase 4a — Master Dashboard (3 tabs), Table 8.1 drill-downs, Table 8.1 Excel
-- [ ] Phase 4b — Admin review panel for shared-IC change requests + canonical records in Verification Queue
-- [ ] Phase 4c — Tighten sharing/confirmation access rules (proposed author links, change-request review)
+- [x] Phase 4b — Admin review panel for shared-IC change requests + canonical records in Verification Queue
+- [x] Phase 4c — Tighten sharing/confirmation access rules (proposed author links, change-request review)
 - [x] Phase 5a — Pilot canonicalisation (4 faculty): 69 ICs, 0 conflicts, all Under Review
-- [ ] Phase 5b — Browser regression (Faculty/Admin/HoD) + readiness report
-- [ ] D-8 — user decision on discipline attribution of shared ICs
+- [x] Phase 5b — DB permission tests (23), Admin + Faculty click-through, readiness report
+- [ ] HoD click-through in the app — blocked: no HoD accounts exist (tested at database level only)
+- [ ] Add Contribution / My Repository still write old records — needs your go-ahead (Phase 6 scope)
+- [ ] Pilot title/outlet clean-up before genuine verification — needs reviewer
+- [x] D-8 — fractional discipline allocation (approved provisional)
 - [ ] STOP — await approval before Phase 6 (school-wide)
