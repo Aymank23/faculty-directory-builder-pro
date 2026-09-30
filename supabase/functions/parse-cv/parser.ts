@@ -728,7 +728,7 @@ export function parseApaCitation(citation: string): {
   const quotedAfter = afterYear.match(/^[“"]([^“”"]+)[”"]\s*[,.]?\s*(.*)$/);
   if (quotedAfter) parts = [quotedAfter[1].trim(), quotedAfter[2].trim()];
   else if (yearIdx < 0 && q) parts = [q[1].trim(), stripped.slice(q.index! + q[0].length).replace(/^[\s,.;:]+/, "").trim()];
-  else if (yearIdx >= 0) parts = afterYear.split(/(?<!\bvs|\bet al|\bEds?|\bVol|\bNo)[.?!]\s+(?=[A-Z“"])/).map((s) => s.replace(/\.\s*$/, "").trim()).filter(Boolean);
+  else if (yearIdx >= 0) parts = afterYear.split(/(?<!\bvs|\bet al|\bEds?|\bVol|\bNo)\.\s+(?=[A-Z“"])/).map((s) => s.replace(/\.\s*$/, "").trim()).filter(Boolean);
   else return result; // no year and no quoted title: don't guess
 
   if (parts[0]) {
@@ -752,7 +752,8 @@ export function parseApaCitation(citation: string): {
     }
   }
 
-  result.confident = !!(result.title && result.year && result.title.length <= 300 && !/\((?:19|20)\d{2}/.test(result.title));
+  result.confident = !!(result.title && result.year && result.title.length <= 300 && !/\((?:19|20)\d{2}/.test(result.title)
+    && !(!result.journal && /[?!]\s+[A-Z]/.test(result.title)));
   return result;
 }
 
