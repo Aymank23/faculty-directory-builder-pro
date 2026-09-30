@@ -1037,6 +1037,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      attach_canonical_evidence: {
+        Args: { _id: string; _path: string }
+        Returns: undefined
+      }
       can_edit_faculty: { Args: { _faculty_id: string }; Returns: boolean }
       can_view_canonical_ic: { Args: { _id: string }; Returns: boolean }
       can_view_faculty: { Args: { _faculty_id: string }; Returns: boolean }
@@ -1084,6 +1088,18 @@ export type Database = {
       confirmed_author_count: { Args: { _id: string }; Returns: number }
       current_app_user_id: { Args: never; Returns: string }
       current_department: { Args: never; Returns: string }
+      find_canonical_matches: {
+        Args: { _doi: string; _title: string; _year: number }
+        Returns: {
+          authors: string
+          doi: string
+          id: string
+          journal_outlet: string
+          match_method: string
+          title: string
+          year: number
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -1097,6 +1113,7 @@ export type Database = {
       is_hod: { Args: never; Returns: boolean }
       norm_doi: { Args: { v: string }; Returns: string }
       norm_text: { Args: { v: string }; Returns: string }
+      norm_title_key: { Args: { v: string }; Returns: string }
       review_author_link: {
         Args: { _decision: string; _link_id: string; _note?: string }
         Returns: undefined
@@ -1113,6 +1130,15 @@ export type Database = {
           _status: string
         }
         Returns: undefined
+      }
+      submit_canonical_contribution: {
+        Args: {
+          _confirm_not_duplicate?: boolean
+          _faculty_id: string
+          _link_to?: string
+          _payload: Json
+        }
+        Returns: string
       }
     }
     Enums: {
