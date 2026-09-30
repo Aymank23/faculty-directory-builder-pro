@@ -134,3 +134,51 @@ describe('APA citation field mapping', () => {
     expect(ic.doi).toBeNull();
   });
 });
+
+import { parseApaCitation, repairSplitWords } from '../../supabase/functions/parse-cv/parser';
+
+describe('Pilot hardening — citation splitting regressions', () => {
+  it('APA with month in year: (2025, July) conference paper', () => {
+    const r = parseApaCitation('Aad, S., Hardey, M., & Kirikkaleli, N. O. (2025, July). AI and Student Influencers: A Double-Edged Sword of Digital Transformation. Paper accepted for presentation at the 85th Annual Meeting of the Academy of Management (MED Division), Copenhagen, Denmark.');
+    expect(r.year).toBe(2025);
+    expect(r.title).toBe('AI and Student Influencers: A Double-Edged Sword of Digital Transformation');
+    expect(r.journal).toMatch(/^85th Annual Meeting of the Academy of Management/);
+    expect(r.authors).toMatch(/^Aad, S\./);
+  });
+  it('Harvard style: Authors, 2022. Title. Journal', () => {
+    const r = parseApaCitation("Kertechian, K.S., Karkoulian, S., Ismail, H.N. and Aad Makhoul, S.S., 2022. A between-subject design to evaluate students' employability in the Lebanese labor market. Higher Education, Skills and Work-Based Learning, 12(4), pp.732-748.");
+    expect(r.year).toBe(2022);
+    expect(r.title).toMatch(/^A between-subject design/);
+    expect(r.journal).toBe('Higher Education, Skills and Work-Based Learning');
+  });
+  it('MLA style: quoted title before (year)', () => {
+    const r = parseApaCitation('Srour, F. Jordan, and Silva Karkoulian. "Exploring diversity through machine learning: a case for the use of decision trees in social science research." International Journal of Social Research Methodology 25.6 (2022): 725-740.');
+    expect(r.year).toBe(2022);
+    expect(r.title).toMatch(/^Exploring diversity through machine learning/);
+    expect(r.journal).toBe('International Journal of Social Research Methodology');
+  });
+  it('Quoted conference title without parenthesised year', () => {
+    const r = parseApaCitation('Raaper, R., Hardey, M., Aad, S., “Filling the gap: Student influencers as support providers in marketized higher education”, Studies in Higher education journal https://doi.org/10.1080/03075079.2024.2385614.');
+    expect(r.title).toBe('Filling the gap: Student influencers as support providers in marketized higher education');
+    expect(r.journal).toBe('Studies in Higher education journal');
+    expect(r.doi).toBe('https://doi.org/10.1080/03075079.2024.2385614');
+  });
+  it('Title, Journal tail split and DOI with balanced parentheses', () => {
+    const r = parseApaCitation('Haque MN, Beckers D, Costales E, Aad S, Sharifi A, Mora L (2025). A systematic review of research on just, equitable, responsible, and inclusive smart cities, Technology in Society https://doi.org/10.1016/j.techsoc.2025.103050');
+    expect(r.title).toBe('A systematic review of research on just, equitable, responsible, and inclusive smart cities');
+    expect(r.journal).toBe('Technology in Society');
+    const d = parseApaCitation('Sater, F.A; Aad, S; Karkoulian, S, 2023. The impact of E-HRM practices, 15(1): 102-102. https://doi.org/10.35609/gcbssproceeding.2023.1(102)');
+    expect(d.doi).toBe('https://doi.org/10.35609/gcbssproceeding.2023.1(102)');
+  });
+  it('question-mark subtitles stay in the title; unsplittable citations are flagged', () => {
+    const r = parseApaCitation('Ismail, H. N. (2019). Which personal values matter most? Job performance and job satisfaction across job categories. International Journal of Organizational Analysis, 27(4), 1-10.');
+    expect(r.title).toBe('Which personal values matter most? Job performance and job satisfaction across job categories');
+    expect(parseApaCitation('Aad, S., Hardey, M. Title without year. Some Journal.').confident).toBe(false);
+  });
+  it('repairs DOCX split-word artefacts', () => {
+    expect(repairSplitWords('R amadan, Z. (2025)')).toBe('Ramadan, Z. (2025)');
+    expect(repairSplitWords('Technology in Societ y')).toBe('Technology in Society');
+    expect(repairSplitWords('28 th Conference')).toBe('28th Conference');
+    expect(repairSplitWords('A study of I and a b')).toBe('A study of I and a b');
+  });
+});
