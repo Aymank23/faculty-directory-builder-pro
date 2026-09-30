@@ -646,81 +646,100 @@ function extractProfessionalExperience(lines: string[]) {
 const DOI_RE = /(?:https?:\/\/(?:dx\.)?doi\.org\/|doi:\s*)?(10\.\d{4,9}\/[^\s,;]+)/i;
 const URL_RE = /https?:\/\/\S+/gi;
 
-function parseApaCitation(citation: string): {
+/** Repairs DOCX run-splitting artefacts ("R amadan", "Societ y", "28 th") without touching real words. */
+export function repairSplitWords(v: string): string {
+  return v
+    .replace(/^([A-Z]) ([a-z]{2,})/, "$1$2")
+    .replace(/(^|[\s(“"])([A-Z]) ([a-z]{3,})\b/g, (m, pre, c, rest) => (/^(?:A|I)$/.test(c) ? m : `${pre}${c}${rest}`))
+    .replace(/\b([A-Za-z]{4,}) ([b-hj-z])(?=[\s.,;:)]|$)/g, "$1$2")
+    .replace(/\b(\d+) (st|nd|rd|th)\b/g, "$1$2")
+    .replace(/\s+([,.;:])/g, "$1")
+    .replace(/““|””/g, (q) => q[0]);
+}
+
+const JOURNAL_TAIL_RE = /^(?:the\s+)?[A-Z][\w&’' -]{2,80}\b(?:Journal|Review|Society|Sciences?|Quarterly|Letters|Proceedings|Studies|Management|Research|Education|Marketing|Economics|Communications)\b[\w&’' -]{0,40}$/;
+const VENUE_PREFIX_RE = /^(?:paper\s+)?(?:accepted\s+(?:for\s+presentation\s+)?(?:and\s+[^,]*?\s+)?(?:at|in)|presented\s+at|accepted\s+at|to\s+be\s+presented\s+at)\s+(?:the\s+)?/i;
+
+export function parseApaCitation(citation: string): {
   authors: string | null;
   year: number | null;
   title: string | null;
   journal: string | null;
   doi: string | null;
+  confident: boolean;
 } {
-  const result = { authors: null as string | null, year: null as number | null, title: null as string | null, journal: null as string | null, doi: null as string | null };
+  const result = { authors: null as string | null, year: null as number | null, title: null as string | null, journal: null as string | null, doi: null as string | null, confident: false };
   if (!citation) return result;
 
-  let working = citation.replace(/\s+/g, " ").trim();
+  const working = repairSplitWords(citation.replace(/\s+/g, " ").trim());
 
-  // 1) DOI - prefer explicit doi.org URL, else bare 10.x/...
+  // 1) DOI - prefer explicit doi.org URL, else bare 10.x/... (balanced parentheses kept)
   const doiUrlMatch = working.match(/https?:\/\/(?:dx\.)?doi\.org\/\S+/i);
-  if (doiUrlMatch) {
-    result.doi = doiUrlMatch[0].replace(/[.,;)\]]+$/, "");
-  } else {
-    const bare = working.match(/\b10\.\d{4,9}\/[^\s,;]+/);
-    if (bare) result.doi = bare[0].replace(/[.,;)\]]+$/, "");
+  const rawDoi = doiUrlMatch ? doiUrlMatch[0] : working.match(/\b10\.\d{4,9}\/[^\s,;]+/)?.[0];
+  if (rawDoi) {
+    let d = rawDoi.replace(/[.,;\]]+$/, "");
+    while (d.endsWith(")") && (d.match(/\(/g) || []).length < (d.match(/\)/g) || []).length) d = d.slice(0, -1);
+    result.doi = d;
   }
 
-  // Strip DOI + any other URLs from working copy so they can't leak into journal
   let stripped = working;
-  if (result.doi) stripped = stripped.split(result.doi).join(" ");
+  if (rawDoi) stripped = stripped.split(rawDoi).join(" ");
   stripped = stripped.replace(URL_RE, " ")
-    // remove leftover "doi:" / "DOI" labels so they cannot become the journal
     .replace(/\bdoi\s*:?\s*/gi, " ")
     .replace(/\s+/g, " ")
     .replace(/[\s.,;:]+$/, "")
     .trim();
 
-  // 2) Year inside (YYYY)
-  const yearMatch = stripped.match(/\((19|20)\d{2}[a-z]?\)/i);
-  if (yearMatch) {
-    result.year = parseInt(yearMatch[0].replace(/[()a-z]/gi, ""), 10);
+  // 2) Year: APA "(2025)", "(2025, July)", "(2025, 9 – 11 June)"; Harvard "Authors, 2022. Title"
+  let yearToken = stripped.match(/\(((?:19|20)\d{2})[a-z]?(?:,[^)]{0,40})?\)/i);
+  let yearIdx = -1, yearLen = 0;
+  if (yearToken) { result.year = parseInt(yearToken[1], 10); yearIdx = yearToken.index!; yearLen = yearToken[0].length; }
+  else {
+    const harvard = stripped.match(/[,;]\s*((?:19|20)\d{2})\.\s+(?=[A-Z“"])/);
+    if (harvard) { result.year = parseInt(harvard[1], 10); yearIdx = harvard.index!; yearLen = harvard[0].length; }
   }
 
-  // 3) Authors = before (YYYY)
-  if (yearMatch) {
-    const authors = stripped.slice(0, stripped.indexOf(yearMatch[0])).trim().replace(/[.,;:\s]+$/, "");
+  // Quoted title anywhere (conference style): Authors, “Title”, Venue
+  const q = stripped.match(/[“"]([^“”"]{8,})[”"]/);
+
+  if (yearIdx >= 0) {
+    const authors = stripped.slice(0, yearIdx).trim().replace(/[.,;:\s]+$/, "");
     if (authors && authors.length <= 400) result.authors = authors;
+  } else if (q) {
+    const authors = stripped.slice(0, q.index).trim().replace(/[.,;:\s]+$/, "");
+    if (authors && authors.length <= 400 && /[A-Z][a-z]+,?\s+[A-Z]\./.test(authors)) result.authors = authors;
   }
 
-  // 4) After-year remainder → title + journal
-  const afterYear = yearMatch
-    ? stripped.slice(stripped.indexOf(yearMatch[0]) + yearMatch[0].length).replace(/^[\s.,;:\-–—]+/, "")
-    : stripped;
+  const afterYear = yearIdx >= 0 ? stripped.slice(yearIdx + yearLen).replace(/^[\s.,;:\-–—]+/, "") : stripped;
 
-  // Quoted-title style: “Title”, Journal, 41(12), 2965-2976
-  const quoted = afterYear.match(/^[“"]?([^“”"]+)[”"]\s*,\s*(.+)$/);
-  const sentences = quoted
-    ? [quoted[1].trim(), quoted[2].trim()]
-    // Split into sentences by ". " - keep abbreviations safe enough for APA
-    : afterYear.split(/\.\s+(?=[A-Z“"])/).map((s) => s.replace(/\.\s*$/, "").trim()).filter(Boolean);
+  let parts: string[];
+  const quotedAfter = afterYear.match(/^[“"]([^“”"]+)[”"]\s*[,.]?\s*(.*)$/);
+  if (quotedAfter) parts = [quotedAfter[1].trim(), quotedAfter[2].trim()];
+  else if (yearIdx < 0 && q) parts = [q[1].trim(), stripped.slice(q.index! + q[0].length).replace(/^[\s,.;:]+/, "").trim()];
+  else if (yearIdx >= 0) parts = afterYear.split(/[.?!]\s+(?=[A-Z“"])/).map((s) => s.replace(/\.\s*$/, "").trim()).filter(Boolean);
+  else return result; // no year and no quoted title: don't guess
 
-  if (sentences.length > 0) {
-    result.title = sentences[0]
-      .replace(/^[\s,;:.\-–—]+/, "")
-      .replace(/^["“]|["”]$/g, "")
-      .replace(/[\s,;:]+$/, "")
-      .trim() || null;
+  if (parts[0]) {
+    let title = parts[0].replace(/^[\s,;:.\-–—]+/, "").replace(/^["“]|["”]$/g, "").replace(/[\s,;:]+$/, "").trim();
+    // "Title, Journal Name" with nothing after: split off the journal only when it clearly names one.
+    if (!parts[1]) {
+      const lastComma = title.lastIndexOf(", ");
+      const tail = lastComma > 0 ? title.slice(lastComma + 2).trim() : "";
+      if (tail && JOURNAL_TAIL_RE.test(tail) && !/\d/.test(tail)) { parts[1] = tail; title = title.slice(0, lastComma).trim(); }
+    }
+    result.title = title || null;
   }
 
-  if (sentences.length > 1) {
-    // Journal = next sentence, but strip trailing volume/issue/pages like ", 53, 101978" or " 12(3), 100-120"
-    let journal = sentences[1];
-    // Cut at first comma followed by digits (volume marker) or "Vol." / "vol "
-    journal = journal.split(/,\s*(?=\d)|\s+vol\.?\s+\d|\s+\d+\s*\(\d+\)/i)[0];
+  if (parts[1]) {
+    let journal = parts.slice(1).join(". ").replace(VENUE_PREFIX_RE, "");
+    journal = journal.split(/,\s*(?=\d)|\s+vol\.?\s+\d|\s+\d+\s*\(\d+\)|,\s*pp\./i)[0];
     journal = journal.replace(/^[\s,;:.\-–—]+/, "").replace(/[\s.,;:]+$/, "").trim();
-    // Reject if it looks like a DOI/URL fragment, a bare "doi" label, or pure numbers
     if (journal && !/^https?:|^10\.\d/i.test(journal) && !/^doi$/i.test(journal) && !/^\d+$/.test(journal) && journal.length <= 200) {
       result.journal = journal;
     }
   }
 
+  result.confident = !!(result.title && result.year && result.title.length <= 300 && !/\((?:19|20)\d{2}/.test(result.title));
   return result;
 }
 
@@ -728,8 +747,11 @@ function buildIcEntry(base: Record<string, unknown>) {
   const citation = String(base.raw_text || base.apa_citation || "").trim();
   const parsed = parseApaCitation(citation);
 
-  const explicitTitle = typeof base.title === "string" ? base.title.trim() : "";
+  // Title comes from the citation parser. If the citation cannot be split confidently we keep the
+  // full text but flag it — a full citation must never silently become a "title".
+  const explicitTitle = typeof base.title === "string" && base.title.trim() !== citation ? base.title.trim() : "";
   const title = explicitTitle || parsed.title || citation;
+  const titleNeedsReview = !explicitTitle && !parsed.confident;
 
   const quartile = typeof base.quartile === "string" ? base.quartile.toUpperCase() : null;
   const category = typeof base.ic_category === "string" && !isPlaceholder(base.ic_category) ? base.ic_category : null;
@@ -742,6 +764,7 @@ function buildIcEntry(base: Record<string, unknown>) {
   if (journal && /https?:\/\/|10\.\d{4,9}\//i.test(journal)) journal = null;
 
   const doi = parsed.doi;
+  const authors = parsed.authors;
   const confidence = quartile && category && year ? "high" : year ? "medium" : "low";
 
   return {
@@ -759,7 +782,8 @@ function buildIcEntry(base: Record<string, unknown>) {
     apa_citation: citation || null,
     source_section: base.source_section || null,
     raw_text: citation || null,
-    confidence,
+    confidence: titleNeedsReview ? "low" : confidence,
+    title_needs_review: titleNeedsReview,
   };
 }
 
@@ -852,7 +876,6 @@ function extractOtherIcEntries(lines: string[], sourceSection: string) {
       if (issues.length > 0) return createRow(sourceSection, raw, "needs_review", issues, null, "Other IC");
 
       return createRow(sourceSection, raw, "ready", [], buildIcEntry({
-        title: details,
         raw_text: details,
         year: normalizeYear(yearCell || "") ?? null,
         ic_type: type,
