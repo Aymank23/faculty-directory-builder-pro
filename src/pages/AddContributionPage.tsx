@@ -72,7 +72,7 @@ const AddContributionPage = () => {
       : 'Submitted — Under Review. It counts in Table 8.1 only after verification.');
     setForm({ ...EMPTY }); removeFile(); setMatches([]);
     qc.invalidateQueries();
-    navigate('/repository');
+    navigate('/my-repository');
   };
 
   const create = async (confirmNotDuplicate: boolean) => {
