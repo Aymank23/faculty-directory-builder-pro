@@ -702,6 +702,18 @@ export function parseApaCitation(citation: string): {
   // Quoted title anywhere (conference style): Authors, “Title”, Venue
   const q = stripped.match(/[“"]([^“”"]{8,})[”"]/);
 
+  // MLA: Authors. "Title." Journal 12.4 (2022): 732-748. — quoted title precedes the year.
+  if (q && yearToken && q.index! < yearIdx) {
+    const authors = stripped.slice(0, q.index).trim().replace(/[.,;:\s]+$/, "");
+    if (authors && authors.length <= 400) result.authors = authors;
+    result.title = q[1].trim().replace(/[\s.,;:]+$/, "") || null;
+    const venue = stripped.slice(q.index! + q[0].length, yearIdx).replace(/^[\s.,;:]+/, "")
+      .replace(/\s+\d+(?:\.\d+)?\s*$/, "").replace(/[\s.,;:]+$/, "").trim();
+    if (venue && venue.length <= 200 && !/^\d+$/.test(venue)) result.journal = venue;
+    result.confident = !!(result.title && result.year);
+    return result;
+  }
+
   if (yearIdx >= 0) {
     const authors = stripped.slice(0, yearIdx).trim().replace(/[.,;:\s]+$/, "");
     if (authors && authors.length <= 400) result.authors = authors;
