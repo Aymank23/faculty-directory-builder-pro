@@ -649,7 +649,7 @@ const URL_RE = /https?:\/\/\S+/gi;
 /** Repairs DOCX run-splitting artefacts ("R amadan", "Societ y", "28 th") without touching real words. */
 export function repairSplitWords(v: string): string {
   return v
-    .replace(/^([A-Z]) ([a-z]{2,})/, "$1$2")
+    .replace(/^([B-HJ-Z]) ([a-z]{2,})/, "$1$2")
     .replace(/(^|[\s(“"])([A-Z]) ([a-z]{3,})\b/g, (m, pre, c, rest) => (/^(?:A|I)$/.test(c) ? m : `${pre}${c}${rest}`))
     .replace(/\b([A-Za-z]{4,}) ([b-hj-z])(?=[\s.,;:)]|$)/g, "$1$2")
     .replace(/\b(\d+) (st|nd|rd|th)\b/g, "$1$2")
