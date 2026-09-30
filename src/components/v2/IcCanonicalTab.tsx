@@ -19,6 +19,8 @@ import {
   HISTORICAL_TYPES, PORTFOLIOS,
 } from '@/lib/table81';
 import { VERIFICATION_STATUS_LABELS } from '@/lib/icTaxonomy';
+import { findCanonicalMatches, submitCanonicalContribution, saveCanonicalEdit, friendlyWriteError, type CanonicalMatch } from '@/lib/canonicalWrite';
+import DuplicateMatchDialog from '@/components/v2/DuplicateMatchDialog';
 
 const fmt = (n: number) => (n ? n.toFixed(2) : '—');
 
@@ -66,44 +68,50 @@ export default function IcCanonicalTab({ facultyId, department }: { facultyId: s
 
   const refresh = () => qc.invalidateQueries();
 
-  const save = async () => {
-    if (!form.title?.trim()) return toast.error('Title is required');
-    setSaving(true);
+  const [matches, setMatches] = useState<CanonicalMatch[]>([]);
+
+  const buildPayload = () => {
     const payload: Record<string, any> = {};
     SHARED_FIELDS.forEach((k) => {
       const v = form[k]?.trim() || null;
       payload[k] = (k === 'year' || k === 'total_authors') && v ? Number.parseInt(v, 10) : v;
     });
+    return payload;
+  };
+
+  const createNew = async (linkTo: string | null, confirmNotDuplicate: boolean) => {
+    setSaving(true);
     try {
-      if (!editing.id) {
-        const { data: created, error } = await supabase
-          .from('canonical_ics')
-          .insert({ ...payload, historical_reporting_type: payload.historical_reporting_type || 'Needs Review', created_by: user!.id, verification_status: 'under_review', eligibility: 'conditional', condition_note: 'New entry — awaiting review' })
-          .select('id').single();
-        if (error) throw error;
-        const { error: e2 } = await supabase.from('ic_authors').insert({ canonical_ic_id: created.id, faculty_id: facultyId, department_snapshot: department, link_status: user?.role === 'admin' ? 'confirmed' : 'proposed', ...(user?.role === 'admin' ? { confirmed_at: new Date().toISOString() } : {}) });
-        if (e2) throw e2;
-        toast.success(user?.role === 'admin' ? 'Intellectual contribution added (Under Review)' : 'Added — Under Review. An admin must confirm you as author before it counts.');
-      } else {
-        const changed = SHARED_FIELDS.filter((k) => String(editing[k] ?? '') !== String(payload[k] ?? ''));
-        if (!changed.length) { setEditing(null); setSaving(false); return; }
-        const shared = confirmedAuthors(authors, editing.id).length > 1;
-        if (shared && !isAdmin) {
-          const rows = changed.map((k) => ({ canonical_ic_id: editing.id, proposed_by: user!.id, field: k, old_value: editing[k] == null ? null : String(editing[k]), new_value: payload[k] == null ? null : String(payload[k]), reason: reason || null }));
-          const { error } = await supabase.from('canonical_ic_change_requests').insert(rows);
-          if (error) throw error;
-          toast.success('Shared publication — change proposed for admin approval');
-        } else {
-          const upd = Object.fromEntries(changed.map((k) => [k, payload[k]]));
-          const { error } = await supabase.from('canonical_ics').update(upd).eq('id', editing.id);
-          if (error) throw error;
-          toast.success('Saved' + (editing.verification_status === 'verified' && !isAdmin ? ' — returned to Under Review' : ''));
-        }
-      }
+      await submitCanonicalContribution({
+        facultyId, linkTo, confirmNotDuplicate,
+        payload: { ...buildPayload(), original_cv_item_type: 'Manual entry (Faculty Dashboard)', source: 'faculty_dashboard' },
+      });
+      toast.success(linkTo ? 'Linked to the existing publication — awaiting admin confirmation.'
+        : isAdmin ? 'Intellectual contribution added (Under Review)' : 'Added — Under Review. An admin must confirm you as author before it counts.');
+      setMatches([]); setEditing(null); refresh();
+    } catch (e: any) { toast.error(friendlyWriteError(e)); }
+    setSaving(false);
+  };
+
+  const save = async () => {
+    if (!form.title?.trim()) return toast.error('Title is required');
+    const payload = buildPayload();
+    if (!editing.id) {
+      try {
+        const found = await findCanonicalMatches(payload.doi, payload.title, payload.year ?? null);
+        if (found.length) { setMatches(found); return; }
+      } catch (e) { return toast.error(friendlyWriteError(e)); }
+      return createNew(null, false);
+    }
+    setSaving(true);
+    try {
+      const r = await saveCanonicalEdit({ ic: editing, payload, authors, isAdmin, userId: user!.id, reason });
+      if (r === 'proposed') toast.success('Shared publication — change proposed for admin approval');
+      else if (r === 'applied') toast.success('Saved' + (editing.verification_status === 'verified' && !isAdmin ? ' — returned to Under Review' : ''));
       setEditing(null);
       refresh();
     } catch (e: any) {
-      toast.error(e.message || 'Save failed');
+      toast.error(friendlyWriteError(e));
     }
     setSaving(false);
   };
@@ -224,6 +232,8 @@ export default function IcCanonicalTab({ facultyId, department }: { facultyId: s
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <DuplicateMatchDialog open={matches.length > 0} matches={matches} busy={saving}
+        onCancel={() => setMatches([])} onLink={(id) => createNew(id, false)} onCreateNew={() => createNew(null, true)} />
     </Card>
   );
 }
