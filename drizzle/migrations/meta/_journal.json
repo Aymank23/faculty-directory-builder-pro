@@ -1,0 +1,13 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1791301541959,
+      "tag": "0000_cv_update_sync_and_warning_remediation",
+      "breakpoints": true
+    }
+  ]
+}
