@@ -503,11 +503,13 @@ const UploadCvPage = () => {
           // reporting bucket from it, and keep records unverified until an admin acts.
           original_cv_item_type: ic.original_cv_item_type || ic.ic_type || null,
           ic_reporting_type: mapOriginalToReportingType(ic.original_cv_item_type || ic.ic_type),
-          record_class: classifyRecordClass({
+          // Parser routing (approved AE/IC crosswalk) wins; fallback to the legacy classifier.
+          record_class: (ic as any).record_class || classifyRecordClass({
             originalType: ic.original_cv_item_type || ic.ic_type,
             sourceSection: ic.source_section,
             details: ic.title,
           }),
+          activity_type: (ic as any).activity_type || null,
           verification_status: 'under_review',
           canonical_key: buildCanonicalKey(ic),
           updated_at: new Date().toISOString(),
