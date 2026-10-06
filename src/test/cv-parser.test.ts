@@ -182,3 +182,26 @@ describe('Pilot hardening — citation splitting regressions', () => {
     expect(repairSplitWords('A study of I and a b')).toBe('A study of I and a b');
   });
 });
+
+import { routeIcOrAe } from '../../supabase/functions/parse-cv/parser';
+describe('AE vs IC routing (pilot misclassification layouts)', () => {
+  it('editorial review board rows in Other IC route to AE', () => {
+    expect(routeIcOrAe('Editorial Position', 'Appointed on the Editorial Review Board of the International Journal of Bank Marketing').route).toBe('ae');
+  });
+  it('external reviewer of a grant proposal routes to AE (Journal Reviewer), not grant', () => {
+    const r = routeIcOrAe('Grant', 'Acted as the external reviewer of a research grant proposal at the Doha Institute');
+    expect(r.route).toBe('ae'); expect(r.activity_type).toBe('Journal Reviewer');
+  });
+  it('an obtained grant is never auto-IC: goes to review', () => {
+    expect(routeIcOrAe('Grant', 'Obtained the LAU PIRF Grant No. 123').route).toBe('review');
+  });
+  it('scientific committee of a conference routes to AE', () => {
+    expect(routeIcOrAe('Others', 'Scientific Committee Member in an Academic Conference: International Finance').route).toBe('ae');
+  });
+  it('activity row containing a DOI is ambiguous → review', () => {
+    expect(routeIcOrAe('Editorial Position', 'Guest editor, special issue editorial (2023). doi:10.1016/j.x.2023.1').route).toBe('review');
+  });
+  it('a real proceeding stays IC', () => {
+    expect(routeIcOrAe('Academic Conference Proceeding', 'Aad, S. (2024). Smart cities. Proceedings of GCBSS.').route).toBe('ic');
+  });
+});
