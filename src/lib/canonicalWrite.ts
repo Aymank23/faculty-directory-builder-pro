@@ -74,6 +74,10 @@ export function friendlyWriteError(e: any): string {
   if (m.includes('DUPLICATE_DOI')) return 'A publication with this DOI already exists. Link yourself to it instead of creating a duplicate.';
   if (m.includes('POSSIBLE_DUPLICATE')) return 'A publication with the same title and year already exists.';
   if (m.includes('SHARED_IC_PROPOSAL_REQUIRED')) return 'This publication is shared with other AKSOB authors — an admin must approve this change.';
+  if (m.includes('MATCH_MISMATCH')) return 'You can only link to a publication with the same DOI, or the same title and year.';
+  if (m.includes('RATE_LIMITED')) return 'Daily submission limit reached. Please contact an admin.';
+  if (m.includes('INVALID_EVIDENCE') || m.includes('EVIDENCE_TOO_LARGE')) return 'Evidence must be a PDF, Word, PNG or JPG file of up to 10 MB.';
+  if (m.includes('EVIDENCE_NOT_FOUND')) return 'The evidence file did not upload. Please try again.';
   if (m.includes('NOT_PERMITTED')) return 'You are not allowed to do this.';
   return m || 'Save failed';
 }
