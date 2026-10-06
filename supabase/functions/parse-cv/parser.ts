@@ -901,14 +901,62 @@ function extractOtherIcEntries(lines: string[], sourceSection: string) {
   );
 }
 
+// ── AE vs IC routing (approved crosswalk: classification_policies) ──────────
+// Activities route to Academic Engagement; ambiguous items go to review; the
+// original CV item type is always preserved.
+const AE_RULES: Array<[RegExp, string]> = [
+  [/editorial (review )?board|editorial position|associate editor|guest editor|editor[- ]in[- ]chief|member of the editorial/i, "Editorial Position"],
+  [/journal reviewer|\breviewer (of|for)\b|acted as (an? |the )?(external )?reviewer|reviewed (a |the )?.*(paper|manuscript|proposal|submission)s?\b|ad hoc reviewer|external review(er)? of/i, "Journal Reviewer"],
+  [/(chair(ed)?|organi[sz](ed|er|ing)|co-?chair|track chair|session chair|program committee|scientific committee).{0,40}(conference|symposium|workshop|session|track|summit)/i, "Conference Organizer / Chair"],
+  [/(supervis(ed|or|ion)|advis(ed|or)|reader|examiner).{0,40}(thesis|dissertation|capstone|phd|doctoral|master|graduate)/i, "Graduate Supervision"],
+  [/curriculum (development|design|review)|accreditation (standards|framework|activities|related)|developing accreditation|academic frameworks?/i, "Curriculum / Accreditation Framework Development"],
+  [/(design(ed|ing)?|deliver(ed|ing)?|training on).{0,30}(online|hybrid) course|online teaching training/i, "Online Course Design / Training"],
+  [/faculty development|teaching (excellence )?workshop attended|attended (the |a |an )?.*(workshop|seminar|webinar|training)/i, "Faculty Development Workshop"],
+  [/guest lecture|guest speaker|invited lecture/i, "Guest Lecture / Workshop"],
+];
+const GRANT_RE = /\bgrants?\b|funding|funded by/i;
+const OUTPUT_EVIDENCE_RE = /\b10\.\d{4,9}\/|\bdoi\b|\(\s*(19|20)\d{2}[a-z]?\s*[,)]|\bvol\.?\s*\d|\bpp\.?\s*\d/i;
+
+export type IcRoute = { route: "ic" | "ae" | "review"; activity_type: string | null; reason: string | null };
+
+export function routeIcOrAe(type: string | null | undefined, details: string | null | undefined): IcRoute {
+  const t = String(type || ""); const d = String(details || "");
+  const text = `${t} ${d}`;
+  const ae = AE_RULES.find(([re]) => re.test(text));
+  const looksLikeOutput = OUTPUT_EVIDENCE_RE.test(d);
+  if (ae) {
+    // A distinct output (DOI/citation) inside an activity row is ambiguous: review, never guess.
+    if (looksLikeOutput) return { route: "review", activity_type: ae[1], reason: `Looks like ${ae[1]} (Academic Engagement) but contains publication details — reviewer to decide IC vs AE.` };
+    return { route: "ae", activity_type: ae[1], reason: null };
+  }
+  if (GRANT_RE.test(t) || /\b(obtained|received|awarded|won).{0,40}grant/i.test(d)) {
+    return { route: "review", activity_type: "Competitive Research Grant", reason: "Grant: counts as IC only when competitiveness is confirmed by a reviewer (never automatic)." };
+  }
+  return { route: "ic", activity_type: null, reason: null };
+}
+
+function applyAeRouting(otherIcs: ReviewedRow<any>[], academicEngagement: ReviewedRow<any>[]) {
+  const keep: ReviewedRow<any>[] = [];
+  for (const row of otherIcs) {
+    if (row.status !== "ready" || !row.data) { keep.push(row); continue; }
+    const r = routeIcOrAe(row.data.original_cv_item_type, row.data.raw_text ?? row.data.apa_citation ?? row.data.title ?? row.raw);
+    if (r.route === "ae") {
+      academicEngagement.push({ ...row, section: "Academic Engagement Activities", data: { ...row.data, record_class: "academic_engagement", activity_type: r.activity_type, routed_from: row.section } });
+    } else if (r.route === "review") {
+      keep.push({ ...row, status: "needs_review", issues: [...row.issues, r.reason!], data: { ...row.data, activity_type: r.activity_type } });
+    } else keep.push(row);
+  }
+  return keep;
+}
+
 function extractIntellectualContributionReview(lines: string[]) {
   const sections = splitIcSections(lines);
 
   const prjs = sections.prjs ? extractPrjEntries(sections.prjs) : [];
   const books = sections.books ? extractBookLikeEntries(sections.books, "Book", "Books", "Books") : [];
   const chapters = sections.chapters ? extractBookLikeEntries(sections.chapters, "Chapter", "Chapters", "Chapters in Edited Books") : [];
-  const otherIcs = sections.other_ics ? extractOtherIcEntries(sections.other_ics, "Other Intellectual Contributions") : [];
   const academicEngagement = sections.academic_engagement ? extractOtherIcEntries(sections.academic_engagement, "Academic Engagement Activities") : [];
+  const otherIcs = applyAeRouting(sections.other_ics ? extractOtherIcEntries(sections.other_ics, "Other Intellectual Contributions") : [], academicEngagement);
 
   return { sections, prjs, books, chapters, otherIcs, academicEngagement };
 }
