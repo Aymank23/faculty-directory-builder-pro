@@ -15,6 +15,13 @@
       "when": 1794493946185,
       "tag": "0001_restrict_classification_policies_select",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1794509631071,
+      "tag": "0002_phase6_schoolwide_canonical_migration",
+      "breakpoints": true
     }
   ]
 }

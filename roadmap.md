@@ -18,4 +18,4 @@
 - [ ] Add Contribution / My Repository still write old records — needs your go-ahead (Phase 6 scope)
 - [ ] Pilot title/outlet clean-up before genuine verification — needs reviewer
 - [x] D-8 — fractional discipline allocation (approved provisional)
-- [ ] STOP — await approval before Phase 6 (school-wide)
+- [x] Phase 6 — school-wide canonicalisation (approved 12 Nov 2026): 1,505 legacy ICs linked, all new records Under Review

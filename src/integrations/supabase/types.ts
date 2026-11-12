@@ -303,6 +303,7 @@ export type Database = {
           impact_factor: string | null
           indexing_database: string | null
           journal_outlet: string | null
+          migration_batch: string | null
           original_cv_item_type: string | null
           quartile: string | null
           rejection_reason: string | null
@@ -334,6 +335,7 @@ export type Database = {
           impact_factor?: string | null
           indexing_database?: string | null
           journal_outlet?: string | null
+          migration_batch?: string | null
           original_cv_item_type?: string | null
           quartile?: string | null
           rejection_reason?: string | null
@@ -365,6 +367,7 @@ export type Database = {
           impact_factor?: string | null
           indexing_database?: string | null
           journal_outlet?: string | null
+          migration_batch?: string | null
           original_cv_item_type?: string | null
           quartile?: string | null
           rejection_reason?: string | null
@@ -788,6 +791,267 @@ export type Database = {
             referencedColumns: ["ic_id"]
           },
         ]
+      }
+      phase6_backup_canonical_ics: {
+        Row: {
+          abdc_rank: string | null
+          activity_type: string | null
+          admin_notes: string | null
+          apa_citation: string | null
+          authors: string | null
+          canonical_key: string | null
+          condition_note: string | null
+          created_at: string | null
+          created_by: string | null
+          doi: string | null
+          eligibility: string | null
+          evidence_file_url: string | null
+          evidence_status: string | null
+          historical_reporting_type: string | null
+          id: string | null
+          impact_factor: string | null
+          indexing_database: string | null
+          journal_outlet: string | null
+          original_cv_item_type: string | null
+          quartile: string | null
+          rejection_reason: string | null
+          scholarship_portfolio: string | null
+          title: string | null
+          total_authors: number | null
+          updated_at: string | null
+          verification_date: string | null
+          verification_status: string | null
+          verified_by: string | null
+          year: number | null
+        }
+        Insert: {
+          abdc_rank?: string | null
+          activity_type?: string | null
+          admin_notes?: string | null
+          apa_citation?: string | null
+          authors?: string | null
+          canonical_key?: string | null
+          condition_note?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          doi?: string | null
+          eligibility?: string | null
+          evidence_file_url?: string | null
+          evidence_status?: string | null
+          historical_reporting_type?: string | null
+          id?: string | null
+          impact_factor?: string | null
+          indexing_database?: string | null
+          journal_outlet?: string | null
+          original_cv_item_type?: string | null
+          quartile?: string | null
+          rejection_reason?: string | null
+          scholarship_portfolio?: string | null
+          title?: string | null
+          total_authors?: number | null
+          updated_at?: string | null
+          verification_date?: string | null
+          verification_status?: string | null
+          verified_by?: string | null
+          year?: number | null
+        }
+        Update: {
+          abdc_rank?: string | null
+          activity_type?: string | null
+          admin_notes?: string | null
+          apa_citation?: string | null
+          authors?: string | null
+          canonical_key?: string | null
+          condition_note?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          doi?: string | null
+          eligibility?: string | null
+          evidence_file_url?: string | null
+          evidence_status?: string | null
+          historical_reporting_type?: string | null
+          id?: string | null
+          impact_factor?: string | null
+          indexing_database?: string | null
+          journal_outlet?: string | null
+          original_cv_item_type?: string | null
+          quartile?: string | null
+          rejection_reason?: string | null
+          scholarship_portfolio?: string | null
+          title?: string | null
+          total_authors?: number | null
+          updated_at?: string | null
+          verification_date?: string | null
+          verification_status?: string | null
+          verified_by?: string | null
+          year?: number | null
+        }
+        Relationships: []
+      }
+      phase6_backup_ic_authors: {
+        Row: {
+          author_position: number | null
+          canonical_ic_id: string | null
+          confirmed_at: string | null
+          confirmed_by: string | null
+          created_at: string | null
+          department_snapshot: string | null
+          faculty_id: string | null
+          id: string | null
+          link_status: string | null
+          review_note: string | null
+        }
+        Insert: {
+          author_position?: number | null
+          canonical_ic_id?: string | null
+          confirmed_at?: string | null
+          confirmed_by?: string | null
+          created_at?: string | null
+          department_snapshot?: string | null
+          faculty_id?: string | null
+          id?: string | null
+          link_status?: string | null
+          review_note?: string | null
+        }
+        Update: {
+          author_position?: number | null
+          canonical_ic_id?: string | null
+          confirmed_at?: string | null
+          confirmed_by?: string | null
+          created_at?: string | null
+          department_snapshot?: string | null
+          faculty_id?: string | null
+          id?: string | null
+          link_status?: string | null
+          review_note?: string | null
+        }
+        Relationships: []
+      }
+      phase6_backup_intellectual_contributions: {
+        Row: {
+          abdc_rank: string | null
+          activity_type: string | null
+          admin_notes: string | null
+          apa_citation: string | null
+          authors: string | null
+          canonical_key: string | null
+          created_at: string | null
+          doi: string | null
+          evidence_file_url: string | null
+          evidence_status: string | null
+          faculty_id: string | null
+          ic_category: string | null
+          ic_id: string | null
+          ic_reporting_type: string | null
+          ic_type: string | null
+          impact_factor: string | null
+          indexing_database: string | null
+          journal_outlet: string | null
+          original_cv_item_type: string | null
+          quartile: string | null
+          reclassified_at: string | null
+          reclassified_by: string | null
+          record_class: string | null
+          rejection_reason: string | null
+          status: string | null
+          title: string | null
+          updated_at: string | null
+          verification_date: string | null
+          verification_status: string | null
+          verified_by: string | null
+          year: number | null
+        }
+        Insert: {
+          abdc_rank?: string | null
+          activity_type?: string | null
+          admin_notes?: string | null
+          apa_citation?: string | null
+          authors?: string | null
+          canonical_key?: string | null
+          created_at?: string | null
+          doi?: string | null
+          evidence_file_url?: string | null
+          evidence_status?: string | null
+          faculty_id?: string | null
+          ic_category?: string | null
+          ic_id?: string | null
+          ic_reporting_type?: string | null
+          ic_type?: string | null
+          impact_factor?: string | null
+          indexing_database?: string | null
+          journal_outlet?: string | null
+          original_cv_item_type?: string | null
+          quartile?: string | null
+          reclassified_at?: string | null
+          reclassified_by?: string | null
+          record_class?: string | null
+          rejection_reason?: string | null
+          status?: string | null
+          title?: string | null
+          updated_at?: string | null
+          verification_date?: string | null
+          verification_status?: string | null
+          verified_by?: string | null
+          year?: number | null
+        }
+        Update: {
+          abdc_rank?: string | null
+          activity_type?: string | null
+          admin_notes?: string | null
+          apa_citation?: string | null
+          authors?: string | null
+          canonical_key?: string | null
+          created_at?: string | null
+          doi?: string | null
+          evidence_file_url?: string | null
+          evidence_status?: string | null
+          faculty_id?: string | null
+          ic_category?: string | null
+          ic_id?: string | null
+          ic_reporting_type?: string | null
+          ic_type?: string | null
+          impact_factor?: string | null
+          indexing_database?: string | null
+          journal_outlet?: string | null
+          original_cv_item_type?: string | null
+          quartile?: string | null
+          reclassified_at?: string | null
+          reclassified_by?: string | null
+          record_class?: string | null
+          rejection_reason?: string | null
+          status?: string | null
+          title?: string | null
+          updated_at?: string | null
+          verification_date?: string | null
+          verification_status?: string | null
+          verified_by?: string | null
+          year?: number | null
+        }
+        Relationships: []
+      }
+      phase6_backup_legacy_ic_link: {
+        Row: {
+          canonical_ic_id: string | null
+          conflict_fields: Json | null
+          created_at: string | null
+          legacy_ic_id: string | null
+          match_method: string | null
+        }
+        Insert: {
+          canonical_ic_id?: string | null
+          conflict_fields?: Json | null
+          created_at?: string | null
+          legacy_ic_id?: string | null
+          match_method?: string | null
+        }
+        Update: {
+          canonical_ic_id?: string | null
+          conflict_fields?: Json | null
+          created_at?: string | null
+          legacy_ic_id?: string | null
+          match_method?: string | null
+        }
+        Relationships: []
       }
       professional_engagements: {
         Row: {

@@ -40,7 +40,7 @@ export default function FacultyDashboard({ profile, onEditProfile, archiveTitle 
 
   const ae = onlyAcademicEngagement(legacyIcTable);
   const legacyIcs = onlyIcs(legacyIcTable);
-  const migrated = (canonical?.ics.length || 0) > 0;
+  const migrated = true; // Phase 6: every profile uses the canonical model
   const icCount = migrated ? canonical!.ics.length : legacyIcs.length;
 
   const latestDegree = profile.highest_degree || [...quals].sort((a: any, b: any) => (b.year || 0) - (a.year || 0))[0]?.degree_certification;
