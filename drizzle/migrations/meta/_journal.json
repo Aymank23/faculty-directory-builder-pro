@@ -8,6 +8,13 @@
       "when": 1791301541959,
       "tag": "0000_cv_update_sync_and_warning_remediation",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1794493946185,
+      "tag": "0001_restrict_classification_policies_select",
+      "breakpoints": true
     }
   ]
 }
