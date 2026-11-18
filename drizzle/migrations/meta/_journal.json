@@ -22,6 +22,13 @@
       "when": 1794509631071,
       "tag": "0002_phase6_schoolwide_canonical_migration",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1794989587288,
+      "tag": "0003_review_change_request_static_sql",
+      "breakpoints": true
     }
   ]
 }
