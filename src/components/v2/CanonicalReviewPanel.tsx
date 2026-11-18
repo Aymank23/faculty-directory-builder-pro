@@ -3,7 +3,8 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
-import { fetchSchoolCanonical } from '@/lib/canonicalData';
+import { fetchSchoolCanonical, fetchArchivedCanonical } from '@/lib/canonicalData';
+import { restoreIc } from '@/lib/canonicalWrite';
 import { getEvidenceUrl } from '@/lib/evidence';
 import { Card, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -46,6 +47,7 @@ export default function CanonicalReviewPanel() {
     if (flag === 'links' && !authorsOf(ic.id).some((a) => a.link_status === 'proposed')) return false;
     if (flag === 'changes' && !pendingCr(ic.id).length) return false;
     if (flag === 'conditional' && ic.eligibility !== 'conditional') return false;
+    if (flag === 'removals' && !pendingCr(ic.id).some((c: any) => String(c.field).startsWith('__'))) return false;
     if (q && !`${ic.title} ${ic.doi || ''} ${authorsOf(ic.id).map((a) => name(a.faculty_id)).join(' ')}`.toLowerCase().includes(q.toLowerCase())) return false;
     return true;
   });
@@ -55,6 +57,7 @@ export default function CanonicalReviewPanel() {
     links: (data?.authors || []).filter((a) => a.link_status === 'proposed').length,
     changes: crs.filter((c: any) => c.status === 'pending').length,
     conditional: (data?.ics || []).filter((i) => i.eligibility === 'conditional' && i.verification_status === 'under_review').length,
+    removals: crs.filter((c: any) => c.status === 'pending' && String(c.field).startsWith('__')).length,
   };
 
   return (
@@ -65,10 +68,11 @@ export default function CanonicalReviewPanel() {
           Shared publications that feed Table 8.1. {isAdmin ? 'You are the final authority for co-author links and shared changes.' : isHod ? 'You can verify publications whose confirmed authors are all in your department, and recommend on proposals. Admin confirms co-authors and shared changes.' : ''}
         </p>
       </div>
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <button className="rounded-lg border p-3 text-left hover:border-primary" onClick={() => { setFlag('links'); setStatus('all'); }}><p className="text-xs text-muted-foreground">Proposed co-author links</p><p className="text-xl font-bold">{counts.links}</p></button>
         <button className="rounded-lg border p-3 text-left hover:border-primary" onClick={() => { setFlag('changes'); setStatus('all'); }}><p className="text-xs text-muted-foreground">Pending change proposals</p><p className="text-xl font-bold">{counts.changes}</p></button>
         <button className="rounded-lg border p-3 text-left hover:border-primary" onClick={() => { setFlag('conditional'); setStatus('under_review'); }}><p className="text-xs text-muted-foreground">Conditional classifications</p><p className="text-xl font-bold">{counts.conditional}</p></button>
+        <button className="rounded-lg border p-3 text-left hover:border-primary" onClick={() => { setFlag('removals'); setStatus('all'); }}><p className="text-xs text-muted-foreground">Removal requests</p><p className="text-xl font-bold">{counts.removals}</p></button>
       </div>
       <div className="flex flex-wrap gap-2">
         <Input className="w-64" placeholder="Search title, DOI, author" value={q} onChange={(e) => setQ(e.target.value)} />
@@ -78,7 +82,7 @@ export default function CanonicalReviewPanel() {
         </Select>
         <Select value={flag} onValueChange={setFlag}>
           <SelectTrigger className="w-56"><SelectValue /></SelectTrigger>
-          <SelectContent><SelectItem value="all">All publications</SelectItem><SelectItem value="links">With proposed co-authors</SelectItem><SelectItem value="changes">With pending changes</SelectItem><SelectItem value="conditional">Conditional classification</SelectItem></SelectContent>
+          <SelectContent><SelectItem value="all">All publications</SelectItem><SelectItem value="links">With proposed co-authors</SelectItem><SelectItem value="changes">With pending changes</SelectItem><SelectItem value="conditional">Conditional classification</SelectItem><SelectItem value="removals">Removal requests</SelectItem></SelectContent>
         </Select>
       </div>
       <Card>
@@ -108,6 +112,8 @@ export default function CanonicalReviewPanel() {
           </Table>
         </CardContent>
       </Card>
+
+      {isAdmin && <ArchivedList onDone={refresh} />}
 
       <Dialog open={!!open} onOpenChange={(o) => !o && setOpenId(null)}>
         <DialogContent className="max-w-3xl max-h-[88vh] overflow-y-auto">
@@ -181,7 +187,9 @@ function ReviewBody({ ic, authors, crs, name, isAdmin, isHod, onDone }: any) {
           <h3 className="font-semibold text-sm">Change proposals</h3>
           {crs.map((c: any) => (
             <div key={c.id} className="rounded border p-2 text-sm space-y-1">
-              <div><span className="font-medium">{c.field}</span>: <span className="line-through text-muted-foreground">{c.old_value || '—'}</span> → {c.new_value || '—'}</div>
+              {c.field === '__archive' ? <div className="font-medium">Request: remove (archive) this publication</div>
+               : c.field === '__remove_author' ? <div className="font-medium">Request: remove {name(c.new_value)} as author (co-authors keep the publication)</div>
+               : <div><span className="font-medium">{c.field}</span>: <span className="line-through text-muted-foreground">{c.old_value || '—'}</span> → {c.new_value || '—'}</div>}
               <div className="text-xs text-muted-foreground">Proposed by {name(c.proposed_by) === 'Faculty outside your scope' ? 'a linked author' : name(c.proposed_by)} · {c.reason || 'no reason given'} · <Badge variant="outline" className="text-[10px]">{c.status}</Badge>{c.hod_recommendation && ` · HoD recommends ${c.hod_recommendation}`}</div>
               {c.status === 'pending' && (
                 <div className="flex gap-1">
@@ -225,5 +233,26 @@ function ReviewBody({ ic, authors, crs, name, isAdmin, isHod, onDone }: any) {
         ))}
       </section>
     </div>
+  );
+}
+
+function ArchivedList({ onDone }: { onDone: () => void }) {
+  const qc = useQueryClient();
+  const { data = [] } = useQuery({ queryKey: ['v2-archived'], queryFn: fetchArchivedCanonical });
+  if (!data.length) return null;
+  const restore = async (id: string) => {
+    try { await restoreIc(id); toast.success('Publication restored'); qc.invalidateQueries({ queryKey: ['v2-archived'] }); onDone(); }
+    catch (e) { toast.error(errMsg(e)); }
+  };
+  return (
+    <Card><CardContent className="p-4 space-y-2">
+      <h3 className="font-semibold text-sm">Archived publications ({data.length}) — not counted anywhere</h3>
+      {data.map((ic) => (
+        <div key={ic.id} className="flex items-center justify-between rounded border p-2 text-sm">
+          <span>{ic.title} <span className="text-xs text-muted-foreground">{ic.year} · {ic.archive_reason || 'no reason'} · {new Date(ic.archived_at).toLocaleDateString()}</span></span>
+          <Button size="sm" variant="outline" onClick={() => restore(ic.id)}><RotateCcw className="h-4 w-4 mr-1" /> Restore</Button>
+        </div>
+      ))}
+    </CardContent></Card>
   );
 }

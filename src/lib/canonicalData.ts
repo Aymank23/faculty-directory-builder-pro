@@ -8,7 +8,7 @@ export async function fetchFacultyCanonical(facultyId: string) {
   const ids = [...new Set((mine || []).map((r: any) => r.canonical_ic_id))];
   if (!ids.length) return { ics: [] as CanonicalIc[], authors: [] as IcAuthor[] };
   const [{ data: ics }, { data: authors }] = await Promise.all([
-    supabase.from('canonical_ics').select('*').in('id', ids).order('year', { ascending: false }),
+    supabase.from('canonical_ics').select('*').in('id', ids).is('archived_at', null).order('year', { ascending: false }),
     supabase.from('ic_authors').select('*').in('canonical_ic_id', ids),
   ]);
   return { ics: (ics || []) as CanonicalIc[], authors: (authors || []) as IcAuthor[] };
@@ -31,7 +31,14 @@ export async function fetchSchoolCanonical() {
     fetchAll('ic_authors'),
     fetchAll('faculty_profiles'),
   ]);
-  return { ics: ics as CanonicalIc[], authors: authors as IcAuthor[], faculty };
+  // Archived publications never feed dashboards, Table 8.1 or exports.
+  return { ics: (ics as CanonicalIc[]).filter((i) => !i.archived_at), authors: authors as IcAuthor[], faculty };
+}
+
+/** Admin view: archived publications (restorable). */
+export async function fetchArchivedCanonical() {
+  const { data } = await supabase.from('canonical_ics').select('*').not('archived_at', 'is', null).order('archived_at', { ascending: false });
+  return (data || []) as CanonicalIc[];
 }
 
 /** Fields that describe the shared publication (edits need a proposal when 2+ AKSOB authors). */

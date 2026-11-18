@@ -29,6 +29,20 @@
       "when": 1794989587288,
       "tag": "0003_review_change_request_static_sql",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1794990074626,
+      "tag": "0004_ic_archive_and_coauthor_suggestions",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1794990101050,
+      "tag": "0005_aksob_author_directory_lookup",
+      "breakpoints": true
     }
   ]
 }

@@ -68,6 +68,7 @@ export type IcAuthor = {
 
 /** Why an IC is (not) in Table 8.1 — surfaced in the UI so nothing silently disappears. */
 export function ineligibilityReason(ic: CanonicalIc): string | null {
+  if (ic.archived_at) return 'Archived';
   if (ic.verification_status !== 'verified') return ic.verification_status === 'excluded' ? 'Excluded' : 'Under Review';
   if (ic.eligibility === 'exclude') return 'Excluded by crosswalk';
   if (ic.eligibility !== 'include') return 'Conditional — unresolved';

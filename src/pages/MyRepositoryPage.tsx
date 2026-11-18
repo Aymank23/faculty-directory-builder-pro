@@ -18,6 +18,7 @@ import { quartiles } from '@/lib/constants';
 import { toast } from 'sonner';
 import { getEvidenceUrl } from '@/lib/evidence';
 import * as XLSX from 'xlsx';
+import { CoAuthorsButton, RemoveIcButton } from '@/components/v2/IcAuthorsAndRemoval';
 import { fetchFacultyCanonical, SHARED_FIELDS } from '@/lib/canonicalData';
 import { HISTORICAL_TYPES, PORTFOLIOS, confirmedAuthors, deriveTable81Type, normalizePortfolio } from '@/lib/table81';
 import { VERIFICATION_STATUS_LABELS } from '@/lib/icTaxonomy';
@@ -256,9 +257,10 @@ const MyRepositoryPage = () => {
                                 <Button variant="ghost" size="sm" aria-label="Upload evidence" onClick={() => { setUploadFor(ic.id); fileRef.current?.click(); }}><Upload className="h-3.5 w-3.5" /></Button>
                               )}
                               <Button variant="ghost" size="sm" aria-label="Edit" onClick={() => openEdit(ic)}><Pencil className="h-3.5 w-3.5" /></Button>
-                              {link?.link_status === 'proposed' && (
+                              {profile && <CoAuthorsButton ic={ic} facultyId={profile.faculty_id} />}
+                              {link?.link_status === 'proposed' && authors.some((a) => a.canonical_ic_id === ic.id && a.faculty_id !== profile?.faculty_id && a.link_status !== 'rejected') ? (
                                 <Button variant="ghost" size="sm" aria-label="Remove me" onClick={() => handleWithdraw(ic)} className="text-destructive hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></Button>
-                              )}
+                              ) : profile && <RemoveIcButton ic={ic} facultyId={profile.faculty_id} shared={isShared(ic.id)} />}
                             </div>
                           </TableCell>
                         </TableRow>

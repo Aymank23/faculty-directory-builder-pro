@@ -21,6 +21,7 @@ import {
 import { VERIFICATION_STATUS_LABELS } from '@/lib/icTaxonomy';
 import { findCanonicalMatches, submitCanonicalContribution, saveCanonicalEdit, friendlyWriteError, type CanonicalMatch } from '@/lib/canonicalWrite';
 import DuplicateMatchDialog from '@/components/v2/DuplicateMatchDialog';
+import { CoAuthorsButton, RemoveIcButton } from '@/components/v2/IcAuthorsAndRemoval';
 
 const fmt = (n: number) => (n ? n.toFixed(2) : '—');
 
@@ -144,7 +145,7 @@ export default function IcCanonicalTab({ facultyId, department }: { facultyId: s
                   <TableHead>IC Reporting Type</TableHead><TableHead className="text-right">Total Authors</TableHead>
                   <TableHead className="text-right">AKSOB Authors</TableHead><TableHead className="text-right">Same-Dept AKSOB</TableHead>
                   <TableHead className="text-right">School Pts</TableHead><TableHead className="text-right">Dept Pts</TableHead>
-                  <TableHead>Status</TableHead><TableHead className="w-12" />
+                  <TableHead>Status</TableHead><TableHead className="w-32" />
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -181,7 +182,11 @@ export default function IcCanonicalTab({ facultyId, department }: { facultyId: s
                         {reasonTxt && reasonTxt !== 'Under Review' && reasonTxt !== 'Excluded' && <div className="text-[11px] text-muted-foreground mt-1">{reasonTxt}</div>}
                       </TableCell>
                       <TableCell>
-                        <Button variant="ghost" size="sm" aria-label="Edit contribution" onClick={() => open(ic)}><Pencil className="h-3.5 w-3.5" /></Button>
+                        <div className="flex gap-1">
+                          <Button variant="ghost" size="sm" aria-label="Edit contribution" onClick={() => open(ic)}><Pencil className="h-3.5 w-3.5" /></Button>
+                          <CoAuthorsButton ic={ic} facultyId={facultyId} />
+                          <RemoveIcButton ic={ic} facultyId={facultyId} shared={p.aksobAuthors > 1} />
+                        </div>
                       </TableCell>
                     </TableRow>
                   );

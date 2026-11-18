@@ -289,6 +289,9 @@ export type Database = {
           activity_type: string | null
           admin_notes: string | null
           apa_citation: string | null
+          archive_reason: string | null
+          archived_at: string | null
+          archived_by: string | null
           authors: string | null
           canonical_key: string | null
           condition_note: string | null
@@ -321,6 +324,9 @@ export type Database = {
           activity_type?: string | null
           admin_notes?: string | null
           apa_citation?: string | null
+          archive_reason?: string | null
+          archived_at?: string | null
+          archived_by?: string | null
           authors?: string | null
           canonical_key?: string | null
           condition_note?: string | null
@@ -353,6 +359,9 @@ export type Database = {
           activity_type?: string | null
           admin_notes?: string | null
           apa_citation?: string | null
+          archive_reason?: string | null
+          archived_at?: string | null
+          archived_by?: string | null
           authors?: string | null
           canonical_key?: string | null
           condition_note?: string | null
@@ -1301,6 +1310,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_restore_canonical_ic: {
+        Args: { _id: string; _note?: string }
+        Returns: undefined
+      }
       attach_canonical_evidence: {
         Args: { _id: string; _path: string }
         Returns: undefined
@@ -1372,12 +1385,28 @@ export type Database = {
         Returns: boolean
       }
       hod_can_review_ic: { Args: { _id: string }; Returns: boolean }
+      ic_author_directory: {
+        Args: { _ic_id: string }
+        Returns: {
+          department: string
+          discipline: string
+          faculty_id: string
+          full_name: string
+          link_id: string
+          link_status: string
+          review_note: string
+        }[]
+      }
       is_admin: { Args: never; Returns: boolean }
       is_cv_noise: { Args: { v: string }; Returns: boolean }
       is_hod: { Args: never; Returns: boolean }
       norm_doi: { Args: { v: string }; Returns: string }
       norm_text: { Args: { v: string }; Returns: string }
       norm_title_key: { Args: { v: string }; Returns: string }
+      request_ic_removal: {
+        Args: { _faculty_id: string; _id: string; _reason?: string }
+        Returns: string
+      }
       review_author_link: {
         Args: { _decision: string; _link_id: string; _note?: string }
         Returns: undefined
@@ -1385,6 +1414,16 @@ export type Database = {
       review_change_request: {
         Args: { _decision: string; _id: string; _note?: string }
         Returns: undefined
+      }
+      search_aksob_faculty: {
+        Args: { _q: string }
+        Returns: {
+          department: string
+          discipline: string
+          faculty_id: string
+          first_name: string
+          last_name: string
+        }[]
       }
       set_canonical_verification: {
         Args: {
@@ -1403,6 +1442,10 @@ export type Database = {
           _payload: Json
         }
         Returns: string
+      }
+      suggest_canonical_coauthor: {
+        Args: { _faculty_id: string; _ic_id: string; _note?: string }
+        Returns: undefined
       }
     }
     Enums: {

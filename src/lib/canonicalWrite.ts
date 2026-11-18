@@ -81,3 +81,23 @@ export function friendlyWriteError(e: any): string {
   if (m.includes('NOT_PERMITTED')) return 'You are not allowed to do this.';
   return m || 'Save failed';
 }
+
+/** Remove: single-author unreviewed ICs are archived at once; shared or verified ones become admin requests. */
+export async function requestIcRemoval(icId: string, facultyId: string, reason?: string) {
+  const { data, error } = await supabase.rpc('request_ic_removal' as any, { _id: icId, _faculty_id: facultyId, _reason: reason || null });
+  if (error) throw error;
+  return data as 'archived' | 'requested' | 'already_requested';
+}
+export async function restoreIc(icId: string, note?: string) {
+  const { error } = await supabase.rpc('admin_restore_canonical_ic' as any, { _id: icId, _note: note || null });
+  if (error) throw error;
+}
+export async function searchAksobFaculty(q: string) {
+  const { data, error } = await supabase.rpc('search_aksob_faculty' as any, { _q: q });
+  if (error) throw error;
+  return (data || []) as { faculty_id: string; first_name: string; last_name: string; department: string | null; discipline: string | null }[];
+}
+export async function suggestCoauthor(icId: string, facultyId: string, note?: string) {
+  const { error } = await supabase.rpc('suggest_canonical_coauthor' as any, { _ic_id: icId, _faculty_id: facultyId, _note: note || null });
+  if (error) throw error;
+}
